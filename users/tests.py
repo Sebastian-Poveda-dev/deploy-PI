@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.contrib.auth.models import Group
 from django.conf import settings
 from django.apps import apps
+from django.urls import reverse
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
@@ -82,3 +83,52 @@ class DefaultGroupsTest(TestCase):
         expected = ['admin', 'advisor', 'professor', 'student', 'beneficiary']
         existing = Group.objects.filter(name__in=expected).count()
         self.assertEqual(existing, len(expected))
+
+
+class LoginAuthenticationTest(TestCase):
+    """Tests for username/password authentication flow."""
+
+    def setUp(self):
+        self.login_url = reverse('users:login')
+        self.username = 'authuser'
+        self.password = 'StrongPass123'
+        self.user = User.objects.create_user(
+            username=self.username,
+            password=self.password,
+        )
+
+    def test_successful_login_with_valid_credentials(self):
+        response = self.client.post(
+            self.login_url,
+            data={'username': self.username, 'password': self.password},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['authenticated'], True)
+
+    def test_login_fails_with_incorrect_password(self):
+        response = self.client.post(
+            self.login_url,
+            data={'username': self.username, 'password': 'wrong-password'},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()['authenticated'], False)
+
+    def test_login_fails_with_non_existing_user(self):
+        response = self.client.post(
+            self.login_url,
+            data={'username': 'missing-user', 'password': 'pass1234'},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()['authenticated'], False)
+
+    def test_authenticated_user_is_recognized_as_logged_in(self):
+        self.client.post(
+            self.login_url,
+            data={'username': self.username, 'password': self.password},
+        )
+
+        self.assertIn('_auth_user_id', self.client.session)
+        self.assertEqual(self.client.session['_auth_user_id'], str(self.user.pk))
