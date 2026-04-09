@@ -130,5 +130,5 @@ class LoginAuthenticationTest(TestCase):
             data={'username': self.username, 'password': self.password},
         )
 
-        self.assertIn('_auth_user_id', self.client.session)
-        self.assertEqual(self.client.session['_auth_user_id'], str(self.user.pk))
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+        self.assertEqual(response.wsgi_request.user, self.user)
