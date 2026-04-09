@@ -4,6 +4,8 @@ from django.conf import settings
 from django.apps import apps
 from django.urls import reverse
 
+from .services import admin_create_user, assign_role
+
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
 
@@ -49,7 +51,7 @@ class RoleAssignmentTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username='roleuser', password='pass1234')
-        self.group = Group.objects.create(name='student')
+        self.group, _ = Group.objects.get_or_create(name='student')
 
     def test_assign_role_to_user(self):
         self.user.groups.add(self.group)
@@ -63,7 +65,7 @@ class RoleAssignmentTest(TestCase):
         self.assertFalse(self.user.groups.filter(name='student').exists())
 
     def test_user_can_have_multiple_roles(self):
-        advisor = Group.objects.create(name='advisor')
+        advisor, _ = Group.objects.get_or_create(name='advisor')
         self.user.groups.add(self.group, advisor)
         self.assertEqual(self.user.groups.count(), 2)
 
@@ -125,10 +127,82 @@ class LoginAuthenticationTest(TestCase):
         self.assertEqual(response.json()['authenticated'], False)
 
     def test_authenticated_user_is_recognized_as_logged_in(self):
-        self.client.post(
+        response = self.client.post(
             self.login_url,
             data={'username': self.username, 'password': self.password},
         )
 
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertEqual(response.wsgi_request.user, self.user)
+
+
+class SelfRegistrationTest(TestCase):
+    """Tests for beneficiary self-registration flow."""
+
+    def setUp(self):
+        self.register_url = reverse('users:register')
+
+    def test_beneficiary_can_register_successfully(self):
+        response = self.client.post(self.register_url, data={
+            'username': 'newuser',
+            'password': 'StrongPass123',
+            'residence_address': '123 Main St',
+            'phone_number': '555-1234',
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['registered'], True)
+        self.assertTrue(User.objects.filter(username='newuser').exists())
+
+    def test_registered_user_has_beneficiary_role(self):
+        self.client.post(self.register_url, data={
+            'username': 'newuser',
+            'password': 'StrongPass123',
+            'residence_address': '123 Main St',
+            'phone_number': '555-1234',
+        })
+        user = User.objects.get(username='newuser')
+        self.assertTrue(user.groups.filter(name='beneficiary').exists())
+
+    def test_user_cannot_self_assign_different_role(self):
+        self.client.post(self.register_url, data={
+            'username': 'newuser',
+            'password': 'StrongPass123',
+            'residence_address': '123 Main St',
+            'phone_number': '555-1234',
+            'role': 'admin',
+        })
+        user = User.objects.get(username='newuser')
+        self.assertFalse(user.groups.filter(name='admin').exists())
+        self.assertTrue(user.groups.filter(name='beneficiary').exists())
+
+    def test_registration_fails_without_required_fields(self):
+        response = self.client.post(self.register_url, data={
+            'username': 'newuser',
+            'password': 'StrongPass123',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.filter(username='newuser').exists())
+
+
+class AdminUserCreationTest(TestCase):
+    """Tests for admin-driven user creation flow."""
+
+    def test_admin_can_create_user_with_role(self):
+        user = admin_create_user('student1', 'pass1234', 'student')
+        self.assertIsNotNone(user)
+        self.assertTrue(User.objects.filter(username='student1').exists())
+
+    def test_created_user_has_correct_role(self):
+        user = admin_create_user('professor1', 'pass1234', 'professor')
+        self.assertTrue(user.groups.filter(name='professor').exists())
+
+    def test_created_user_has_only_one_role(self):
+        user = admin_create_user('advisor1', 'pass1234', 'advisor')
+        self.assertEqual(user.groups.count(), 1)
+
+    def test_role_reassignment_removes_previous_role(self):
+        user = admin_create_user('user1', 'pass1234', 'student')
+        assign_role(user, 'advisor')
+        self.assertFalse(user.groups.filter(name='student').exists())
+        self.assertTrue(user.groups.filter(name='advisor').exists())
+        self.assertEqual(user.groups.count(), 1)
