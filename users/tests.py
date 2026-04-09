@@ -49,7 +49,7 @@ class RoleAssignmentTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username='roleuser', password='pass1234')
-        self.group = Group.objects.create(name='student')
+        self.group, _ = Group.objects.get_or_create(name='student')
 
     def test_assign_role_to_user(self):
         self.user.groups.add(self.group)
@@ -63,7 +63,7 @@ class RoleAssignmentTest(TestCase):
         self.assertFalse(self.user.groups.filter(name='student').exists())
 
     def test_user_can_have_multiple_roles(self):
-        advisor = Group.objects.create(name='advisor')
+        advisor, _ = Group.objects.get_or_create(name='advisor')
         self.user.groups.add(self.group, advisor)
         self.assertEqual(self.user.groups.count(), 2)
 
