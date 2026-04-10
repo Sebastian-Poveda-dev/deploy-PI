@@ -1,3 +1,246 @@
 from django.test import TestCase
+from django.conf import settings
+from django.apps import apps
 
-# Create your tests here.
+from cases.models import Case, Category, Subclinic
+from cases.services import create_case, create_case_log, get_case_logs, update_case
+from users.services import assign_role
+
+User = apps.get_model(settings.AUTH_USER_MODEL)
+
+
+class CreateCaseTest(TestCase):
+    """Tests for role-based case creation logic."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='civil')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin1', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor1', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.professor = User.objects.create_user(username='professor1', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.student = User.objects.create_user(username='student1', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary1', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+    # --- Role-based status assignment ---
+
+    def test_admin_creates_case_with_active_status(self):
+        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        self.assertEqual(case.status.name, 'active')
+
+    def test_advisor_creates_case_with_active_status(self):
+        case = create_case(self.advisor, 'description', self.category, self.subclinic)
+        self.assertEqual(case.status.name, 'active')
+
+    def test_professor_creates_case_with_active_status(self):
+        case = create_case(self.professor, 'description', self.category, self.subclinic)
+        self.assertEqual(case.status.name, 'active')
+
+    def test_student_creates_case_with_pending_authorization_status(self):
+        case = create_case(self.student, 'description', self.category, self.subclinic)
+        self.assertEqual(case.status.name, 'pending_authorization')
+
+    def test_beneficiary_cannot_create_case(self):
+        with self.assertRaises(PermissionError):
+            create_case(self.beneficiary, 'description', self.category, self.subclinic)
+
+    # --- Case field linkage ---
+
+    def test_case_is_linked_to_creator(self):
+        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        self.assertEqual(case.created_by, self.admin)
+
+    def test_case_is_linked_to_category(self):
+        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        self.assertEqual(case.category, self.category)
+
+    def test_case_is_linked_to_subclinic(self):
+        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        self.assertEqual(case.subclinic, self.subclinic)
+
+    # --- Creator assignment and log ---
+
+    def test_creator_is_automatically_assigned_to_case(self):
+        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        self.assertTrue(case.users.filter(pk=self.admin.pk).exists())
+
+    def test_initial_log_is_created(self):
+        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        self.assertTrue(case.logs.filter(content__icontains='Case created by').exists())
+
+    def test_case_is_persisted_to_database(self):
+        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        self.assertIsNotNone(case.pk)
+        self.assertTrue(Case.objects.filter(pk=case.pk).exists())
+
+
+class CaseLogServiceTest(TestCase):
+    """Tests for case log creation and retrieval rules."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='family')
+        self.category, _ = Category.objects.get_or_create(name='civil')
+
+        self.admin = User.objects.create_user(username='admin_logs', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_logs', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.professor = User.objects.create_user(username='professor_logs', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.student = User.objects.create_user(username='student_logs', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_logs', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.other_student = User.objects.create_user(username='other_student_logs', password='pass')
+        assign_role(self.other_student, 'student')
+
+        self.case = create_case(self.student, 'Case for logs', self.category, self.subclinic)
+        self.case.users.add(self.professor)
+
+    def test_valid_roles_can_create_case_log(self):
+        valid_users = [self.student, self.professor, self.advisor, self.admin]
+
+        for index, user in enumerate(valid_users, start=1):
+            log = create_case_log(user, self.case, f'Log from {user.username} #{index}')
+            self.assertEqual(log.user, user)
+            self.assertEqual(log.case, self.case)
+
+    def test_beneficiary_cannot_create_case_log(self):
+        self.case.users.add(self.beneficiary)
+
+        with self.assertRaises(PermissionError):
+            create_case_log(self.beneficiary, self.case, 'I should not be able to log')
+
+    def test_unassigned_non_privileged_user_cannot_create_case_log(self):
+        with self.assertRaises(PermissionError):
+            create_case_log(self.other_student, self.case, 'Not assigned to case')
+
+    def test_log_is_associated_with_case(self):
+        log = create_case_log(self.student, self.case, 'Progress update')
+        self.assertTrue(self.case.logs.filter(pk=log.pk).exists())
+
+    def test_logs_are_returned_in_chronological_order(self):
+        first = create_case_log(self.professor, self.case, 'First feedback')
+        second = create_case_log(self.student, self.case, 'Second update')
+        third = create_case_log(self.advisor, self.case, 'Third note')
+
+        logs = list(get_case_logs(self.case))
+        self.assertGreaterEqual(len(logs), 3)
+        self.assertEqual([logs[-3].pk, logs[-2].pk, logs[-1].pk], [first.pk, second.pk, third.pk])
+
+    def test_privileged_role_can_log_without_being_assigned(self):
+        # advisor and admin are not assigned to the case (only student and professor are)
+        self.assertFalse(self.case.users.filter(pk=self.advisor.pk).exists())
+        self.assertFalse(self.case.users.filter(pk=self.admin.pk).exists())
+
+        advisor_log = create_case_log(self.advisor, self.case, 'Advisor note without assignment')
+        admin_log = create_case_log(self.admin, self.case, 'Admin note without assignment')
+
+        self.assertEqual(advisor_log.case, self.case)
+        self.assertEqual(admin_log.case, self.case)
+
+    def test_log_content_cannot_be_empty(self):
+        with self.assertRaises(ValueError):
+            create_case_log(self.student, self.case, '   ')
+
+
+class UpdateCaseTest(TestCase):
+    """Tests for role-based case update logic."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='criminal')
+        self.new_subclinic = Subclinic.objects.create(name='update_civil')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+        self.new_category, _ = Category.objects.get_or_create(name='penal')
+
+        self.admin = User.objects.create_user(username='admin_upd', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_upd', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.professor = User.objects.create_user(username='professor_upd', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.student = User.objects.create_user(username='student_upd', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_upd', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.other_student = User.objects.create_user(username='other_student_upd', password='pass')
+        assign_role(self.other_student, 'student')
+
+        # student is creator (auto-assigned); professor is explicitly added
+        self.case = create_case(self.student, 'Original description', self.category, self.subclinic)
+        self.case.users.add(self.professor)
+
+    # --- Access control ---
+
+    def test_assigned_user_can_update_case(self):
+        updated = update_case(self.case, self.student, {'description': 'Updated by student'})
+        self.assertEqual(updated.description, 'Updated by student')
+
+    def test_admin_can_update_case_without_being_assigned(self):
+        self.assertFalse(self.case.users.filter(pk=self.admin.pk).exists())
+        updated = update_case(self.case, self.admin, {'description': 'Updated by admin'})
+        self.assertEqual(updated.description, 'Updated by admin')
+
+    def test_advisor_can_update_case_without_being_assigned(self):
+        self.assertFalse(self.case.users.filter(pk=self.advisor.pk).exists())
+        updated = update_case(self.case, self.advisor, {'description': 'Updated by advisor'})
+        self.assertEqual(updated.description, 'Updated by advisor')
+
+    def test_non_assigned_user_cannot_update_case(self):
+        with self.assertRaises(PermissionError):
+            update_case(self.case, self.other_student, {'description': 'Should not work'})
+
+    def test_beneficiary_cannot_update_case(self):
+        with self.assertRaises(PermissionError):
+            update_case(self.case, self.beneficiary, {'description': 'Should not work'})
+
+    # --- Field update rules ---
+
+    def test_allowed_fields_are_updated(self):
+        updated = update_case(self.case, self.student, {
+            'description': 'New description',
+            'category': self.new_category,
+            'subclinic': self.new_subclinic,
+        })
+        self.assertEqual(updated.description, 'New description')
+        self.assertEqual(updated.category, self.new_category)
+        self.assertEqual(updated.subclinic, self.new_subclinic)
+
+    def test_disallowed_fields_are_not_modified(self):
+        original_status = self.case.status
+        original_creator = self.case.created_by
+
+        update_case(self.case, self.student, {
+            'description': 'New description',
+            'status': None,
+            'created_by': self.admin,
+        })
+
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.status, original_status)
+        self.assertEqual(self.case.created_by, original_creator)
+
+    # --- Audit log ---
+
+    def test_case_log_is_created_after_update(self):
+        update_case(self.case, self.student, {'description': 'Updated'})
+        self.assertTrue(self.case.logs.filter(content__icontains='Case updated by').exists())
