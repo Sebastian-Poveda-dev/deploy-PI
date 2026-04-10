@@ -10,6 +10,10 @@ ROLE_STATUS_MAP = {
 CASE_LOG_ALLOWED_ROLES = {'admin', 'advisor', 'professor', 'student'}
 CASE_LOG_PRIVILEGED_ROLES = {'admin', 'advisor'}
 
+CASE_UPDATE_ALLOWED_ROLES = {'admin', 'advisor', 'professor', 'student'}
+CASE_UPDATE_PRIVILEGED_ROLES = {'admin', 'advisor'}
+CASE_UPDATE_ALLOWED_FIELDS = {'description', 'category', 'subclinic'}
+
 
 def create_case(user, description, category, subclinic):
     """
@@ -68,3 +72,41 @@ def create_case_log(user, case, content):
 
 def get_case_logs(case):
     return case.logs.order_by('created_at', 'pk')
+
+
+def update_case(case, user, data):
+    """
+    Update allowed fields of a case on behalf of a user.
+
+    Access rules:
+      admin / advisor → always allowed
+      assigned user (non-beneficiary) → allowed
+      beneficiary / unassigned non-privileged → PermissionError
+
+    Only description, category, and subclinic may be changed.
+    All other keys in data are silently ignored.
+    """
+    role = user.groups.values_list('name', flat=True).first()
+
+    if role not in CASE_UPDATE_ALLOWED_ROLES:
+        raise PermissionError(f"Users with role '{role}' cannot update cases.")
+
+    is_privileged = role in CASE_UPDATE_PRIVILEGED_ROLES
+    is_assigned = case.users.filter(pk=user.pk).exists()
+
+    if not is_privileged and not is_assigned:
+        raise PermissionError(f"User '{user.username}' is not assigned to this case.")
+
+    for field, value in data.items():
+        if field in CASE_UPDATE_ALLOWED_FIELDS:
+            setattr(case, field, value)
+
+    case.save()
+
+    CaseLog.objects.create(
+        case=case,
+        user=user,
+        content=f'Case updated by {user.username}',
+    )
+
+    return case
