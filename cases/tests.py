@@ -142,6 +142,17 @@ class CaseLogServiceTest(TestCase):
         self.assertGreaterEqual(len(logs), 3)
         self.assertEqual([logs[-3].pk, logs[-2].pk, logs[-1].pk], [first.pk, second.pk, third.pk])
 
+    def test_privileged_role_can_log_without_being_assigned(self):
+        # advisor and admin are not assigned to the case (only student and professor are)
+        self.assertFalse(self.case.users.filter(pk=self.advisor.pk).exists())
+        self.assertFalse(self.case.users.filter(pk=self.admin.pk).exists())
+
+        advisor_log = create_case_log(self.advisor, self.case, 'Advisor note without assignment')
+        admin_log = create_case_log(self.admin, self.case, 'Admin note without assignment')
+
+        self.assertEqual(advisor_log.case, self.case)
+        self.assertEqual(admin_log.case, self.case)
+
     def test_log_content_cannot_be_empty(self):
         with self.assertRaises(ValueError):
             create_case_log(self.student, self.case, '   ')
