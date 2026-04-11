@@ -224,3 +224,83 @@ class GetCaseDocumentsTest(TestCase):
     def test_empty_list_returned_when_case_has_no_documents(self):
         docs = list(get_case_documents(case=self.case, user=self.student))
         self.assertEqual(docs, [])
+
+
+class DownloadDocumentTest(TestCase):
+    """Tests for role-based document download logic."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='penal')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_dl', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_dl', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.student = User.objects.create_user(username='student_dl', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_dl', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.other_student = User.objects.create_user(username='other_student_dl', password='pass')
+        assign_role(self.other_student, 'student')
+
+        self.case = create_case(self.student, 'Case for download', self.category, self.subclinic)
+
+        self.file_content = b'test file content for download'
+        self.doc = upload_document(
+            case=self.case,
+            user=self.student,
+            file=SimpleUploadedFile('contract.pdf', self.file_content, content_type='application/pdf'),
+            name='Contract',
+            description='A test contract',
+        )
+
+    # --- Access control ---
+
+    def test_assigned_user_can_download_document(self):
+        response = download_document(self.doc.pk, self.student)
+        self.assertIsNotNone(response)
+        response.close()
+
+    def test_admin_can_download_document_without_being_assigned(self):
+        self.assertFalse(self.case.users.filter(pk=self.admin.pk).exists())
+        response = download_document(self.doc.pk, self.admin)
+        self.assertIsNotNone(response)
+        response.close()
+
+    def test_advisor_can_download_document_without_being_assigned(self):
+        self.assertFalse(self.case.users.filter(pk=self.advisor.pk).exists())
+        response = download_document(self.doc.pk, self.advisor)
+        self.assertIsNotNone(response)
+        response.close()
+
+    def test_non_assigned_user_cannot_download_document(self):
+        with self.assertRaises(PermissionError):
+            download_document(self.doc.pk, self.other_student)
+
+    def test_beneficiary_cannot_download_document(self):
+        with self.assertRaises(PermissionError):
+            download_document(self.doc.pk, self.beneficiary)
+
+    # --- File response ---
+
+    def test_download_returns_file_response(self):
+        from django.http import FileResponse
+        response = download_document(self.doc.pk, self.student)
+        self.assertIsInstance(response, FileResponse)
+        response.close()
+
+    def test_correct_file_content_is_returned(self):
+        response = download_document(self.doc.pk, self.student)
+        content = b''.join(response.streaming_content)
+        self.assertEqual(content, self.file_content)
+
+    # --- Error handling ---
+
+    def test_nonexistent_document_raises_error(self):
+        with self.assertRaises(Document.DoesNotExist):
+            download_document(99999, self.student)
