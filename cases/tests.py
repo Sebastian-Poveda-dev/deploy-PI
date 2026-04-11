@@ -3,7 +3,7 @@ from django.conf import settings
 from django.apps import apps
 
 from cases.models import Case, Category, Subclinic
-from cases.services import create_case, create_case_log, get_case_logs, update_case, approve_case
+from cases.services import create_case, create_case_log, get_case_logs, update_case, approve_case, reject_case_assignment
 from users.services import assign_role
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
@@ -320,3 +320,84 @@ class ApproveCaseTest(TestCase):
     def test_case_log_is_created_after_approval(self):
         approve_case(self.case, self.admin)
         self.assertTrue(self.case.logs.filter(content__icontains='Case approved by').exists())
+
+
+class RejectCaseAssignmentTest(TestCase):
+    """Tests for user self-removal from a case assignment."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='reject_sub')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_rej', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_rej', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.professor = User.objects.create_user(username='professor_rej', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.student = User.objects.create_user(username='student_rej', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_rej', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.other_student = User.objects.create_user(username='other_student_rej', password='pass')
+        assign_role(self.other_student, 'student')
+
+        # student creates the case (auto-assigned); professor explicitly added
+        self.case = create_case(self.student, 'Case for rejection', self.category, self.subclinic)
+        self.case.users.add(self.professor)
+
+    # --- Access control ---
+
+    def test_assigned_student_can_reject_assignment(self):
+        reject_case_assignment(self.case, self.student)
+        self.assertFalse(self.case.users.filter(pk=self.student.pk).exists())
+
+    def test_assigned_professor_can_reject_assignment(self):
+        reject_case_assignment(self.case, self.professor)
+        self.assertFalse(self.case.users.filter(pk=self.professor.pk).exists())
+
+    def test_non_assigned_user_cannot_reject(self):
+        with self.assertRaises(PermissionError):
+            reject_case_assignment(self.case, self.other_student)
+
+    def test_admin_cannot_reject_assignment(self):
+        with self.assertRaises(PermissionError):
+            reject_case_assignment(self.case, self.admin)
+
+    def test_advisor_cannot_reject_assignment(self):
+        with self.assertRaises(PermissionError):
+            reject_case_assignment(self.case, self.advisor)
+
+    def test_beneficiary_cannot_reject_assignment(self):
+        with self.assertRaises(PermissionError):
+            reject_case_assignment(self.case, self.beneficiary)
+
+    # --- Assignment removal ---
+
+    def test_case_assignment_record_is_deleted(self):
+        from cases.models import CaseAssignment
+        reject_case_assignment(self.case, self.student)
+        self.assertFalse(
+            CaseAssignment.objects.filter(case=self.case, user=self.student).exists()
+        )
+
+    # --- Case status unchanged ---
+
+    def test_case_status_is_not_modified(self):
+        original_status = self.case.status
+        reject_case_assignment(self.case, self.student)
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.status, original_status)
+
+    # --- Audit log ---
+
+    def test_case_log_is_created_after_rejection(self):
+        reject_case_assignment(self.case, self.student)
+        self.assertTrue(
+            self.case.logs.filter(content__icontains='rejected the case assignment').exists()
+        )

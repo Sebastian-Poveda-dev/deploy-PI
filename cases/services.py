@@ -2,6 +2,8 @@ from .models import Case, CaseAssignment, CaseLog, CaseStatus
 
 APPROVAL_ALLOWED_ROLES = {'admin', 'advisor', 'professor'}
 APPROVAL_PRIVILEGED_ROLES = {'admin', 'advisor'}
+
+REJECTION_ALLOWED_ROLES = {'student', 'professor'}
 STATUS_PENDING = 'pending_authorization'
 STATUS_ACTIVE = 'active'
 
@@ -155,3 +157,32 @@ def approve_case(case, user):
     )
 
     return case
+
+
+def reject_case_assignment(case, user):
+    """
+    Remove the user's assignment from a case.
+
+    Access rules:
+      student / professor assigned to the case → allowed
+      admin / advisor / beneficiary → PermissionError
+      user not assigned to the case → PermissionError
+
+    Case status is not modified.
+    """
+    role = user.groups.values_list('name', flat=True).first()
+
+    if role not in REJECTION_ALLOWED_ROLES:
+        raise PermissionError(f"Users with role '{role}' cannot reject case assignments.")
+
+    assignment = CaseAssignment.objects.filter(case=case, user=user).first()
+    if assignment is None:
+        raise PermissionError(f"User '{user.username}' is not assigned to this case.")
+
+    assignment.delete()
+
+    CaseLog.objects.create(
+        case=case,
+        user=user,
+        content=f'User {user.username} rejected the case assignment',
+    )
