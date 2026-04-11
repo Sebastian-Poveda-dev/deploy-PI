@@ -1,8 +1,12 @@
 from cases.models import CaseLog
 from documents.models import Document
 
-UPLOAD_PRIVILEGED_ROLES = {'admin', 'advisor'}
-UPLOAD_FORBIDDEN_ROLES = {'beneficiary'}
+DOCUMENT_PRIVILEGED_ROLES = {'admin', 'advisor'}
+DOCUMENT_FORBIDDEN_ROLES = {'beneficiary'}
+
+# Keep backwards-compatible aliases used by upload_document
+UPLOAD_PRIVILEGED_ROLES = DOCUMENT_PRIVILEGED_ROLES
+UPLOAD_FORBIDDEN_ROLES = DOCUMENT_FORBIDDEN_ROLES
 
 
 def upload_document(case, user, file, name, description, expiration_date=None):
@@ -41,3 +45,26 @@ def upload_document(case, user, file, name, description, expiration_date=None):
     )
 
     return document
+
+
+def get_case_documents(case, user):
+    """
+    Return all documents associated with a case.
+
+    Access rules:
+      admin / advisor → always allowed
+      assigned user (non-beneficiary) → allowed
+      beneficiary / unassigned non-privileged → PermissionError
+    """
+    role = user.groups.values_list('name', flat=True).first()
+
+    if role in DOCUMENT_FORBIDDEN_ROLES:
+        raise PermissionError(f"Users with role '{role}' cannot view documents.")
+
+    is_privileged = role in DOCUMENT_PRIVILEGED_ROLES
+    is_assigned = case.users.filter(pk=user.pk).exists()
+
+    if not is_privileged and not is_assigned:
+        raise PermissionError(f"User '{user.username}' is not assigned to this case.")
+
+    return case.documents.all()
