@@ -5,7 +5,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from cases.models import Category, Subclinic
 from cases.services import create_case
-from documents.services import upload_document, get_case_documents
+from documents.models import Document
+from documents.services import upload_document, get_case_documents, download_document
 from users.services import assign_role
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
