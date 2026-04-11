@@ -126,8 +126,9 @@ class DocumentUploadTest(TestCase):
             name='Report',
             description='Annual report',
         )
-        self.assertIn(f'cases/{self.case.pk}/', doc.file.name)
-        self.assertIn('report.pdf', doc.file.name)
+        self.assertTrue(doc.file.name.startswith(f'cases/{self.case.pk}/'))
+        self.assertIn('report', doc.file.name)
+        self.assertTrue(doc.file.name.endswith('.pdf'))
 
     # --- CaseLog creation ---
 
