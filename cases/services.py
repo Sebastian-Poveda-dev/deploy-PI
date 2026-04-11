@@ -1,5 +1,10 @@
 from .models import Case, CaseAssignment, CaseLog, CaseStatus
 
+APPROVAL_ALLOWED_ROLES = {'admin', 'advisor', 'professor'}
+APPROVAL_PRIVILEGED_ROLES = {'admin', 'advisor'}
+STATUS_PENDING = 'pending_authorization'
+STATUS_ACTIVE = 'active'
+
 ROLE_STATUS_MAP = {
     'admin': 'active',
     'advisor': 'active',
@@ -107,6 +112,46 @@ def update_case(case, user, data):
         case=case,
         user=user,
         content=f'Case updated by {user.username}',
+    )
+
+    return case
+
+
+def approve_case(case, user):
+    """
+    Approve a case, transitioning its status from pending_authorization to active.
+
+    Access rules:
+      admin / advisor → always allowed
+      professor assigned to the case → allowed
+      professor not assigned / student / beneficiary → PermissionError
+
+    Raises ValueError if the case is not in pending_authorization status.
+    """
+    role = user.groups.values_list('name', flat=True).first()
+
+    if role not in APPROVAL_ALLOWED_ROLES:
+        raise PermissionError(f"Users with role '{role}' cannot approve cases.")
+
+    is_privileged = role in APPROVAL_PRIVILEGED_ROLES
+    is_assigned = case.users.filter(pk=user.pk).exists()
+
+    if not is_privileged and not is_assigned:
+        raise PermissionError(f"User '{user.username}' is not assigned to this case.")
+
+    if case.status.name != STATUS_PENDING:
+        raise ValueError(
+            f"Case cannot be approved because its status is '{case.status.name}', "
+            f"not '{STATUS_PENDING}'."
+        )
+
+    case.status = CaseStatus.objects.get(name=STATUS_ACTIVE)
+    case.save()
+
+    CaseLog.objects.create(
+        case=case,
+        user=user,
+        content=f'Case approved by {user.username}',
     )
 
     return case
