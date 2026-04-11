@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.conf import settings
 from django.apps import apps
+from rest_framework import status
+from rest_framework.test import APITestCase
 
 from cases.models import Case, Category, Subclinic
 from cases.services import create_case, create_case_log, get_case_logs, update_case, approve_case, reject_case_assignment
@@ -401,3 +403,125 @@ class RejectCaseAssignmentTest(TestCase):
         self.assertTrue(
             self.case.logs.filter(content__icontains='rejected the case assignment').exists()
         )
+
+
+class CaseApiTest(APITestCase):
+    """API tests for cases endpoints wired to the service layer."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='api_subclinic')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+        self.other_category, _ = Category.objects.get_or_create(name='penal')
+
+        self.admin = User.objects.create_user(username='admin_api', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_api', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.professor = User.objects.create_user(username='professor_api', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.student = User.objects.create_user(username='student_api', password='pass')
+        assign_role(self.student, 'student')
+
+        self.other_student = User.objects.create_user(username='other_student_api', password='pass')
+        assign_role(self.other_student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_api', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(self.student, 'Initial API case', self.category, self.subclinic)
+        self.case.users.add(self.professor)
+
+    def test_create_case_requires_authentication(self):
+        response = self.client.post('/cases/', {
+            'description': 'Created via API',
+            'category_id': self.category.id,
+            'subclinic_id': self.subclinic.id,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_case_success_for_authenticated_user(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.post('/cases/', {
+            'description': 'Created via API',
+            'category_id': self.category.id,
+            'subclinic_id': self.subclinic.id,
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['description'], 'Created via API')
+        self.assertEqual(response.data['created_by'], self.student.id)
+
+    def test_create_case_invalid_input_returns_400(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.post('/cases/', {
+            'description': 'Missing category and subclinic',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_case_forbidden_role_returns_403(self):
+        self.client.force_authenticate(self.beneficiary)
+        response = self.client.post('/cases/', {
+            'description': 'Should fail',
+            'category_id': self.category.id,
+            'subclinic_id': self.subclinic.id,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_update_case_success_for_assigned_user(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.patch(f'/cases/{self.case.id}/', {
+            'description': 'Updated via API',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['description'], 'Updated via API')
+
+    def test_update_case_forbidden_for_unassigned_user(self):
+        self.client.force_authenticate(self.other_student)
+        response = self.client.patch(f'/cases/{self.case.id}/', {
+            'description': 'Should not update',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_update_case_not_found_returns_404(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch('/cases/99999/', {
+            'description': 'Unknown case',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_approve_case_success(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(f'/cases/{self.case.id}/approve/', {}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'active')
+
+    def test_approve_case_invalid_operation_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        first = self.client.post(f'/cases/{self.case.id}/approve/', {}, format='json')
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+
+        second = self.client.post(f'/cases/{self.case.id}/approve/', {}, format='json')
+        self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_approve_case_forbidden_role_returns_403(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.post(f'/cases/{self.case.id}/approve/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_reject_assignment_success_and_unassigns_user(self):
+        self.client.force_authenticate(self.professor)
+        response = self.client.post(f'/cases/{self.case.id}/reject-assignment/', {}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['detail'], 'Case assignment rejected.')
+        self.assertFalse(self.case.users.filter(pk=self.professor.pk).exists())
+
+    def test_reject_assignment_forbidden_role_returns_403(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(f'/cases/{self.case.id}/reject-assignment/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
