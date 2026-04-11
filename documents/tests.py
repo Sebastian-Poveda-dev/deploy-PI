@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from cases.models import Category, Subclinic
 from cases.services import create_case
-from documents.services import upload_document
+from documents.services import upload_document, get_case_documents
 from users.services import assign_role
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
@@ -143,3 +143,83 @@ class DocumentUploadTest(TestCase):
         self.assertTrue(
             self.case.logs.filter(content__icontains='Document uploaded by').exists()
         )
+
+
+class GetCaseDocumentsTest(TestCase):
+    """Tests for role-based document listing logic."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='family')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_list', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_list', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.student = User.objects.create_user(username='student_list', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_list', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.other_student = User.objects.create_user(username='other_student_list', password='pass')
+        assign_role(self.other_student, 'student')
+
+        # student is creator and therefore auto-assigned
+        self.case = create_case(self.student, 'Case for listing docs', self.category, self.subclinic)
+        self.other_case = create_case(self.student, 'Another case', self.category, self.subclinic)
+
+    def _upload(self, name, case=None):
+        return upload_document(
+            case=case or self.case,
+            user=self.student,
+            file=SimpleUploadedFile(f'{name}.pdf', b'content', content_type='application/pdf'),
+            name=name,
+            description=f'Description for {name}',
+        )
+
+    # --- Access control ---
+
+    def test_assigned_user_can_retrieve_documents(self):
+        self._upload('doc1')
+        docs = get_case_documents(case=self.case, user=self.student)
+        self.assertGreaterEqual(len(list(docs)), 1)
+
+    def test_admin_can_retrieve_documents_without_being_assigned(self):
+        self.assertFalse(self.case.users.filter(pk=self.admin.pk).exists())
+        self._upload('doc_admin')
+        docs = get_case_documents(case=self.case, user=self.admin)
+        self.assertGreaterEqual(len(list(docs)), 1)
+
+    def test_advisor_can_retrieve_documents_without_being_assigned(self):
+        self.assertFalse(self.case.users.filter(pk=self.advisor.pk).exists())
+        self._upload('doc_advisor')
+        docs = get_case_documents(case=self.case, user=self.advisor)
+        self.assertGreaterEqual(len(list(docs)), 1)
+
+    def test_non_assigned_user_cannot_retrieve_documents(self):
+        with self.assertRaises(PermissionError):
+            get_case_documents(case=self.case, user=self.other_student)
+
+    def test_beneficiary_cannot_retrieve_documents(self):
+        with self.assertRaises(PermissionError):
+            get_case_documents(case=self.case, user=self.beneficiary)
+
+    # --- Correct documents returned ---
+
+    def test_only_documents_belonging_to_case_are_returned(self):
+        doc_this = self._upload('belongs_here', case=self.case)
+        self._upload('belongs_elsewhere', case=self.other_case)
+
+        docs = list(get_case_documents(case=self.case, user=self.student))
+        pks = [d.pk for d in docs]
+
+        self.assertIn(doc_this.pk, pks)
+        for d in docs:
+            self.assertEqual(d.case_id, self.case.pk)
+
+    def test_empty_list_returned_when_case_has_no_documents(self):
+        docs = list(get_case_documents(case=self.case, user=self.student))
+        self.assertEqual(docs, [])
