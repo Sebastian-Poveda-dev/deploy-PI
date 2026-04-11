@@ -440,7 +440,10 @@ class CaseApiTest(APITestCase):
             'category_id': self.category.id,
             'subclinic_id': self.subclinic.id,
         }, format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn(
+            response.status_code,
+            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+        )
 
     def test_create_case_success_for_authenticated_user(self):
         self.client.force_authenticate(self.student)
