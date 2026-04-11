@@ -3,7 +3,7 @@ from django.conf import settings
 from django.apps import apps
 
 from cases.models import Case, Category, Subclinic
-from cases.services import create_case, create_case_log, get_case_logs, update_case
+from cases.services import create_case, create_case_log, get_case_logs, update_case, approve_case
 from users.services import assign_role
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
@@ -244,3 +244,79 @@ class UpdateCaseTest(TestCase):
     def test_case_log_is_created_after_update(self):
         update_case(self.case, self.student, {'description': 'Updated'})
         self.assertTrue(self.case.logs.filter(content__icontains='Case updated by').exists())
+
+
+class ApproveCaseTest(TestCase):
+    """Tests for role-based case approval logic."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='approval_sub')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_appr', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_appr', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.professor = User.objects.create_user(username='professor_appr', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.other_professor = User.objects.create_user(username='other_prof_appr', password='pass')
+        assign_role(self.other_professor, 'professor')
+
+        self.student = User.objects.create_user(username='student_appr', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_appr', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        # student creates the case → status is "pending_authorization", student auto-assigned
+        self.case = create_case(self.student, 'Pending case', self.category, self.subclinic)
+        self.case.users.add(self.professor)
+
+    # --- Access control ---
+
+    def test_admin_can_approve_case(self):
+        approved = approve_case(self.case, self.admin)
+        self.assertEqual(approved.status.name, 'active')
+
+    def test_advisor_can_approve_case(self):
+        approved = approve_case(self.case, self.advisor)
+        self.assertEqual(approved.status.name, 'active')
+
+    def test_assigned_professor_can_approve_case(self):
+        approved = approve_case(self.case, self.professor)
+        self.assertEqual(approved.status.name, 'active')
+
+    def test_non_assigned_professor_cannot_approve_case(self):
+        with self.assertRaises(PermissionError):
+            approve_case(self.case, self.other_professor)
+
+    def test_student_cannot_approve_case(self):
+        with self.assertRaises(PermissionError):
+            approve_case(self.case, self.student)
+
+    def test_beneficiary_cannot_approve_case(self):
+        with self.assertRaises(PermissionError):
+            approve_case(self.case, self.beneficiary)
+
+    # --- Status transition ---
+
+    def test_case_status_changes_to_active(self):
+        self.assertEqual(self.case.status.name, 'pending_authorization')
+        approve_case(self.case, self.admin)
+        self.case.refresh_from_db()
+        self.assertEqual(self.case.status.name, 'active')
+
+    def test_cannot_approve_case_not_in_pending_authorization(self):
+        approve_case(self.case, self.admin)  # first approval → now active
+        self.case.refresh_from_db()
+        with self.assertRaises(ValueError):
+            approve_case(self.case, self.admin)
+
+    # --- Audit log ---
+
+    def test_case_log_is_created_after_approval(self):
+        approve_case(self.case, self.admin)
+        self.assertTrue(self.case.logs.filter(content__icontains='Case approved by').exists())
