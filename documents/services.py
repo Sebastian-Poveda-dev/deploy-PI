@@ -1,3 +1,5 @@
+from django.http import FileResponse
+
 from cases.models import CaseLog
 from documents.models import Document
 
@@ -68,3 +70,31 @@ def get_case_documents(case, user):
         raise PermissionError(f"User '{user.username}' is not assigned to this case.")
 
     return case.documents.all()
+
+
+def download_document(document_id, user):
+    """
+    Return a FileResponse for the requested document.
+
+    Raises Document.DoesNotExist if no document matches document_id.
+
+    Access rules:
+      admin / advisor → always allowed
+      assigned user (non-beneficiary) → allowed
+      beneficiary / unassigned non-privileged → PermissionError
+    """
+    document = Document.objects.get(pk=document_id)
+
+    role = user.groups.values_list('name', flat=True).first()
+
+    if role in DOCUMENT_FORBIDDEN_ROLES:
+        raise PermissionError(f"Users with role '{role}' cannot download documents.")
+
+    is_privileged = role in DOCUMENT_PRIVILEGED_ROLES
+    is_assigned = document.case.users.filter(pk=user.pk).exists()
+
+    if not is_privileged and not is_assigned:
+        raise PermissionError(f"User '{user.username}' is not assigned to this case.")
+
+    filename = document.file.name.split('/')[-1]
+    return FileResponse(document.file.open('rb'), as_attachment=True, filename=filename)
