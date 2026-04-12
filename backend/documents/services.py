@@ -43,7 +43,7 @@ def upload_document(case, user, file, name, description, expiration_date=None):
     CaseLog.objects.create(
         case=case,
         user=user,
-        content=f'Document uploaded by {user.username}',
+        content=f"User {user.username} uploaded document '{name}'",
     )
 
     return document
@@ -95,6 +95,12 @@ def download_document(document_id, user):
 
     if not is_privileged and not is_assigned:
         raise PermissionError(f"User '{user.username}' is not assigned to this case.")
+
+    CaseLog.objects.create(
+        case=document.case,
+        user=user,
+        content=f"User {user.username} downloaded document '{document.name}'",
+    )
 
     filename = document.file.name.split('/')[-1]
     return FileResponse(document.file.open('rb'), as_attachment=True, filename=filename)
