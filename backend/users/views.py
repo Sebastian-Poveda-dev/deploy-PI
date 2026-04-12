@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate, login
 from django.conf import settings
 from django.apps import apps
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from .services import register_beneficiary
@@ -10,6 +11,7 @@ User = apps.get_model(settings.AUTH_USER_MODEL)
 
 
 @require_POST
+@csrf_exempt
 def login_view(request):
     username = request.POST.get('username', '')
     password = request.POST.get('password', '')
