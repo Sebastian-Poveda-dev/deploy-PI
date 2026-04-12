@@ -77,7 +77,16 @@ def create_case_log(user, case, content):
     )
 
 
-def get_case_logs(case):
+def get_case_logs(case, user):
+    role = user.groups.values_list('name', flat=True).first()
+
+    if role not in CASE_LOG_ALLOWED_ROLES:
+        raise PermissionError(f"Users with role '{role}' cannot view case logs.")
+
+    is_assigned = case.users.filter(pk=user.pk).exists()
+    if role not in CASE_LOG_PRIVILEGED_ROLES and not is_assigned:
+        raise PermissionError('User must be assigned to this case to view logs.')
+
     return case.logs.order_by('created_at', 'pk')
 
 

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Case, Category, Subclinic
+from .models import Case, CaseLog, Category, Subclinic
 
 
 class CaseSerializer(serializers.ModelSerializer):
@@ -47,3 +47,20 @@ class CaseUpdateSerializer(serializers.Serializer):
         source='subclinic',
         required=False,
     )
+
+
+class CaseLogSerializer(serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(source='user', read_only=True)
+
+    class Meta:
+        model = CaseLog
+        fields = [
+            'id',
+            'content',
+            'created_at',
+            'created_by',
+        ]
+
+
+class CaseLogCreateSerializer(serializers.Serializer):
+    content = serializers.CharField()
