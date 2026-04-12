@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Case</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+    .container { max-width: 720px; margin: 40px auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; }
+    h1 { margin-top: 0; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input, select, textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
+    .errorlist { margin: 6px 0 0; padding: 0; list-style: none; color: #b91c1c; font-size: 14px; }
+    .non-field-errors { margin-bottom: 16px; color: #b91c1c; }
+    .success { margin-bottom: 16px; color: #166534; }
+    button { border: 0; background: #2563eb; color: #fff; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Create Case</h1>
+
+    {% if created %}
+      <p class="success">Case created successfully.</p>
+    {% endif %}
+
+    {% if form.non_field_errors %}
+      <div class="non-field-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="field">
+        {{ form.description.label_tag }}
+        {{ form.description }}
+        {{ form.description.errors }}
+      </div>
+
+      <div class="field">
+        {{ form.category.label_tag }}
+        {{ form.category }}
+        {{ form.category.errors }}
+      </div>
+
+      <div class="field">
+        {{ form.subclinic.label_tag }}
+        {{ form.subclinic }}
+        {{ form.subclinic.errors }}
+      </div>
+
+      <div class="field">
+        {{ form.beneficiary.label_tag }}
+        {{ form.beneficiary }}
+        {{ form.beneficiary.errors }}
+      </div>
+
+      <button type="submit">Create Case</button>
+    </form>
+  </main>
+</body>
+</html>

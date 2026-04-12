@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import bgImage from '../assets/images/login-bg.png'
 import logo from '../assets/logo/logo-icesi-white.png'
+import { registerBeneficiary } from '../services/userService'
 
 function Field({ id, label, type = 'text', placeholder }) {
   return (
@@ -21,10 +23,42 @@ function Field({ id, label, type = 'text', placeholder }) {
 
 function BeneficiaryRegister() {
   const navigate = useNavigate()
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    navigate('/login')
+    setError('')
+
+    const formData = new FormData(event.currentTarget)
+    const payload = {
+      username: String(formData.get('username') || '').trim(),
+      first_name: String(formData.get('first_name') || '').trim(),
+      last_name: String(formData.get('last_name') || '').trim(),
+      email: String(formData.get('email') || '').trim(),
+      residence_address: String(formData.get('residence_address') || '').trim(),
+      phone_number: String(formData.get('phone_number') || '').trim(),
+      password1: String(formData.get('password1') || ''),
+      password2: String(formData.get('password2') || ''),
+    }
+
+    if (!payload.username || !payload.first_name || !payload.last_name || !payload.email) {
+      setError('Completa los campos obligatorios para registrarte.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      await registerBeneficiary(payload)
+      navigate('/login')
+    } catch (err) {
+      const backendErrors = err?.errors || {}
+      const firstField = Object.keys(backendErrors)[0]
+      const firstMessage = firstField ? backendErrors[firstField]?.[0]?.message : ''
+      setError(firstMessage || 'No fue posible completar el registro.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -46,6 +80,8 @@ function BeneficiaryRegister() {
           </p>
 
           <form className="space-y-5" onSubmit={handleSubmit}>
+            <Field id="username" label="Usuario" placeholder="Ingresa tu usuario" />
+
             <div className="grid gap-5 sm:grid-cols-2">
               <Field id="first_name" label="Nombre" placeholder="Ingresa tu nombre" />
               <Field id="last_name" label="Apellido" placeholder="Ingresa tu apellido" />
@@ -124,7 +160,7 @@ function BeneficiaryRegister() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <Field
-                id="password"
+                id="password1"
                 label="Contrasena"
                 type="password"
                 placeholder="Crea una contrasena"
@@ -138,8 +174,8 @@ function BeneficiaryRegister() {
                   Confirmar contrasena
                 </label>
                 <input
-                  id="confirm_password"
-                  name="confirm_password"
+                  id="password2"
+                  name="password2"
                   type="password"
                   placeholder="Repite tu contrasena"
                   className="w-full rounded-md border border-[#CECFD4] bg-[#FFFFFF] px-4 py-2.5 text-sm text-[#000000] placeholder:text-[#CECFD4] transition duration-200 focus:border-[#5454F2] focus:outline-none"
@@ -147,11 +183,14 @@ function BeneficiaryRegister() {
               </div>
             </div>
 
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
             <button
               type="submit"
+              disabled={loading}
               className="w-full rounded-md bg-[#5454F2] px-4 py-2.5 text-sm font-semibold text-[#FFFFFF] transition duration-200 hover:bg-[#4343D8]"
             >
-              Registrarme
+              {loading ? 'Registrando...' : 'Registrarme'}
             </button>
 
             <p className="text-center text-sm text-[#667085]">

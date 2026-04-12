@@ -29,8 +29,13 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createCase({ description, categoryId, subclinicId, professorId }) {
-  const body = { description, category_id: categoryId, subclinic_id: subclinicId }
+export async function createCase({ description, categoryId, subclinicId, beneficiaryId, professorId }) {
+  const body = {
+    description,
+    category_id: categoryId,
+    subclinic_id: subclinicId,
+    beneficiary_id: beneficiaryId,
+  }
   if (professorId != null) body.professor_id = professorId
 
   const response = await fetch('/cases/', {

@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.apps import apps
@@ -59,3 +60,23 @@ def professors_view(request):
         return JsonResponse({'error': 'Not authenticated'}, status=401)
     professors = User.objects.filter(groups__name='professor').values('id', 'username')
     return JsonResponse(list(professors), safe=False)
+
+
+@require_GET
+def beneficiaries_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Not authenticated'}, status=401)
+
+    users = User.objects.filter(groups__name='beneficiary').order_by('first_name', 'last_name')
+    data = []
+    for user in users:
+        full_name = f'{user.first_name} {user.last_name}'.strip() or user.username
+        data.append(
+            {
+                'id': user.id,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'full_name': full_name,
+            }
+        )
+    return JsonResponse(data, safe=False)

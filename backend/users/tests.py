@@ -296,3 +296,38 @@ class AdminUserCreationTest(TestCase):
         self.assertTrue(user.groups.filter(name='advisor').exists())
         self.assertEqual(user.groups.count(), 1)
 
+
+class BeneficiaryListEndpointTest(TestCase):
+    """Tests for the beneficiaries endpoint used by case creation form/modal."""
+
+    def setUp(self):
+        self.register_url = reverse('users:register')
+        self.beneficiaries_url = reverse('users:beneficiaries')
+
+        self.viewer = User.objects.create_user(username='admin_viewer', password='pass1234')
+        assign_role(self.viewer, 'admin')
+
+        self.valid_payload = {
+            'username': 'beneficiary_new',
+            'first_name': 'Laura',
+            'last_name': 'Gomez',
+            'email': 'laura@example.com',
+            'residence_address': 'Street 123',
+            'phone_number': '3000000000',
+            'password1': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+        }
+
+    def test_registered_beneficiary_is_returned_by_beneficiaries_endpoint(self):
+        register_response = self.client.post(self.register_url, data=self.valid_payload)
+        self.assertEqual(register_response.status_code, 201)
+
+        self.client.force_login(self.viewer)
+        response = self.client.get(self.beneficiaries_url)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertTrue(any(item['full_name'] == 'Laura Gomez' for item in payload))
+        self.assertTrue(any(item['id'] == User.objects.get(username='beneficiary_new').id for item in payload))
+

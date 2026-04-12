@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createCase } from '../services/caseService'
-import { getCurrentUser, getProfessors } from '../services/userService'
+import { getBeneficiaries, getCurrentUser, getProfessors } from '../services/userService'
 
 const CATEGORIES = [
   { id: 1, label: 'Laboral' },
@@ -14,7 +14,7 @@ const SUBCLINICS = [
   { id: 4, label: 'Familia' },
 ]
 
-const EMPTY_FORM = { description: '', categoryId: '', subclinicId: '', professorId: '' }
+const EMPTY_FORM = { description: '', categoryId: '', subclinicId: '', beneficiaryId: '', professorId: '' }
 
 function Field({ label, error, children }) {
   return (
@@ -33,9 +33,11 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
   const [apiError, setApiError] = useState('')
   const [isStudent, setIsStudent] = useState(false)
   const [professors, setProfessors] = useState([])
+  const [beneficiaries, setBeneficiaries] = useState([])
 
   useEffect(() => {
     if (!isOpen) return
+    getBeneficiaries().then(setBeneficiaries)
     getCurrentUser().then((user) => {
       if (user?.role === 'student') {
         setIsStudent(true)
@@ -61,6 +63,7 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
     if (!form.description.trim()) next.description = 'La descripción es requerida.'
     if (!form.categoryId) next.categoryId = 'Selecciona una categoría.'
     if (!form.subclinicId) next.subclinicId = 'Selecciona una subclínica.'
+    if (!form.beneficiaryId) next.beneficiaryId = 'Selecciona un beneficiario.'
     if (isStudent && !form.professorId) next.professorId = 'Selecciona un profesor.'
     return next
   }
@@ -81,6 +84,7 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
         description: form.description.trim(),
         categoryId: Number(form.categoryId),
         subclinicId: Number(form.subclinicId),
+        beneficiaryId: Number(form.beneficiaryId),
         professorId: form.professorId ? Number(form.professorId) : null,
       })
       setForm(EMPTY_FORM)
@@ -159,6 +163,20 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
                 <option value="">Selecciona una subclínica</option>
                 {SUBCLINICS.map((s) => (
                   <option key={s.id} value={s.id}>{s.label}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Beneficiario" error={errors.beneficiaryId}>
+              <select
+                value={form.beneficiaryId}
+                onChange={set('beneficiaryId')}
+                disabled={loading}
+                className={inputClass}
+              >
+                <option value="">Selecciona un beneficiario</option>
+                {beneficiaries.map((b) => (
+                  <option key={b.id} value={b.id}>{b.full_name}</option>
                 ))}
               </select>
             </Field>

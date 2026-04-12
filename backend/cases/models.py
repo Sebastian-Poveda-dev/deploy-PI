@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -54,11 +55,21 @@ class Case(models.Model):
         on_delete=models.PROTECT,
         related_name='cases',
     )
+    beneficiary = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='beneficiary_cases',
+    )
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through='CaseAssignment',
         related_name='assigned_cases',
     )
+
+    def clean(self):
+        super().clean()
+        if self.beneficiary_id and not self.beneficiary.groups.filter(name='beneficiary').exists():
+            raise ValidationError({'beneficiary': 'Selected user must belong to the beneficiary group.'})
 
     def __str__(self):
         return f'Case #{self.pk} — {self.status}'

@@ -1,14 +1,104 @@
 from django.test import TestCase
 from django.conf import settings
 from django.apps import apps
+from django.template.loader import render_to_string
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from cases.forms import CaseCreateForm
 from cases.models import Case, Category, Subclinic
 from cases.services import create_case, create_case_log, get_case_logs, update_case, approve_case, reject_case_assignment
 from users.services import assign_role
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
+
+
+class CaseCreateFormAndTemplateTest(TestCase):
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='beneficiary_subclinic')
+        self.category, _ = Category.objects.get_or_create(name='beneficiary_category')
+
+        self.admin = User.objects.create_user(username='admin_form', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.beneficiary_a = User.objects.create_user(
+            username='beneficiary_a',
+            password='pass',
+            first_name='Ana',
+            last_name='Zuluaga',
+        )
+        assign_role(self.beneficiary_a, 'beneficiary')
+
+        self.beneficiary_b = User.objects.create_user(
+            username='beneficiary_b',
+            password='pass',
+            first_name='Bruno',
+            last_name='Alvarez',
+        )
+        assign_role(self.beneficiary_b, 'beneficiary')
+
+        self.non_beneficiary = User.objects.create_user(
+            username='student_form',
+            password='pass',
+            first_name='Carlos',
+            last_name='Perez',
+        )
+        assign_role(self.non_beneficiary, 'student')
+
+    def _form_data(self, **overrides):
+        data = {
+            'description': 'Case with beneficiary from form',
+            'category': self.category.id,
+            'subclinic': self.subclinic.id,
+            'beneficiary': self.beneficiary_a.id,
+        }
+        data.update(overrides)
+        return data
+
+    def test_only_beneficiaries_appear_in_beneficiary_field_queryset(self):
+        form = CaseCreateForm()
+        beneficiary_ids = list(form.fields['beneficiary'].queryset.values_list('id', flat=True))
+
+        self.assertEqual(beneficiary_ids, [self.beneficiary_a.id, self.beneficiary_b.id])
+        self.assertNotIn(self.non_beneficiary.id, beneficiary_ids)
+
+    def test_case_can_be_created_with_valid_beneficiary(self):
+        form = CaseCreateForm(data=self._form_data())
+        self.assertTrue(form.is_valid(), form.errors)
+
+        case = create_case(
+            self.admin,
+            form.cleaned_data['description'],
+            form.cleaned_data['category'],
+            form.cleaned_data['subclinic'],
+            beneficiary=form.cleaned_data['beneficiary'],
+        )
+
+        self.assertEqual(case.beneficiary, self.beneficiary_a)
+
+    def test_assigning_non_beneficiary_user_raises_validation_error(self):
+        with self.assertRaises(ValueError):
+            create_case(
+                self.admin,
+                'Case with invalid beneficiary',
+                self.category,
+                self.subclinic,
+                beneficiary=self.non_beneficiary,
+            )
+
+    def test_beneficiary_field_is_required(self):
+        form = CaseCreateForm(data=self._form_data(beneficiary=''))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('beneficiary', form.errors)
+
+    def test_case_create_template_renders_beneficiary_select_with_full_name(self):
+        html = render_to_string('cases/case_form.html', {'form': CaseCreateForm(), 'created': False})
+
+        self.assertIn('name="beneficiary"', html)
+        self.assertIn('Ana Zuluaga', html)
+        self.assertIn('Bruno Alvarez', html)
+        self.assertNotIn('Carlos Perez', html)
 
 
 class CreateCaseTest(TestCase):
@@ -36,51 +126,51 @@ class CreateCaseTest(TestCase):
     # --- Role-based status assignment ---
 
     def test_admin_creates_case_with_active_status(self):
-        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.status.name, 'active')
 
     def test_advisor_creates_case_with_active_status(self):
-        case = create_case(self.advisor, 'description', self.category, self.subclinic)
+        case = create_case(self.advisor, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.status.name, 'active')
 
     def test_professor_creates_case_with_active_status(self):
-        case = create_case(self.professor, 'description', self.category, self.subclinic)
+        case = create_case(self.professor, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.status.name, 'active')
 
     def test_student_creates_case_with_pending_authorization_status(self):
-        case = create_case(self.student, 'description', self.category, self.subclinic)
+        case = create_case(self.student, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.status.name, 'pending_authorization')
 
     def test_beneficiary_cannot_create_case(self):
         with self.assertRaises(PermissionError):
-            create_case(self.beneficiary, 'description', self.category, self.subclinic)
+            create_case(self.beneficiary, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
 
     # --- Case field linkage ---
 
     def test_case_is_linked_to_creator(self):
-        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.created_by, self.admin)
 
     def test_case_is_linked_to_category(self):
-        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.category, self.category)
 
     def test_case_is_linked_to_subclinic(self):
-        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.subclinic, self.subclinic)
 
     # --- Creator assignment and log ---
 
     def test_creator_is_automatically_assigned_to_case(self):
-        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertTrue(case.users.filter(pk=self.admin.pk).exists())
 
     def test_initial_log_is_created(self):
-        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertTrue(case.logs.filter(content__icontains='Case created by').exists())
 
     def test_case_is_persisted_to_database(self):
-        case = create_case(self.admin, 'description', self.category, self.subclinic)
+        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertIsNotNone(case.pk)
         self.assertTrue(Case.objects.filter(pk=case.pk).exists())
 
@@ -110,7 +200,7 @@ class CaseLogServiceTest(TestCase):
         self.other_student = User.objects.create_user(username='other_student_logs', password='pass')
         assign_role(self.other_student, 'student')
 
-        self.case = create_case(self.student, 'Case for logs', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Case for logs', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.case.users.add(self.professor)
 
     def test_valid_roles_can_create_case_log(self):
@@ -188,7 +278,7 @@ class UpdateCaseTest(TestCase):
         assign_role(self.other_student, 'student')
 
         # student is creator (auto-assigned); professor is explicitly added
-        self.case = create_case(self.student, 'Original description', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Original description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.case.users.add(self.professor)
 
     # --- Access control ---
@@ -274,7 +364,7 @@ class ApproveCaseTest(TestCase):
         assign_role(self.beneficiary, 'beneficiary')
 
         # student creates the case → status is "pending_authorization", student auto-assigned
-        self.case = create_case(self.student, 'Pending case', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Pending case', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.case.users.add(self.professor)
 
     # --- Access control ---
@@ -350,7 +440,7 @@ class RejectCaseAssignmentTest(TestCase):
         assign_role(self.other_student, 'student')
 
         # student creates the case (auto-assigned); professor explicitly added
-        self.case = create_case(self.student, 'Case for rejection', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Case for rejection', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.case.users.add(self.professor)
 
     # --- Access control ---
@@ -431,7 +521,7 @@ class CaseApiTest(APITestCase):
         self.beneficiary = User.objects.create_user(username='beneficiary_api', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
-        self.case = create_case(self.student, 'Initial API case', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Initial API case', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.case.users.add(self.professor)
 
     def test_create_case_requires_authentication(self):
@@ -439,6 +529,7 @@ class CaseApiTest(APITestCase):
             'description': 'Created via API',
             'category_id': self.category.id,
             'subclinic_id': self.subclinic.id,
+            'beneficiary_id': self.beneficiary.id,
         }, format='json')
         self.assertIn(
             response.status_code,
@@ -451,6 +542,7 @@ class CaseApiTest(APITestCase):
             'description': 'Created via API',
             'category_id': self.category.id,
             'subclinic_id': self.subclinic.id,
+            'beneficiary_id': self.beneficiary.id,
         }, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -470,6 +562,7 @@ class CaseApiTest(APITestCase):
             'description': 'Should fail',
             'category_id': self.category.id,
             'subclinic_id': self.subclinic.id,
+            'beneficiary_id': self.beneficiary.id,
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -549,7 +642,7 @@ class CaseListApiTest(APITestCase):
         self.beneficiary = User.objects.create_user(username='beneficiary_list_api', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
-        self.case = create_case(self.student, 'Case for listing', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Case for listing', self.category, self.subclinic, beneficiary=self.beneficiary)
 
     def test_unauthenticated_request_is_rejected(self):
         response = self.client.get('/cases/')
@@ -619,7 +712,7 @@ class CaseLogApiTest(APITestCase):
         self.beneficiary = User.objects.create_user(username='beneficiary_logs_api', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
-        self.case = create_case(self.student, 'Case with logs endpoint', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Case with logs endpoint', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.case.users.add(self.professor)
         self.initial_log = create_case_log(self.student, self.case, 'Initial chat message')
 
@@ -719,3 +812,4 @@ class CaseLogApiTest(APITestCase):
         self.assertIn('content', log_item)
         self.assertIn('created_at', log_item)
         self.assertIn('created_by', log_item)
+

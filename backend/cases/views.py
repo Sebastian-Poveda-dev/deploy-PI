@@ -1,9 +1,13 @@
-from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_http_methods
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .forms import CaseCreateForm
 from .models import Case
 from .serializers import (
 	CaseCreateSerializer,
@@ -23,6 +27,35 @@ from .services import (
 
 
 PRIVILEGED_ROLES = {'admin', 'advisor'}
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def case_create_form_view(request):
+	form = CaseCreateForm(request.POST or None)
+
+	if request.method == 'POST' and form.is_valid():
+		try:
+			create_case(
+				request.user,
+				description=form.cleaned_data['description'],
+				category=form.cleaned_data['category'],
+				subclinic=form.cleaned_data['subclinic'],
+				beneficiary=form.cleaned_data['beneficiary'],
+			)
+		except (PermissionError, ValueError) as exc:
+			form.add_error(None, str(exc))
+		else:
+			return redirect(f"{reverse('case-create-form')}?created=1")
+
+	return render(
+		request,
+		'cases/case_form.html',
+		{
+			'form': form,
+			'created': request.GET.get('created') == '1',
+		},
+	)
 
 
 class CaseListCreateAPIView(APIView):
