@@ -5,7 +5,7 @@ const NAV_ITEMS = [
   { label: 'Inicio', path: '/dashboard' },
   { label: 'Casos', path: '/dashboard/cases' },
   { label: 'Chats' },
-  { label: 'Permisos' },
+  { label: 'Permisos', path: '/dashboard/permissions' },
   { label: 'Métricas' },
 ]
 

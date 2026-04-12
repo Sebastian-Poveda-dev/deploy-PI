@@ -13,3 +13,38 @@ export async function getProfessors() {
   if (!response.ok) return []
   return response.json()
 }
+
+export async function getUsers() {
+  const response = await fetch('/users/', { credentials: 'include' })
+  if (!response.ok) throw new Error('No fue posible cargar los usuarios.')
+  return response.json()
+}
+
+function getCsrfToken() {
+  const match = document.cookie.match(/csrftoken=([^;]+)/)
+  return match ? match[1] : ''
+}
+
+export async function createUserAsAdmin({ username, password, role }) {
+  const response = await fetch('/users/', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    body: JSON.stringify({ username, password, role }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.detail ?? 'No fue posible crear el usuario.')
+  return data
+}
+
+export async function updateUserAsAdmin(userId, patch) {
+  const response = await fetch(`/users/${userId}/`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    body: JSON.stringify(patch),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.detail ?? 'No fue posible actualizar el usuario.')
+  return data
+}
