@@ -11,7 +11,7 @@ class Document(models.Model):
     description = models.TextField()
     file = models.FileField(upload_to=document_upload_path)
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    expiration_date = models.DateTimeField(null=True, blank=True)
+    expiration_date = models.DateField(null=True, blank=True)
 
     case = models.ForeignKey(
         'cases.Case',

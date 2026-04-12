@@ -45,12 +45,13 @@ class CaseDocumentListCreateAPIView(APIView):
                     if key != 'file'
                 },
             )
+            return Response(DocumentSerializer(document).data, status=status.HTTP_201_CREATED)
         except PermissionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
         except ValueError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(DocumentSerializer(document).data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DocumentDownloadAPIView(APIView):
