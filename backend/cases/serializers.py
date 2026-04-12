@@ -56,6 +56,14 @@ class CaseUpdateSerializer(serializers.Serializer):
 
 class CaseLogSerializer(serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(source='user', read_only=True)
+    created_by_name = serializers.CharField(source='user.username', read_only=True)
+    is_current_user = serializers.SerializerMethodField()
+
+    def get_is_current_user(self, obj):
+        request = self.context.get('request')
+        if request is None or request.user.is_anonymous:
+            return False
+        return obj.user_id == request.user.id
 
     class Meta:
         model = CaseLog
@@ -64,6 +72,8 @@ class CaseLogSerializer(serializers.ModelSerializer):
             'content',
             'created_at',
             'created_by',
+            'created_by_name',
+            'is_current_user',
         ]
 
 

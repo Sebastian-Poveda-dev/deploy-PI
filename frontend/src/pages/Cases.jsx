@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/DashboardLayout'
 import CasesTable from '../components/CasesTable'
 import CaseModal from '../components/CaseModal'
+import CaseLogsModal from '../components/CaseLogsModal'
 import CreateCaseModal from '../components/CreateCaseModal'
 import { getCases } from '../services/caseService'
 
@@ -11,6 +12,8 @@ function Cases() {
   const [error, setError] = useState('')
   const [selectedCase, setSelectedCase] = useState(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [logsCaseId, setLogsCaseId] = useState(null)
+  const [isLogsModalOpen, setIsLogsModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   function openCaseDetails(caseItem) {
@@ -21,6 +24,17 @@ function Cases() {
   function closeCaseDetails() {
     setIsDetailModalOpen(false)
     setSelectedCase(null)
+  }
+
+  function openCaseLogs(caseId) {
+    if (!caseId) return
+    setLogsCaseId(caseId)
+    setIsLogsModalOpen(true)
+  }
+
+  function closeCaseLogs() {
+    setIsLogsModalOpen(false)
+    setLogsCaseId(null)
   }
 
   function handleCaseCreated(newCase) {
@@ -71,7 +85,14 @@ function Cases() {
         {renderContent()}
       </section>
 
-      <CaseModal caseData={selectedCase} isOpen={isDetailModalOpen} onClose={closeCaseDetails} />
+      <CaseModal
+        caseData={selectedCase}
+        isOpen={isDetailModalOpen}
+        onClose={closeCaseDetails}
+        onOpenLogs={openCaseLogs}
+      />
+
+      <CaseLogsModal caseId={logsCaseId} isOpen={isLogsModalOpen} onClose={closeCaseLogs} />
 
       <CreateCaseModal
         isOpen={isCreateModalOpen}
