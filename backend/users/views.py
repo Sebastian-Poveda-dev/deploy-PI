@@ -1,13 +1,20 @@
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import Group
 from django.conf import settings
 from django.apps import apps
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
+from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 
 from .forms import BeneficiaryRegisterForm
+from .services import admin_create_user, list_users, update_user
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
@@ -62,6 +69,71 @@ def professors_view(request):
     return JsonResponse(list(professors), safe=False)
 
 
+<<<<<<< HEAD
+def _user_to_dict(user):
+    return {
+        'id': user.id,
+        'username': user.username,
+        'role': user.groups.values_list('name', flat=True).first() or '',
+        'is_active': user.is_active,
+    }
+
+
+class UserManagementListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            users = list_users(request.user)
+        except PermissionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+
+        return Response([_user_to_dict(u) for u in users])
+
+    def post(self, request):
+        role = request.user.groups.values_list('name', flat=True).first()
+        if role != 'admin':
+            return Response({'detail': 'Only admins can create users.'}, status=status.HTTP_403_FORBIDDEN)
+
+        username = request.data.get('username', '').strip()
+        password = request.data.get('password', '').strip()
+        new_role = request.data.get('role', '').strip()
+
+        if not username or not password or not new_role:
+            return Response(
+                {'detail': 'username, password and role are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if User.objects.filter(username=username).exists():
+            return Response({'detail': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = admin_create_user(username, password, new_role)
+        except Group.DoesNotExist:
+            return Response(
+                {'detail': f"Role '{new_role}' does not exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(_user_to_dict(user), status=status.HTTP_201_CREATED)
+
+
+class UserManagementDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        target = get_object_or_404(User, pk=pk)
+
+        try:
+            user = update_user(request.user, target, request.data)
+        except PermissionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except (ValueError, Group.DoesNotExist) as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(_user_to_dict(user))
+=======
 @require_GET
 def beneficiaries_view(request):
     if not request.user.is_authenticated:
@@ -80,3 +152,4 @@ def beneficiaries_view(request):
             }
         )
     return JsonResponse(data, safe=False)
+>>>>>>> dev

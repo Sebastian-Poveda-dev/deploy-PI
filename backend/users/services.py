@@ -4,6 +4,8 @@ from django.apps import apps
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
+VALID_ROLES = {'admin', 'advisor', 'professor', 'student', 'beneficiary'}
+
 
 def assign_role(user, role_name):
     """Assign a single role to a user, replacing any existing roles."""
@@ -34,3 +36,36 @@ def admin_create_user(username, password, role, residence_address='', phone_numb
     )
     assign_role(user, role)
     return user
+
+
+def list_users(requesting_user):
+    """Return all users. Requires admin role."""
+    role = requesting_user.groups.values_list('name', flat=True).first()
+    if role != 'admin':
+        raise PermissionError('Only admins can list users.')
+    return User.objects.prefetch_related('groups').order_by('username')
+
+
+def update_user(requesting_user, target_user, data):
+    """
+    Update role and/or is_active on a user. Requires admin role.
+    Admins cannot modify their own account to prevent lockout.
+    """
+    role = requesting_user.groups.values_list('name', flat=True).first()
+    if role != 'admin':
+        raise PermissionError('Only admins can update users.')
+
+    if requesting_user.pk == target_user.pk:
+        raise PermissionError('Admins cannot modify their own account from this panel.')
+
+    if 'role' in data:
+        new_role = data['role']
+        if new_role not in VALID_ROLES:
+            raise ValueError(f"Invalid role '{new_role}'.")
+        assign_role(target_user, new_role)
+
+    if 'is_active' in data:
+        target_user.is_active = data['is_active']
+        target_user.save(update_fields=['is_active'])
+
+    return target_user
