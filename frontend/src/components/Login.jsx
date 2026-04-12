@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import bgImage from '../assets/images/login-bg.png'
 import logo from '../assets/logo/logo-icesi-white.png'
 
@@ -33,6 +34,7 @@ function InputField({
 }
 
 function Login() {
+  const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -72,7 +74,7 @@ function Login() {
       }
 
       if (response.ok && data?.authenticated) {
-        setSuccessMessage('Inicio de sesion exitoso.')
+        navigate('/dashboard')
         return
       }
 
