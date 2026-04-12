@@ -8,6 +8,10 @@ class CaseSerializer(serializers.ModelSerializer):
     status = serializers.CharField(source='status.name', read_only=True)
     category = serializers.CharField(source='category.name', read_only=True)
     subclinic = serializers.CharField(source='subclinic.name', read_only=True)
+    assigned_users = serializers.SerializerMethodField()
+
+    def get_assigned_users(self, obj):
+        return [{'name': user.username} for user in obj.users.all()]
 
     class Meta:
         model = Case
@@ -20,6 +24,7 @@ class CaseSerializer(serializers.ModelSerializer):
             'status',
             'category',
             'subclinic',
+            'assigned_users',
         ]
 
 
