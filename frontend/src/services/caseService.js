@@ -20,6 +20,7 @@ function mapCase(raw) {
     createdAt: formatDate(raw.created_at),
     updatedAt: formatDate(raw.updated_at),
     assignedUsers: raw.assigned_users.map((u) => u.name).join(', '),
+    description: raw.description ?? raw.details ?? '',
   }
 }
 

@@ -9,7 +9,7 @@ const TABLE_HEADERS = [
   'Assigned Users',
 ]
 
-function CasesTable({ cases }) {
+function CasesTable({ cases, onRowClick }) {
   if (!cases.length) {
     return (
       <div className="flex min-h-64 items-center justify-center rounded-xl border border-slate-200 bg-white px-4">
@@ -37,6 +37,7 @@ function CasesTable({ cases }) {
           {cases.map((item) => (
             <tr
               key={item.id}
+              onClick={() => onRowClick?.(item)}
               className="cursor-pointer border-t border-slate-100 transition-colors hover:bg-slate-50"
             >
               <td className="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-700">#{item.id}</td>

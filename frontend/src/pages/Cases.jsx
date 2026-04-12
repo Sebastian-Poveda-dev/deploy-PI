@@ -1,12 +1,25 @@
 import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/DashboardLayout'
 import CasesTable from '../components/CasesTable'
+import CaseModal from '../components/CaseModal'
 import { getCases } from '../services/caseService'
 
 function Cases() {
   const [cases, setCases] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedCase, setSelectedCase] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  function openCaseDetails(caseItem) {
+    setSelectedCase(caseItem)
+    setIsModalOpen(true)
+  }
+
+  function closeCaseDetails() {
+    setIsModalOpen(false)
+    setSelectedCase(null)
+  }
 
   useEffect(() => {
     getCases()
@@ -32,7 +45,7 @@ function Cases() {
       )
     }
 
-    return <CasesTable cases={cases} />
+    return <CasesTable cases={cases} onRowClick={openCaseDetails} />
   }
 
   return (
@@ -50,6 +63,8 @@ function Cases() {
 
         {renderContent()}
       </section>
+
+      <CaseModal caseData={selectedCase} isOpen={isModalOpen} onClose={closeCaseDetails} />
     </DashboardLayout>
   )
 }
