@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import logo from '../assets/logo/logo-icesi-white.png'
 
 const NAV_ITEMS = [
@@ -9,6 +10,8 @@ const NAV_ITEMS = [
 ]
 
 function Sidebar() {
+  const navigate = useNavigate()
+
   return (
     <aside className="flex h-screen w-64 flex-shrink-0 flex-col bg-[#5454F2]">
 
@@ -32,7 +35,10 @@ function Sidebar() {
 
       {/* Logout */}
       <div className="px-3 pb-6">
-        <button className="w-full cursor-pointer rounded-md px-4 py-2.5 text-left text-sm font-medium text-[#CECFD4] transition duration-200 hover:bg-white/10 hover:text-[#FFFFFF]">
+        <button
+          onClick={() => navigate('/login')}
+          className="w-full cursor-pointer rounded-md px-4 py-2.5 text-left text-sm font-medium text-[#CECFD4] transition duration-200 hover:bg-white/10 hover:text-[#FFFFFF]"
+        >
           Cerrar sesión
         </button>
       </div>
