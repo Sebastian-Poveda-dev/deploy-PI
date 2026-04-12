@@ -9,6 +9,8 @@ function InputField({
   placeholder,
   value,
   onChange,
+  disabled = false,
+  autoComplete,
 }) {
   return (
     <div className="space-y-2">
@@ -21,19 +23,70 @@ function InputField({
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className="w-full rounded-md border border-[#CECFD4] bg-[#FFFFFF] px-4 py-2.5 text-sm text-[#000000] placeholder:text-[#CECFD4] transition duration-200 focus:border-[#5454F2] focus:outline-none"
+        disabled={disabled}
+        autoComplete={autoComplete}
+        required
+        className="w-full rounded-md border border-[#CECFD4] bg-[#FFFFFF] px-4 py-2.5 text-sm text-[#000000] placeholder:text-[#CECFD4] transition duration-200 focus:border-[#5454F2] focus:outline-none disabled:cursor-not-allowed disabled:opacity-70"
       />
     </div>
   )
 }
 
 function Login() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    console.log('Login payload:', { email, password })
+
+    if (isLoading) {
+      return
+    }
+
+    setIsLoading(true)
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    try {
+      const response = await fetch('/users/login/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        },
+        body: new URLSearchParams({
+          username: username.trim(),
+          password,
+        }),
+      })
+
+      let data = null
+
+      try {
+        data = await response.json()
+      } catch {
+        data = null
+      }
+
+      if (response.ok && data?.authenticated) {
+        setSuccessMessage('Inicio de sesion exitoso.')
+        return
+      }
+
+      if (response.status === 401) {
+        setErrorMessage('Usuario o clave incorrectos.')
+        return
+      }
+
+      setErrorMessage('No fue posible iniciar sesion. Intenta de nuevo.')
+    } catch {
+      setErrorMessage('No fue posible conectar con el servidor.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -48,32 +101,48 @@ function Login() {
       <main className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10 pb-28 sm:px-6 lg:px-8">
         <section className="w-full max-w-md rounded-lg bg-[#FFFFFF] p-6 shadow-2xl sm:p-8">
           <h1 className="mb-6 text-center text-3xl font-bold tracking-tight text-[#5454F2]">
-            Inicio de Sesión
+            Inicio de Sesion
           </h1>
 
           <form className="space-y-5" onSubmit={handleSubmit}>
             <InputField
-              id="email"
-              label="Correo Institucional"
-              type="email"
-              placeholder="example@gmail.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              id="username"
+              label="Usuario"
+              placeholder="Ingresa tu usuario"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              disabled={isLoading}
+              autoComplete="username"
             />
 
             <InputField
               id="password"
-              label="Contraseña"
+              label="Contrasena"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              disabled={isLoading}
+              autoComplete="current-password"
             />
+
+            {errorMessage ? (
+              <p className="text-sm text-[#D92D20]" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
+
+            {successMessage ? (
+              <p className="text-sm text-[#067647]" role="status">
+                {successMessage}
+              </p>
+            ) : null}
 
             <button
               type="submit"
-              className="w-full rounded-md bg-[#5454F2] px-4 py-2.5 text-sm font-semibold text-[#FFFFFF] transition duration-200 hover:bg-[#4343D8]"
+              disabled={isLoading}
+              className="w-full rounded-md bg-[#5454F2] px-4 py-2.5 text-sm font-semibold text-[#FFFFFF] transition duration-200 hover:bg-[#4343D8] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Ingresar
+              {isLoading ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
         </section>
@@ -88,13 +157,13 @@ function Login() {
               Ir a ICESI
             </a>
             <a href="#" className="text-center font-bold transition hover:text-[#CECFD4]">
-              Más Información
+              Mas Informacion
             </a>
             <a href="#" className="text-center font-bold transition hover:text-[#CECFD4]">
               Soporte
             </a>
             <a href="#" className="text-center font-bold transition hover:text-[#CECFD4]">
-              Ubicación
+              Ubicacion
             </a>
           </nav>
         </div>

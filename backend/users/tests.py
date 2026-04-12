@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.contrib.auth.models import Group
 from django.conf import settings
 from django.apps import apps
@@ -134,6 +134,17 @@ class LoginAuthenticationTest(TestCase):
 
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertEqual(response.wsgi_request.user, self.user)
+
+    def test_login_accepts_request_without_csrf_token(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+
+        response = csrf_client.post(
+            self.login_url,
+            data={'username': self.username, 'password': self.password},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['authenticated'], True)
 
 
 class RoleAssignmentMethodTest(TestCase):
