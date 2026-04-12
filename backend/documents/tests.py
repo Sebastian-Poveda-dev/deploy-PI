@@ -39,7 +39,7 @@ class DocumentUploadTest(TestCase):
         assign_role(self.other_student, 'student')
 
         # student is creator and therefore auto-assigned
-        self.case = create_case(self.student, 'Case for documents', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Case for documents', self.category, self.subclinic, beneficiary=self.beneficiary)
 
     def _make_file(self, name='test.pdf'):
         return SimpleUploadedFile(name, b'file content', content_type='application/pdf')
@@ -173,8 +173,8 @@ class GetCaseDocumentsTest(TestCase):
         assign_role(self.other_student, 'student')
 
         # student is creator and therefore auto-assigned
-        self.case = create_case(self.student, 'Case for listing docs', self.category, self.subclinic)
-        self.other_case = create_case(self.student, 'Another case', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Case for listing docs', self.category, self.subclinic, beneficiary=self.beneficiary)
+        self.other_case = create_case(self.student, 'Another case', self.category, self.subclinic, beneficiary=self.beneficiary)
 
     def _upload(self, name, case=None):
         return upload_document(
@@ -252,7 +252,7 @@ class DownloadDocumentTest(TestCase):
         self.other_student = User.objects.create_user(username='other_student_dl', password='pass')
         assign_role(self.other_student, 'student')
 
-        self.case = create_case(self.student, 'Case for download', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Case for download', self.category, self.subclinic, beneficiary=self.beneficiary)
 
         self.file_content = b'test file content for download'
         self.doc = upload_document(
@@ -350,12 +350,13 @@ class DocumentApiBaseTest(APITestCase):
         )
         assign_role(self.beneficiary, 'beneficiary')
 
-        self.case = create_case(self.student, 'Documents API case', self.category, self.subclinic)
+        self.case = create_case(self.student, 'Documents API case', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.other_case = create_case(
             self.student,
             'Other documents API case',
             self.category,
             self.subclinic,
+            beneficiary=self.beneficiary,
         )
 
     def _name(self, prefix):
@@ -582,3 +583,4 @@ class DocumentDownloadApiTest(DocumentApiBaseTest):
 
         content = b''.join(response.streaming_content)
         self.assertEqual(content, self.file_content)
+

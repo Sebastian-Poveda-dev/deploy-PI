@@ -6,6 +6,25 @@ export async function getCurrentUser() {
   return response.json()
 }
 
+export async function registerBeneficiary(payload) {
+  const body = new URLSearchParams(payload)
+
+  const response = await fetch('/users/register/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+    },
+    body,
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw data
+  }
+
+  return data
+}
+
 export async function getProfessors() {
   const response = await fetch('/users/professors/', {
     credentials: 'include',
@@ -14,6 +33,7 @@ export async function getProfessors() {
   return response.json()
 }
 
+<<<<<<< HEAD
 export async function getUsers() {
   const response = await fetch('/users/', { credentials: 'include' })
   if (!response.ok) throw new Error('No fue posible cargar los usuarios.')
@@ -48,3 +68,12 @@ export async function updateUserAsAdmin(userId, patch) {
   if (!response.ok) throw new Error(data.detail ?? 'No fue posible actualizar el usuario.')
   return data
 }
+=======
+export async function getBeneficiaries() {
+  const response = await fetch('/users/beneficiaries/', {
+    credentials: 'include',
+  })
+  if (!response.ok) return []
+  return response.json()
+}
+>>>>>>> dev

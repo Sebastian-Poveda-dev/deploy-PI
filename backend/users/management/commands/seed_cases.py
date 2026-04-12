@@ -104,7 +104,21 @@ class Command(BaseCommand):
                     )
                     continue
 
-            case = create_case(creator, data['description'], category, subclinic, professor=professor)
+            beneficiary = User.objects.filter(groups__name='beneficiary').order_by('id').first()
+            if not beneficiary:
+                self.stdout.write(
+                    self.style.WARNING("  Skipped — no beneficiary user found. Run seed_users first.")
+                )
+                continue
+
+            case = create_case(
+                creator,
+                data['description'],
+                category,
+                subclinic,
+                beneficiary=beneficiary,
+                professor=professor,
+            )
 
             for username, content in data['logs']:
                 user = User.objects.filter(username=username).first()

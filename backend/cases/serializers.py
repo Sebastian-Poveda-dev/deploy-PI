@@ -13,9 +13,15 @@ class CaseSerializer(serializers.ModelSerializer):
     category = serializers.CharField(source='category.name', read_only=True)
     subclinic = serializers.CharField(source='subclinic.name', read_only=True)
     assigned_users = serializers.SerializerMethodField()
+    beneficiary = serializers.PrimaryKeyRelatedField(read_only=True)
+    beneficiary_name = serializers.SerializerMethodField()
 
     def get_assigned_users(self, obj):
         return [{'name': user.username} for user in obj.users.all()]
+
+    def get_beneficiary_name(self, obj):
+        full_name = f'{obj.beneficiary.first_name} {obj.beneficiary.last_name}'.strip()
+        return full_name or obj.beneficiary.username
 
     class Meta:
         model = Case
@@ -28,6 +34,8 @@ class CaseSerializer(serializers.ModelSerializer):
             'status',
             'category',
             'subclinic',
+            'beneficiary',
+            'beneficiary_name',
             'assigned_users',
         ]
 
@@ -42,6 +50,10 @@ class CaseCreateSerializer(serializers.Serializer):
         queryset=Subclinic.objects.all(),
         source='subclinic',
     )
+    beneficiary_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(groups__name='beneficiary').distinct(),
+        source='beneficiary',
+    )
     professor_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(groups__name='professor'),
         source='professor',
@@ -49,6 +61,11 @@ class CaseCreateSerializer(serializers.Serializer):
         allow_null=True,
         default=None,
     )
+
+    def validate_beneficiary(self, beneficiary):
+        if not beneficiary.groups.filter(name='beneficiary').exists():
+            raise serializers.ValidationError('Selected user must belong to the beneficiary group.')
+        return beneficiary
 
 
 class CaseUpdateSerializer(serializers.Serializer):

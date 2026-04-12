@@ -22,13 +22,13 @@ CASE_UPDATE_PRIVILEGED_ROLES = {'admin', 'advisor'}
 CASE_UPDATE_ALLOWED_FIELDS = {'description', 'category', 'subclinic'}
 
 
-def create_case(user, description, category, subclinic, professor=None):
+def create_case(user, description, category, subclinic, beneficiary, professor=None):
     """
     Create a case on behalf of a user.
 
-    Status is determined by the user's role:
+        status is determined by the user's role:
       admin / advisor / professor → active
-      student                    → pending_authorization (requires a professor co-assigned)
+    student                    → pending_authorization
       beneficiary                → PermissionError (not allowed)
     """
     role = user.groups.values_list('name', flat=True).first()
@@ -36,18 +36,24 @@ def create_case(user, description, category, subclinic, professor=None):
     if role not in ROLE_STATUS_MAP:
         raise PermissionError(f"Users with role '{role}' cannot create cases.")
 
-    if role == 'student' and professor is None:
-        raise ValueError('A student must assign a professor when creating a case.')
+    if beneficiary is None:
+        raise ValueError('A beneficiary is required to create a case.')
+
+    if not beneficiary.groups.filter(name='beneficiary').exists():
+        raise ValueError('Selected user must belong to the beneficiary group.')
 
     status = CaseStatus.objects.get(name=ROLE_STATUS_MAP[role])
 
-    case = Case.objects.create(
+    case = Case(
         description=description,
         created_by=user,
         category=category,
         subclinic=subclinic,
         status=status,
+        beneficiary=beneficiary,
     )
+    case.full_clean()
+    case.save()
 
     CaseAssignment.objects.create(case=case, user=user)
 
