@@ -1,9 +1,9 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import logo from '../assets/logo/logo-icesi-white.png'
 
 const NAV_ITEMS = [
-  { label: 'Inicio' },
-  { label: 'Casos' },
+  { label: 'Inicio', path: '/dashboard' },
+  { label: 'Casos', path: '/dashboard/cases' },
   { label: 'Chats' },
   { label: 'Permisos' },
   { label: 'Métricas' },
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
 
 function Sidebar() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   return (
     <aside className="flex h-screen w-64 flex-shrink-0 flex-col bg-[#5454F2]">
@@ -25,7 +26,13 @@ function Sidebar() {
         <ul className="space-y-1">
           {NAV_ITEMS.map((item) => (
             <li key={item.label}>
-              <button className="w-full cursor-pointer rounded-md px-4 py-2.5 text-left text-sm font-medium text-[#FFFFFF] transition duration-200 hover:bg-white/10">
+              <button
+                type="button"
+                onClick={() => item.path && navigate(item.path)}
+                className={`w-full cursor-pointer rounded-md px-4 py-2.5 text-left text-sm font-medium text-[#FFFFFF] transition duration-200 hover:bg-white/10 ${
+                  item.path && location.pathname === item.path ? 'bg-white/20' : ''
+                }`}
+              >
                 {item.label}
               </button>
             </li>
