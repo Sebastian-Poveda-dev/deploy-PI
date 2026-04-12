@@ -1,6 +1,10 @@
+from django.conf import settings
+from django.apps import apps
 from rest_framework import serializers
 
 from .models import Case, CaseLog, Category, Subclinic
+
+User = apps.get_model(settings.AUTH_USER_MODEL)
 
 
 class CaseSerializer(serializers.ModelSerializer):
@@ -37,6 +41,13 @@ class CaseCreateSerializer(serializers.Serializer):
     subclinic_id = serializers.PrimaryKeyRelatedField(
         queryset=Subclinic.objects.all(),
         source='subclinic',
+    )
+    professor_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(groups__name='professor'),
+        source='professor',
+        required=False,
+        allow_null=True,
+        default=None,
     )
 
 

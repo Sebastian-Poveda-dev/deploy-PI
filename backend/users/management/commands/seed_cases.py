@@ -12,54 +12,50 @@ SUBCLINICS = ['civil', 'laboral', 'penal', 'familia']
 SEED_CASES = [
     {
         'created_by': 'student',
+        'professor': 'professor',
         'description': 'Despido sin justa causa después de 5 años de servicio.',
         'category': 'laboral',
         'subclinic': 'laboral',
-        'extra_users': ['professor', 'advisor'],
         'logs': [
             ('student', 'Solicito revisión del contrato laboral.'),
-            ('professor', 'Se revisó el contrato. Hay fundamentos para proceder.'),
-            ('advisor', 'Caso aprobado para continuar.'),
         ],
     },
     {
         'created_by': 'student',
+        'professor': 'professor',
         'description': 'Acoso laboral por parte de supervisor inmediato.',
         'category': 'laboral',
         'subclinic': 'laboral',
-        'extra_users': ['professor'],
         'logs': [
             ('student', 'Presento evidencia del acoso.'),
-            ('professor', 'Se analizará la documentación aportada.'),
         ],
     },
     {
         'created_by': 'admin',
+        'professor': None,
         'description': 'Disputa por herencia entre hermanos tras fallecimiento del padre.',
         'category': 'penal',
         'subclinic': 'civil',
-        'extra_users': ['student'],
         'logs': [
-            ('admin', 'Caso registrado. Se asignó estudiante para seguimiento.'),
+            ('admin', 'Caso registrado.'),
         ],
     },
     {
         'created_by': 'professor',
+        'professor': None,
         'description': 'Custodia de menores en proceso de separación conyugal.',
         'category': 'laboral',
         'subclinic': 'familia',
-        'extra_users': ['student', 'advisor'],
         'logs': [
             ('professor', 'Se inicia análisis del caso familiar.'),
-            ('student', 'Revisando documentación de los menores.'),
         ],
     },
     {
         'created_by': 'student',
+        'professor': 'professor',
         'description': 'Incumplimiento de contrato de arrendamiento comercial.',
         'category': 'penal',
         'subclinic': 'civil',
-        'extra_users': [],
         'logs': [],
     },
 ]
@@ -99,12 +95,16 @@ class Command(BaseCommand):
             category = Category.objects.get(name=data['category'])
             subclinic = Subclinic.objects.get(name=data['subclinic'])
 
-            case = create_case(creator, data['description'], category, subclinic)
+            professor = None
+            if data.get('professor'):
+                professor = User.objects.filter(username=data['professor']).first()
+                if not professor:
+                    self.stdout.write(
+                        self.style.WARNING(f"  Skipped — professor '{data['professor']}' not found.")
+                    )
+                    continue
 
-            for username in data['extra_users']:
-                user = User.objects.filter(username=username).first()
-                if user:
-                    case.users.add(user)
+            case = create_case(creator, data['description'], category, subclinic, professor=professor)
 
             for username, content in data['logs']:
                 user = User.objects.filter(username=username).first()
