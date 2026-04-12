@@ -25,6 +25,7 @@ def login_view(request):
 
 
 @require_POST
+@csrf_exempt
 def register_view(request):
     username = request.POST.get('username', '').strip()
     password = request.POST.get('password', '').strip()
