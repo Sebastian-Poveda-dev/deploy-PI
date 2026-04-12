@@ -211,46 +211,65 @@ class SelfRegistrationTest(TestCase):
 
     def setUp(self):
         self.register_url = reverse('users:register')
-
-    def test_beneficiary_can_register_successfully(self):
-        response = self.client.post(self.register_url, data={
+        self.valid_payload = {
             'username': 'newuser',
-            'password': 'StrongPass123',
+            'first_name': 'Ana',
+            'last_name': 'Perez',
+            'email': 'ana@example.com',
             'residence_address': '123 Main St',
             'phone_number': '555-1234',
-        })
+            'password1': 'StrongPass123!',
+            'password2': 'StrongPass123!',
+        }
+
+    def test_beneficiary_can_register_successfully(self):
+        response = self.client.post(self.register_url, data=self.valid_payload)
+
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()['registered'], True)
         self.assertTrue(User.objects.filter(username='newuser').exists())
+        user = User.objects.get(username='newuser')
+        self.assertEqual(user.first_name, 'Ana')
+        self.assertEqual(user.last_name, 'Perez')
+        self.assertEqual(user.email, 'ana@example.com')
+        self.assertEqual(user.residence_address, '123 Main St')
+        self.assertEqual(user.phone_number, '555-1234')
 
     def test_registered_user_has_beneficiary_role(self):
-        self.client.post(self.register_url, data={
-            'username': 'newuser',
-            'password': 'StrongPass123',
-            'residence_address': '123 Main St',
-            'phone_number': '555-1234',
-        })
+        self.client.post(self.register_url, data=self.valid_payload)
+
         user = User.objects.get(username='newuser')
         self.assertTrue(user.groups.filter(name='beneficiary').exists())
 
     def test_user_cannot_self_assign_different_role(self):
-        self.client.post(self.register_url, data={
-            'username': 'newuser',
-            'password': 'StrongPass123',
-            'residence_address': '123 Main St',
-            'phone_number': '555-1234',
-            'role': 'admin',
-        })
+        payload = {**self.valid_payload, 'role': 'admin'}
+        self.client.post(self.register_url, data=payload)
+
         user = User.objects.get(username='newuser')
         self.assertFalse(user.groups.filter(name='admin').exists())
         self.assertTrue(user.groups.filter(name='beneficiary').exists())
 
-    def test_registration_fails_without_required_fields(self):
-        response = self.client.post(self.register_url, data={
-            'username': 'newuser',
-            'password': 'StrongPass123',
-        })
+    def test_invalid_data_does_not_create_user(self):
+        invalid_payload = {**self.valid_payload, 'email': ''}
+        response = self.client.post(self.register_url, data=invalid_payload)
+
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['registered'], False)
+        self.assertIn('email', response.json()['errors'])
+        self.assertFalse(User.objects.filter(username='newuser').exists())
+
+    def test_password_validation_is_enforced(self):
+        weak_password_payload = {
+            **self.valid_payload,
+            'password1': '123',
+            'password2': '123',
+        }
+
+        response = self.client.post(self.register_url, data=weak_password_payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['registered'], False)
+        self.assertIn('password2', response.json()['errors'])
         self.assertFalse(User.objects.filter(username='newuser').exists())
 
 
