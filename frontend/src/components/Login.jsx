@@ -12,7 +12,7 @@ function InputField({
 }) {
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="block text-sm font-medium text-[#000000]">
+      <label htmlFor={id} className="block text-left text-sm font-medium text-[#000000]">
         {label}
       </label>
       <input
@@ -84,16 +84,16 @@ function Login() {
           <img src={logo} alt="Icesi logo" className="h-8 w-auto" />
 
           <nav className="grid w-full grid-cols-2 gap-x-6 gap-y-2 text-sm text-[#FFFFFF] sm:w-auto sm:grid-cols-4 sm:gap-6">
-            <a href="#" className="text-center transition hover:text-[#CECFD4]">
+            <a href="#" className="text-center font-bold transition hover:text-[#CECFD4]">
               Ir a ICESI
             </a>
-            <a href="#" className="text-center transition hover:text-[#CECFD4]">
+            <a href="#" className="text-center font-bold transition hover:text-[#CECFD4]">
               Más Información
             </a>
-            <a href="#" className="text-center transition hover:text-[#CECFD4]">
+            <a href="#" className="text-center font-bold transition hover:text-[#CECFD4]">
               Soporte
             </a>
-            <a href="#" className="text-center transition hover:text-[#CECFD4]">
+            <a href="#" className="text-center font-bold transition hover:text-[#CECFD4]">
               Ubicación
             </a>
           </nav>
