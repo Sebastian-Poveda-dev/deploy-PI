@@ -530,6 +530,70 @@ class CaseApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
+class CaseListApiTest(APITestCase):
+    """API tests for GET /cases/ — list cases for the authenticated user."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='list_subclinic')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_list_api', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.student = User.objects.create_user(username='student_list_api', password='pass')
+        assign_role(self.student, 'student')
+
+        self.other_student = User.objects.create_user(username='other_student_list_api', password='pass')
+        assign_role(self.other_student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_list_api', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(self.student, 'Case for listing', self.category, self.subclinic)
+
+    def test_unauthenticated_request_is_rejected(self):
+        response = self.client.get('/cases/')
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+    def test_assigned_student_sees_their_cases(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.get('/cases/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [c['id'] for c in response.data]
+        self.assertIn(self.case.id, ids)
+
+    def test_unassigned_student_does_not_see_case(self):
+        self.client.force_authenticate(self.other_student)
+        response = self.client.get('/cases/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [c['id'] for c in response.data]
+        self.assertNotIn(self.case.id, ids)
+
+    def test_admin_sees_all_cases(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get('/cases/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [c['id'] for c in response.data]
+        self.assertIn(self.case.id, ids)
+
+    def test_response_contains_expected_fields(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.get('/cases/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(response.data), 1)
+        case_data = response.data[0]
+        for field in ('id', 'status', 'category', 'created_at', 'updated_at', 'assigned_users'):
+            self.assertIn(field, case_data)
+
+    def test_assigned_users_lists_case_members(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.get('/cases/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        case_data = next(c for c in response.data if c['id'] == self.case.id)
+        usernames = [u['name'] for u in case_data['assigned_users']]
+        self.assertIn(self.student.username, usernames)
+
+
 class CaseLogApiTest(APITestCase):
     """API tests for case logs endpoints wired to the service layer."""
 

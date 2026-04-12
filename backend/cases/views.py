@@ -22,8 +22,19 @@ from .services import (
 )
 
 
+PRIVILEGED_ROLES = {'admin', 'advisor'}
+
+
 class CaseListCreateAPIView(APIView):
 	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		role = request.user.groups.values_list('name', flat=True).first()
+		if role in PRIVILEGED_ROLES:
+			cases = Case.objects.all()
+		else:
+			cases = Case.objects.filter(users=request.user)
+		return Response(CaseSerializer(cases, many=True).data, status=status.HTTP_200_OK)
 
 	def post(self, request):
 		serializer = CaseCreateSerializer(data=request.data)
