@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/DashboardLayout'
 import CasesTable from '../components/CasesTable'
 import CaseModal from '../components/CaseModal'
+import CreateCaseModal from '../components/CreateCaseModal'
 import { getCases } from '../services/caseService'
 
 function Cases() {
@@ -9,16 +10,21 @@ function Cases() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedCase, setSelectedCase] = useState(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   function openCaseDetails(caseItem) {
     setSelectedCase(caseItem)
-    setIsModalOpen(true)
+    setIsDetailModalOpen(true)
   }
 
   function closeCaseDetails() {
-    setIsModalOpen(false)
+    setIsDetailModalOpen(false)
     setSelectedCase(null)
+  }
+
+  function handleCaseCreated(newCase) {
+    setCases((prev) => [newCase, ...prev])
   }
 
   useEffect(() => {
@@ -55,6 +61,7 @@ function Cases() {
           <h1 className="text-2xl font-bold text-slate-800">Casos</h1>
           <button
             type="button"
+            onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center justify-center rounded-lg bg-[#5454F2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7]"
           >
             Crear Caso
@@ -64,7 +71,13 @@ function Cases() {
         {renderContent()}
       </section>
 
-      <CaseModal caseData={selectedCase} isOpen={isModalOpen} onClose={closeCaseDetails} />
+      <CaseModal caseData={selectedCase} isOpen={isDetailModalOpen} onClose={closeCaseDetails} />
+
+      <CreateCaseModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCaseCreated={handleCaseCreated}
+      />
     </DashboardLayout>
   )
 }
