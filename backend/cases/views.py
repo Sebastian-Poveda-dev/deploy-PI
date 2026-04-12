@@ -125,7 +125,10 @@ class CaseLogListCreateAPIView(APIView):
 		except ValueError as exc:
 			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-		return Response(CaseLogSerializer(logs, many=True).data, status=status.HTTP_200_OK)
+		return Response(
+			CaseLogSerializer(logs, many=True, context={'request': request}).data,
+			status=status.HTTP_200_OK,
+		)
 
 	def post(self, request, pk):
 		case = get_object_or_404(Case, pk=pk)
@@ -139,4 +142,7 @@ class CaseLogListCreateAPIView(APIView):
 		except ValueError as exc:
 			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-		return Response(CaseLogSerializer(log).data, status=status.HTTP_201_CREATED)
+		return Response(
+			CaseLogSerializer(log, context={'request': request}).data,
+			status=status.HTTP_201_CREATED,
+		)

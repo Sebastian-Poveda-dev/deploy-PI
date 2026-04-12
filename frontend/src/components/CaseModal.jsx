@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import StatusBadge from './StatusBadge'
 
-function CaseModal({ caseData, isOpen, onClose }) {
+function CaseModal({ caseData, isOpen, onClose, onOpenLogs }) {
   useEffect(() => {
     if (!isOpen) return undefined
 
@@ -89,6 +89,17 @@ function CaseModal({ caseData, isOpen, onClose }) {
                 {caseData?.description || 'No description available.'}
               </p>
             </div>
+          </section>
+
+          <section className="flex justify-end border-t border-slate-200 pt-4">
+            <button
+              type="button"
+              onClick={() => onOpenLogs?.(caseData?.id)}
+              disabled={!caseData?.id}
+              className="inline-flex items-center justify-center rounded-lg bg-[#5454F2] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Seguimiento
+            </button>
           </section>
         </div>
       </div>
