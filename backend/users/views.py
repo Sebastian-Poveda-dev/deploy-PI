@@ -1,9 +1,10 @@
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.apps import apps
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 
 from .services import register_beneficiary
 
@@ -40,3 +41,22 @@ def register_view(request):
 
     register_beneficiary(username, password, residence_address, phone_number)
     return JsonResponse({'registered': True}, status=201)
+
+
+def me_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Not authenticated'}, status=401)
+    role = request.user.groups.values_list('name', flat=True).first()
+    return JsonResponse({
+        'id': request.user.id,
+        'username': request.user.username,
+        'role': role or '',
+    })
+
+
+@require_GET
+def professors_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Not authenticated'}, status=401)
+    professors = User.objects.filter(groups__name='professor').values('id', 'username')
+    return JsonResponse(list(professors), safe=False)

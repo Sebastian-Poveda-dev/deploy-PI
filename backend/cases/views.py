@@ -33,7 +33,7 @@ class CaseListCreateAPIView(APIView):
 		if role in PRIVILEGED_ROLES:
 			cases = Case.objects.all()
 		else:
-			cases = Case.objects.filter(users=request.user)
+			cases = Case.objects.filter(assignments__user=request.user).distinct()
 		return Response(CaseSerializer(cases, many=True).data, status=status.HTTP_200_OK)
 
 	def post(self, request):

@@ -6,6 +6,7 @@ import CaseLogsModal from '../components/CaseLogsModal'
 import CaseDocumentsModal from '../components/CaseDocumentsModal'
 import CreateCaseModal from '../components/CreateCaseModal'
 import { getCases } from '../services/caseService'
+import { getCurrentUser } from '../services/userService'
 
 function Cases() {
   const [cases, setCases] = useState([])
@@ -18,6 +19,7 @@ function Cases() {
   const [documentsCaseId, setDocumentsCaseId] = useState(null)
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null)
 
   function openCaseDetails(caseItem) {
     setSelectedCase(caseItem)
@@ -55,7 +57,20 @@ function Cases() {
     setCases((prev) => [newCase, ...prev])
   }
 
+  function handleCaseUpdated(updatedCase) {
+    if (updatedCase) {
+      // Approve: update case in list and keep modal open with new status
+      setCases((prev) => prev.map((c) => c.id === updatedCase.id ? updatedCase : c))
+      setSelectedCase(updatedCase)
+    } else {
+      // Reject: user lost their assignment — close modal and refresh list
+      closeCaseDetails()
+      getCases().then(setCases).catch(() => {})
+    }
+  }
+
   useEffect(() => {
+    getCurrentUser().then(setCurrentUser)
     getCases()
       .then(setCases)
       .catch(() => setError('No fue posible cargar los casos. Intenta de nuevo.'))
@@ -105,6 +120,8 @@ function Cases() {
         onClose={closeCaseDetails}
         onOpenLogs={openCaseLogs}
         onOpenDocuments={openCaseDocuments}
+        currentUser={currentUser}
+        onCaseUpdated={handleCaseUpdated}
       />
 
       <CaseLogsModal caseId={logsCaseId} isOpen={isLogsModalOpen} onClose={closeCaseLogs} />

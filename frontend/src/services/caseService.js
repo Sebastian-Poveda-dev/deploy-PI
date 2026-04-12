@@ -29,7 +29,10 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createCase({ description, categoryId, subclinicId }) {
+export async function createCase({ description, categoryId, subclinicId, professorId }) {
+  const body = { description, category_id: categoryId, subclinic_id: subclinicId }
+  if (professorId != null) body.professor_id = professorId
+
   const response = await fetch('/cases/', {
     method: 'POST',
     credentials: 'include',
@@ -37,11 +40,7 @@ export async function createCase({ description, categoryId, subclinicId }) {
       'Content-Type': 'application/json',
       'X-CSRFToken': getCsrfToken(),
     },
-    body: JSON.stringify({
-      description,
-      category_id: categoryId,
-      subclinic_id: subclinicId,
-    }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
@@ -51,6 +50,40 @@ export async function createCase({ description, categoryId, subclinicId }) {
 
   const raw = await response.json()
   return mapCase(raw)
+}
+
+export async function approveCase(caseId) {
+  const response = await fetch(`/cases/${caseId}/approve/`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible aprobar el caso.')
+  }
+
+  return mapCase(await response.json())
+}
+
+export async function rejectCase(caseId) {
+  const response = await fetch(`/cases/${caseId}/reject-assignment/`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible rechazar la asignación.')
+  }
 }
 
 export async function getCases() {

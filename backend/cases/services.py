@@ -22,19 +22,22 @@ CASE_UPDATE_PRIVILEGED_ROLES = {'admin', 'advisor'}
 CASE_UPDATE_ALLOWED_FIELDS = {'description', 'category', 'subclinic'}
 
 
-def create_case(user, description, category, subclinic):
+def create_case(user, description, category, subclinic, professor=None):
     """
     Create a case on behalf of a user.
 
     Status is determined by the user's role:
       admin / advisor / professor → active
-      student                    → pending_authorization
+      student                    → pending_authorization (requires a professor co-assigned)
       beneficiary                → PermissionError (not allowed)
     """
     role = user.groups.values_list('name', flat=True).first()
 
     if role not in ROLE_STATUS_MAP:
         raise PermissionError(f"Users with role '{role}' cannot create cases.")
+
+    if role == 'student' and professor is None:
+        raise ValueError('A student must assign a professor when creating a case.')
 
     status = CaseStatus.objects.get(name=ROLE_STATUS_MAP[role])
 
@@ -47,6 +50,9 @@ def create_case(user, description, category, subclinic):
     )
 
     CaseAssignment.objects.create(case=case, user=user)
+
+    if professor is not None and professor.pk != user.pk:
+        CaseAssignment.objects.create(case=case, user=professor)
 
     CaseLog.objects.create(
         case=case,
@@ -177,6 +183,7 @@ def reject_case_assignment(case, user):
       admin / advisor / beneficiary → PermissionError
       user not assigned to the case → PermissionError
 
+    A professor cannot reject if doing so would leave a student with no professor.
     Case status is not modified.
     """
     role = user.groups.values_list('name', flat=True).first()
@@ -187,6 +194,15 @@ def reject_case_assignment(case, user):
     assignment = CaseAssignment.objects.filter(case=case, user=user).first()
     if assignment is None:
         raise PermissionError(f"User '{user.username}' is not assigned to this case.")
+
+    if role == 'professor':
+        has_student = case.users.filter(groups__name='student').exists()
+        remaining_professors = case.users.filter(groups__name='professor').exclude(pk=user.pk).count()
+        if has_student and remaining_professors == 0:
+            raise PermissionError(
+                'Cannot reject assignment: there is a student assigned to this case '
+                'and no other professor would remain.'
+            )
 
     assignment.delete()
 

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createCase } from '../services/caseService'
+import { getCurrentUser, getProfessors } from '../services/userService'
 
 const CATEGORIES = [
   { id: 1, label: 'Laboral' },
@@ -13,7 +14,7 @@ const SUBCLINICS = [
   { id: 4, label: 'Familia' },
 ]
 
-const EMPTY_FORM = { description: '', categoryId: '', subclinicId: '' }
+const EMPTY_FORM = { description: '', categoryId: '', subclinicId: '', professorId: '' }
 
 function Field({ label, error, children }) {
   return (
@@ -30,6 +31,21 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
+  const [isStudent, setIsStudent] = useState(false)
+  const [professors, setProfessors] = useState([])
+
+  useEffect(() => {
+    if (!isOpen) return
+    getCurrentUser().then((user) => {
+      if (user?.role === 'student') {
+        setIsStudent(true)
+        getProfessors().then(setProfessors)
+      } else {
+        setIsStudent(false)
+        setProfessors([])
+      }
+    })
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -45,6 +61,7 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
     if (!form.description.trim()) next.description = 'La descripción es requerida.'
     if (!form.categoryId) next.categoryId = 'Selecciona una categoría.'
     if (!form.subclinicId) next.subclinicId = 'Selecciona una subclínica.'
+    if (isStudent && !form.professorId) next.professorId = 'Selecciona un profesor.'
     return next
   }
 
@@ -64,6 +81,7 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
         description: form.description.trim(),
         categoryId: Number(form.categoryId),
         subclinicId: Number(form.subclinicId),
+        professorId: form.professorId ? Number(form.professorId) : null,
       })
       setForm(EMPTY_FORM)
       setErrors({})
@@ -144,6 +162,22 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
                 ))}
               </select>
             </Field>
+
+            {isStudent && (
+              <Field label="Profesor asignado" error={errors.professorId}>
+                <select
+                  value={form.professorId}
+                  onChange={set('professorId')}
+                  disabled={loading}
+                  className={inputClass}
+                >
+                  <option value="">Selecciona un profesor</option>
+                  {professors.map((p) => (
+                    <option key={p.id} value={p.id}>{p.username}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
 
             {apiError && (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{apiError}</p>
