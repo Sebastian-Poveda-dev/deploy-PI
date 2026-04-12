@@ -140,7 +140,7 @@ class CaseLogServiceTest(TestCase):
         second = create_case_log(self.student, self.case, 'Second update')
         third = create_case_log(self.advisor, self.case, 'Third note')
 
-        logs = list(get_case_logs(self.case))
+        logs = list(get_case_logs(self.case, self.student))
         self.assertGreaterEqual(len(logs), 3)
         self.assertEqual([logs[-3].pk, logs[-2].pk, logs[-1].pk], [first.pk, second.pk, third.pk])
 
@@ -528,3 +528,130 @@ class CaseApiTest(APITestCase):
         self.client.force_authenticate(self.admin)
         response = self.client.post(f'/cases/{self.case.id}/reject-assignment/', {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class CaseLogApiTest(APITestCase):
+    """API tests for case logs endpoints wired to the service layer."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='api_logs_subclinic')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_logs_api', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_logs_api', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.professor = User.objects.create_user(username='professor_logs_api', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.student = User.objects.create_user(username='student_logs_api', password='pass')
+        assign_role(self.student, 'student')
+
+        self.other_student = User.objects.create_user(username='other_student_logs_api', password='pass')
+        assign_role(self.other_student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_logs_api', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(self.student, 'Case with logs endpoint', self.category, self.subclinic)
+        self.case.users.add(self.professor)
+        self.initial_log = create_case_log(self.student, self.case, 'Initial chat message')
+
+    def test_assigned_user_can_retrieve_logs(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.get(f'/cases/{self.case.id}/logs/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+
+    def test_admin_can_retrieve_logs(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(f'/cases/{self.case.id}/logs/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_advisor_can_retrieve_logs(self):
+        self.client.force_authenticate(self.advisor)
+        response = self.client.get(f'/cases/{self.case.id}/logs/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_non_assigned_user_cannot_retrieve_logs(self):
+        self.client.force_authenticate(self.other_student)
+        response = self.client.get(f'/cases/{self.case.id}/logs/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_beneficiary_cannot_retrieve_logs(self):
+        self.client.force_authenticate(self.beneficiary)
+        response = self.client.get(f'/cases/{self.case.id}/logs/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_assigned_user_can_create_logs(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.post(
+            f'/cases/{self.case.id}/logs/',
+            {'content': 'Log from assigned student'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['content'], 'Log from assigned student')
+
+    def test_admin_can_create_logs(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            f'/cases/{self.case.id}/logs/',
+            {'content': 'Log from admin'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_advisor_can_create_logs(self):
+        self.client.force_authenticate(self.advisor)
+        response = self.client.post(
+            f'/cases/{self.case.id}/logs/',
+            {'content': 'Log from advisor'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_non_assigned_user_cannot_create_logs(self):
+        self.client.force_authenticate(self.other_student)
+        response = self.client.post(
+            f'/cases/{self.case.id}/logs/',
+            {'content': 'Should fail'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_beneficiary_cannot_create_logs(self):
+        self.client.force_authenticate(self.beneficiary)
+        response = self.client.post(
+            f'/cases/{self.case.id}/logs/',
+            {'content': 'Should fail'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_logs_are_associated_with_case(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.post(
+            f'/cases/{self.case.id}/logs/',
+            {'content': 'Association check'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(self.case.logs.filter(pk=response.data['id']).exists())
+
+    def test_logs_response_format_is_correct(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.get(f'/cases/{self.case.id}/logs/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(response.data), 1)
+        log_item = response.data[-1]
+        self.assertIn('id', log_item)
+        self.assertIn('content', log_item)
+        self.assertIn('created_at', log_item)
+        self.assertIn('created_by', log_item)

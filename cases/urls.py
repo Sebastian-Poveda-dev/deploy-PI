@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     CaseApproveAPIView,
     CaseDetailAPIView,
+    CaseLogListCreateAPIView,
     CaseListCreateAPIView,
     CaseRejectAssignmentAPIView,
 )
@@ -11,6 +12,7 @@ urlpatterns = [
     path('', CaseListCreateAPIView.as_view(), name='case-list-create'),
     path('<int:pk>/', CaseDetailAPIView.as_view(), name='case-detail'),
     path('<int:pk>/approve/', CaseApproveAPIView.as_view(), name='case-approve'),
+    path('<int:pk>/logs/', CaseLogListCreateAPIView.as_view(), name='case-logs'),
     path(
         '<int:pk>/reject-assignment/',
         CaseRejectAssignmentAPIView.as_view(),

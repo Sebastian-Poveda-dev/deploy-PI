@@ -5,8 +5,21 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Case
-from .serializers import CaseCreateSerializer, CaseSerializer, CaseUpdateSerializer
-from .services import approve_case, create_case, reject_case_assignment, update_case
+from .serializers import (
+	CaseCreateSerializer,
+	CaseLogCreateSerializer,
+	CaseLogSerializer,
+	CaseSerializer,
+	CaseUpdateSerializer,
+)
+from .services import (
+	approve_case,
+	create_case,
+	create_case_log,
+	get_case_logs,
+	reject_case_assignment,
+	update_case,
+)
 
 
 class CaseListCreateAPIView(APIView):
@@ -86,3 +99,33 @@ class CaseRejectAssignmentAPIView(APIView):
 			{'detail': 'Case assignment rejected.'},
 			status=status.HTTP_200_OK,
 		)
+
+
+class CaseLogListCreateAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request, pk):
+		case = get_object_or_404(Case, pk=pk)
+
+		try:
+			logs = get_case_logs(case, request.user)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		except ValueError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+		return Response(CaseLogSerializer(logs, many=True).data, status=status.HTTP_200_OK)
+
+	def post(self, request, pk):
+		case = get_object_or_404(Case, pk=pk)
+		serializer = CaseLogCreateSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		try:
+			log = create_case_log(request.user, case, serializer.validated_data['content'])
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		except ValueError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+		return Response(CaseLogSerializer(log).data, status=status.HTTP_201_CREATED)
