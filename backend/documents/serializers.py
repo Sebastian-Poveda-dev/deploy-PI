@@ -23,6 +23,6 @@ class DocumentSerializer(serializers.ModelSerializer):
 
 class DocumentUploadSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
-    description = serializers.CharField()
+    description = serializers.CharField(allow_blank=True, default='')
     expiration_date = serializers.DateField(required=False, allow_null=True)
     file = serializers.FileField()
