@@ -24,6 +24,35 @@ function mapCase(raw) {
   }
 }
 
+function getCsrfToken() {
+  const match = document.cookie.match(/csrftoken=([^;]+)/)
+  return match ? match[1] : ''
+}
+
+export async function createCase({ description, categoryId, subclinicId }) {
+  const response = await fetch('/cases/', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify({
+      description,
+      category_id: categoryId,
+      subclinic_id: subclinicId,
+    }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible crear el caso.')
+  }
+
+  const raw = await response.json()
+  return mapCase(raw)
+}
+
 export async function getCases() {
   const response = await fetch('/cases/', {
     method: 'GET',
