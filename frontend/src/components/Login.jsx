@@ -152,7 +152,7 @@ function Login() {
 
       <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-[#FFFFFF]/20 bg-[#5454F2]">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <img src={logo} alt="Icesi logo" className="h-8 w-auto" />
+          <img src={logo} alt="Icesi logo" className="h-20 w-auto" />
 
           <nav className="grid w-full grid-cols-2 gap-x-6 gap-y-2 text-sm text-[#FFFFFF] sm:w-auto sm:grid-cols-4 sm:gap-6">
             <a href="#" className="text-center font-bold transition hover:text-[#CECFD4]">
