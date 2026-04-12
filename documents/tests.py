@@ -1,11 +1,15 @@
-from django.test import TestCase
+from django.http import FileResponse
+from django.test import TestCase, override_settings
 from django.conf import settings
 from django.apps import apps
 from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework import status
+from rest_framework.test import APITestCase
 
 from cases.models import Category, Subclinic
 from cases.services import create_case
 from documents.models import Document
+from documents.test_storage import TestMemoryStorage
 from documents.services import upload_document, get_case_documents, download_document
 from users.services import assign_role
 
@@ -304,3 +308,277 @@ class DownloadDocumentTest(TestCase):
     def test_nonexistent_document_raises_error(self):
         with self.assertRaises(Document.DoesNotExist):
             download_document(99999, self.student)
+
+
+class DocumentApiBaseTest(APITestCase):
+    def setUp(self):
+        super().setUp()
+        TestMemoryStorage.clear()
+        self._storage_override = override_settings(
+            STORAGES={
+                'default': {'BACKEND': 'documents.test_storage.TestMemoryStorage'},
+                'staticfiles': {
+                    'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+                },
+            }
+        )
+        self._storage_override.enable()
+        self.addCleanup(self._storage_override.disable)
+        self.addCleanup(TestMemoryStorage.clear)
+
+        self.subclinic = Subclinic.objects.create(name=self._name('api_subclinic'))
+        self.category, _ = Category.objects.get_or_create(name=self._name('api_category'))
+
+        self.admin = User.objects.create_user(username=self._name('admin'), password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username=self._name('advisor'), password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.student = User.objects.create_user(username=self._name('student'), password='pass')
+        assign_role(self.student, 'student')
+
+        self.other_student = User.objects.create_user(
+            username=self._name('other_student'),
+            password='pass',
+        )
+        assign_role(self.other_student, 'student')
+
+        self.beneficiary = User.objects.create_user(
+            username=self._name('beneficiary'),
+            password='pass',
+        )
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(self.student, 'Documents API case', self.category, self.subclinic)
+        self.other_case = create_case(
+            self.student,
+            'Other documents API case',
+            self.category,
+            self.subclinic,
+        )
+
+    def _name(self, prefix):
+        return f'{prefix}_{self.__class__.__name__.lower()}'
+
+    def _file(self, name='evidence.pdf', content=b'document content'):
+        return SimpleUploadedFile(name, content, content_type='application/pdf')
+
+    def _upload_document(self, *, case=None, user=None, name='Existing Doc', content=b'existing doc'):
+        return upload_document(
+            case=case or self.case,
+            user=user or self.student,
+            file=self._file(f'{name.lower().replace(" ", "_")}.pdf', content=content),
+            name=name,
+            description=f'Description for {name}',
+        )
+
+
+class DocumentUploadApiTest(DocumentApiBaseTest):
+    def test_assigned_user_can_upload_document(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.post(
+            f'/cases/{self.case.id}/documents/',
+            {
+                'name': 'Contract',
+                'description': 'Signed contract',
+                'expiration_date': '2030-01-01T00:00:00Z',
+                'file': self._file('contract.pdf', b'contract content'),
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertSetEqual(
+            set(response.data.keys()),
+            {'id', 'name', 'description', 'uploaded_at', 'expiration_date'},
+        )
+
+        document = Document.objects.get(pk=response.data['id'])
+        self.assertEqual(document.case, self.case)
+        self.assertEqual(document.uploaded_by, self.student)
+        self.assertTrue(document.file.name.startswith(f'cases/{self.case.pk}/'))
+        self.assertIn('contract', document.file.name)
+        self.assertEqual(document.file.read(), b'contract content')
+        document.file.close()
+
+    def test_admin_can_upload_document(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            f'/cases/{self.case.id}/documents/',
+            {
+                'name': 'Admin Contract',
+                'description': 'Uploaded by admin',
+                'file': self._file('admin-contract.pdf'),
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_advisor_can_upload_document(self):
+        self.client.force_authenticate(self.advisor)
+
+        response = self.client.post(
+            f'/cases/{self.case.id}/documents/',
+            {
+                'name': 'Advisor Contract',
+                'description': 'Uploaded by advisor',
+                'file': self._file('advisor-contract.pdf'),
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_non_assigned_user_cannot_upload_document(self):
+        self.client.force_authenticate(self.other_student)
+
+        response = self.client.post(
+            f'/cases/{self.case.id}/documents/',
+            {
+                'name': 'Unauthorized',
+                'description': 'Should fail',
+                'file': self._file('unauthorized.pdf'),
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_beneficiary_cannot_upload_document(self):
+        self.client.force_authenticate(self.beneficiary)
+
+        response = self.client.post(
+            f'/cases/{self.case.id}/documents/',
+            {
+                'name': 'Beneficiary Upload',
+                'description': 'Should fail',
+                'file': self._file('beneficiary.pdf'),
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class DocumentListApiTest(DocumentApiBaseTest):
+    def setUp(self):
+        super().setUp()
+        self.case_document = self._upload_document(case=self.case, name='Case Document')
+        self._upload_document(case=self.other_case, name='Other Case Document')
+
+    def test_assigned_user_can_view_documents(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get(f'/cases/{self.case.id}/documents/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+
+    def test_admin_can_view_documents(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.get(f'/cases/{self.case.id}/documents/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_advisor_can_view_documents(self):
+        self.client.force_authenticate(self.advisor)
+
+        response = self.client.get(f'/cases/{self.case.id}/documents/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_non_assigned_user_cannot_view_documents(self):
+        self.client.force_authenticate(self.other_student)
+
+        response = self.client.get(f'/cases/{self.case.id}/documents/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_beneficiary_cannot_view_documents(self):
+        self.client.force_authenticate(self.beneficiary)
+
+        response = self.client.get(f'/cases/{self.case.id}/documents/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_only_documents_for_the_case_are_returned(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get(f'/cases/{self.case.id}/documents/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['id'], self.case_document.id)
+        self.assertEqual(response.data[0]['name'], self.case_document.name)
+        self.assertSetEqual(
+            set(response.data[0].keys()),
+            {'id', 'name', 'description', 'uploaded_at', 'expiration_date'},
+        )
+
+
+class DocumentDownloadApiTest(DocumentApiBaseTest):
+    def setUp(self):
+        super().setUp()
+        self.file_content = b'test file content for api download'
+        self.document = self._upload_document(
+            case=self.case,
+            name='Downloadable Doc',
+            content=self.file_content,
+        )
+
+    def test_assigned_user_can_download_document(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get(f'/documents/{self.document.id}/download/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_admin_can_download_document(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.get(f'/documents/{self.document.id}/download/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_advisor_can_download_document(self):
+        self.client.force_authenticate(self.advisor)
+
+        response = self.client.get(f'/documents/{self.document.id}/download/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_non_assigned_user_cannot_download_document(self):
+        self.client.force_authenticate(self.other_student)
+
+        response = self.client.get(f'/documents/{self.document.id}/download/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_beneficiary_cannot_download_document(self):
+        self.client.force_authenticate(self.beneficiary)
+
+        response = self.client.get(f'/documents/{self.document.id}/download/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_fileresponse_is_returned_correctly(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get(f'/documents/{self.document.id}/download/')
+
+        self.assertIsInstance(response, FileResponse)
+        self.assertEqual(response.get('Content-Type'), 'application/pdf')
+        self.assertIn('attachment;', response.get('Content-Disposition', ''))
+
+    def test_correct_file_is_returned(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get(f'/documents/{self.document.id}/download/')
+
+        content = b''.join(response.streaming_content)
+        self.assertEqual(content, self.file_content)
