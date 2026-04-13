@@ -299,7 +299,7 @@ class AdminUserCreationTest(TestCase):
         self.assertEqual(user.groups.count(), 1)
 
 
-<<<<<<< HEAD
+
 class AdminUserManagementServiceTest(TestCase):
     """Tests for list_users and update_user service functions."""
 
@@ -545,7 +545,6 @@ class AdminUserManagementApiTest(APITestCase):
             'role': 'student',
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-=======
 class BeneficiaryListEndpointTest(TestCase):
     """Tests for the beneficiaries endpoint used by case creation form/modal."""
 
@@ -580,4 +579,4 @@ class BeneficiaryListEndpointTest(TestCase):
         self.assertTrue(any(item['full_name'] == 'Laura Gomez' for item in payload))
         self.assertTrue(any(item['id'] == User.objects.get(username='beneficiary_new').id for item in payload))
 
->>>>>>> dev
+
