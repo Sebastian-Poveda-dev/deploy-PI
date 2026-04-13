@@ -1,0 +1,99 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="6465B95B-6A98-0308-8013-548D49C597E6" name="USER_DOCUMENTS">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:39:07 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="document_id" id="EDF9A42A-D967-50B1-6A5B-65DB51CE4699">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:39:17 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="document_name" id="4E340037-93AE-1336-B0A1-1C9A9F62B3B1">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:39:31 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="document_uploadDate" id="B30D913D-C669-88B5-65C8-442374366794">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:40:01 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="docType_id" id="060BB96B-D959-E0B1-399F-4764390C6698">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 18:09:15 UTC</createdTime>
+<generatorID>05E494DA-F63E-2114-E40F-DCA6E5100C16</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<nullsAllowed>true</nullsAllowed>
+<referedAttribute>8F4DBAAB-88AA-863E-CD4C-FE12AE939860</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="user_id" id="8E989C7D-4F28-D363-3F1A-C0024C027F5E">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 18:15:06 UTC</createdTime>
+<generatorID>882D6727-FFAD-837F-0D9A-E20312FD3D81</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<nullsAllowed>true</nullsAllowed>
+<referedAttribute>0BBAB5DB-C06A-D54B-2209-C1C94E9C0D8B</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="D61A7777-1B33-031A-747A-32E12D45DBE2" name="USERDOCUMENTS PK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:39:30 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>EDF9A42A-D967-50B1-6A5B-65DB51CE4699</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>

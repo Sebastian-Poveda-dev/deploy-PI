@@ -1,0 +1,19 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Relation class="oracle.dbtools.crest.model.design.logical.Relation" name="chatStatuses_chats" directorySegmentName="seg_0" id="E1B90F16-C96E-5B6B-3DA1-767BF6CF503E">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 18:19:38 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<sourcePk>68C14A51-05D5-A427-673D-8B4A228F6201</sourcePk>
+<identifying>false</identifying>
+<optionalSource>false</optionalSource>
+<optionalTarget>true</optionalTarget>
+<sourceCardinality>1</sourceCardinality>
+<sourceEntity>93FDCEB2-C755-6996-43D7-B0258AB98FB8</sourceEntity>
+<targetCardinalityString>*</targetCardinalityString>
+<targetEntity>5A0124DE-C6E6-E7C6-5CA5-82D2BCC9FD2D</targetEntity>
+<transferable>true</transferable>
+<deleteRule>NO ACTION</deleteRule>
+</Relation>

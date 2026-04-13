@@ -1,0 +1,17 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<FKIndexAssociation class="oracle.dbtools.crest.model.design.relational.FKIndexAssociation" directorySegmentName="seg_0" id="F210C6B4-6D83-7F04-08A5-F97806DFD831" containerWithKeyObject="5C4BF600-14F7-460E-EBB6-0B986DF7A518" localFKIndex="C1D105C3-0DF6-52BE-E6AF-30D40067BF09" name="MESSAGES_MESSAGE_STATUSES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>1FB8C2E3-1FAD-DEFC-A709-4F5C06F280FA</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<referredTableLongName>MESSAGE_STATUSES</referredTableLongName>
+<deleteRule>NO ACTION</deleteRule>
+<referredTableID>6E0F47FB-AFE1-EC38-B179-3497A6DFAFBA</referredTableID>
+<keyObject>C96D69B1-3081-D961-8035-A74E5795355D</keyObject>
+<referredKeyID>C96D69B1-3081-D961-8035-A74E5795355D</referredKeyID>
+<mandatory>false</mandatory>
+<refColNames>messageStatus_id</refColNames>
+<transferable>true</transferable>
+<rely>false</rely>
+<columnDependencyConstraintGenerateInDDL>true</columnDependencyConstraintGenerateInDDL>
+</FKIndexAssociation>
