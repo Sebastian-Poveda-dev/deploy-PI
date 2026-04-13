@@ -76,4 +76,4 @@ export async function getBeneficiaries() {
   if (!response.ok) return []
   return response.json()
 }
-//
+

@@ -1,17 +1,15 @@
+from django.apps import apps
+from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import Group
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import Group
-from django.conf import settings
-from django.apps import apps
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST, require_GET
 from django.shortcuts import get_object_or_404
-from rest_framework.views import APIView
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.views import APIView
 
 from .forms import BeneficiaryRegisterForm
 from .services import admin_create_user, list_users, update_user
@@ -54,11 +52,13 @@ def me_view(request):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Not authenticated'}, status=401)
     role = request.user.groups.values_list('name', flat=True).first()
-    return JsonResponse({
-        'id': request.user.id,
-        'username': request.user.username,
-        'role': role or '',
-    })
+    return JsonResponse(
+        {
+            'id': request.user.id,
+            'username': request.user.username,
+            'role': role or '',
+        }
+    )
 
 
 @require_GET
@@ -67,7 +67,6 @@ def professors_view(request):
         return JsonResponse({'error': 'Not authenticated'}, status=401)
     professors = User.objects.filter(groups__name='professor').values('id', 'username')
     return JsonResponse(list(professors), safe=False)
-
 
 
 def _user_to_dict(user):
@@ -152,4 +151,3 @@ def beneficiaries_view(request):
             }
         )
     return JsonResponse(data, safe=False)
-

@@ -545,7 +545,6 @@ class AdminUserManagementApiTest(APITestCase):
             'role': 'student',
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
 class BeneficiaryListEndpointTest(TestCase):
     """Tests for the beneficiaries endpoint used by case creation form/modal."""
 

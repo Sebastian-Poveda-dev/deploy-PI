@@ -1,0 +1,139 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="5C4BF600-14F7-460E-EBB6-0B986DF7A518" name="MESSAGES">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>FA30C515-D3C9-3FB6-2153-E0568AEC9A53</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="message_id" id="10390038-C75C-D425-1041-2197F69471D8">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>495A7065-3C93-61EE-7246-6B8D4CE75A17</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="message_content" id="BD7F79B1-86A4-CA34-38C1-8F8D32D57954">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>1A379B3E-F0A1-6193-0889-A9CB2E13D89B</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="message_sendingDate" id="C9547AB5-FD7B-749E-9AC2-975B428F54A6">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>7F620A60-4847-17DF-1C5F-1EFB610F3CF4</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="USERS_user_id" id="78B93B0D-83BC-64F3-33A4-250476B52181">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>05A26650-E62C-EFB1-387A-D678BC9D2F78</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<nullsAllowed>true</nullsAllowed>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="5A7B7FFC-2B1E-2C97-A0F4-2124094A9826" referredColumn="D8F76BA2-E878-AF53-3A26-21BDD66C1F15"/>
+</associations>
+</Column>
+<Column name="MESSAGE_STATUSES_messageStatus_id" id="EC0513AF-6DDD-2545-C847-FC457FC800D2">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>1099C5C9-EB12-C606-7F54-E1183809D517</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<nullsAllowed>true</nullsAllowed>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="F210C6B4-6D83-7F04-08A5-F97806DFD831" referredColumn="E30D4D01-624A-9B0E-09BC-D71CB5CA75B8"/>
+</associations>
+</Column>
+<Column name="CHATS_chat_id" id="C6178096-48AE-11EF-F458-1C6DA068539A">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>68E62053-F230-65E8-520A-4ED1A3F212EE</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="93CA4B59-78D6-A541-9ABC-A71B1696CB62" referredColumn="D982B8D4-A57A-C699-60D0-24A8AD63BDEF"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="8F34291F-7B94-7807-53E9-DBF85F9D9C3F" name="MESSAGES_PK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>EDE06751-9733-6619-E0D2-762A491AF702</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="10390038-C75C-D425-1041-2197F69471D8"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="A9551CAC-B90E-4F41-B10D-A58E37881DA8" name="MESSAGES_CHATS_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>6278B9B3-282F-2CCA-B470-3E03D98DE64C</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="C6178096-48AE-11EF-F458-1C6DA068539A"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="C1D105C3-0DF6-52BE-E6AF-30D40067BF09" name="MESSAGES_MESSAGE_STATUSES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>1FB8C2E3-1FAD-DEFC-A709-4F5C06F280FA</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="EC0513AF-6DDD-2545-C847-FC457FC800D2"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="E5D21F5D-6E0F-343F-DCF7-C7CA57A844D8" name="MESSAGES_USERS_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>BAAF986C-60F4-3ABF-555E-3E0534B522AB</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="78B93B0D-83BC-64F3-33A4-250476B52181"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

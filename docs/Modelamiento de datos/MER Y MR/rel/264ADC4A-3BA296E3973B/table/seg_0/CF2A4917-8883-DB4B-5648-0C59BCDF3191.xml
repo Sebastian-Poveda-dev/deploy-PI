@@ -1,0 +1,137 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="CF2A4917-8883-DB4B-5648-0C59BCDF3191" name="CASES">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>1E7DC88E-64A6-14EB-0315-21728FE5CDC5</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="case_id" id="5EF7A748-B9DA-3904-A96E-E53EADA1A1DD">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>0E4B1F3E-40CF-DB8E-6C87-66FF6A26BF46</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="case_description" id="FCF741B3-510A-CC39-75C6-9079B37CF29A">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>9EBC2AE0-3392-6CD5-BC7E-B3F286578E63</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<nullsAllowed>true</nullsAllowed>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="case_creationDate" id="416F11FB-24C1-8E89-FE8F-FA64B0006DA5">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>36A68ABC-573D-B6D3-7EF5-9D64E6FE747C</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="case_expirationDate" id="EC26588D-3D7A-6A1B-3B8F-8CFD2AC1DEB1">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>5582C5A2-B89A-C99F-2482-DCA308514675</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="case_rejectionReason" id="6C198859-3BB9-B285-297A-EF2946F05993">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>D3B1BAA9-63E7-E0B2-CD59-2DC1C6927670</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<nullsAllowed>true</nullsAllowed>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="CASE_STATUSES_status_id" id="90B28771-C4D5-633A-5DC6-72EBDFC9C0AC">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>2F0469B8-319C-8565-561D-5B64BAA27BE0</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<nullsAllowed>true</nullsAllowed>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="FBB96184-7B40-1003-9CF2-7B1133FB7D55" referredColumn="464AE865-5367-9A8B-ADED-D7EE2F21CF01"/>
+</associations>
+</Column>
+<Column name="LEGAL_CATEGORIES_caseCategory_id" id="1F7D6169-4BB4-4DEB-26BB-913F5981CB05">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>A00283B5-7361-0F12-D7A1-65ABC18D231F</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<nullsAllowed>true</nullsAllowed>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="70E9C838-8FA3-5089-C359-0EDD6DB318C4" referredColumn="E61A0D92-5E14-153E-BDA9-4BABBC198D5E"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="ADBD5E3B-4BC7-586D-3214-9CF32D2FBAE9" name="CASES_PK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>E8B362C0-7D8F-9867-7C91-F0BADFDF5C88</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="5EF7A748-B9DA-3904-A96E-E53EADA1A1DD"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="2B863D72-D2D0-6BD1-37BA-21EA49C3A9E4" name="CASES_CASE_STATUSES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>F984D4EE-30AE-6645-9CC8-C59E556DAA33</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="90B28771-C4D5-633A-5DC6-72EBDFC9C0AC"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="EA12AF2D-5CF6-212A-595D-21F164076843" name="CASES_LEGAL_CATEGORIES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>503BC75F-FF30-6B57-5188-80292A9C7457</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="1F7D6169-4BB4-4DEB-26BB-913F5981CB05"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

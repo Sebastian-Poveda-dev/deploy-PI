@@ -1,0 +1,81 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="93A6F815-8E2B-AF86-1C82-5EAC7F866CD0" name="USERS">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>66D8298E-2575-370D-32D9-E056576B780F</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="user_id" id="D8F76BA2-E878-AF53-3A26-21BDD66C1F15">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>0BBAB5DB-C06A-D54B-2209-C1C94E9C0D8B</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="user_name" id="AE00F18C-DE74-19A0-8860-A6946DE59B04">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>E4E885D3-75AA-3DA1-C328-49C526ACC664</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="user_address" id="2975138B-6DF6-6143-F647-0C440192BEFD">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>291BA799-217F-7FFA-CAC7-7F67FC2302E8</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="user_telephoneNumber" id="CB59DAE3-27A4-5DCD-D108-DB73A352F46C">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>790A5FED-98A7-FD8D-9323-2CAF593FE282</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="user_registrationDate" id="D38C5598-A145-8245-2209-0ABDFBFE5B1E">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>525CE2BF-C10F-3E32-E5A5-90B043FD5324</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="959E6094-EC19-3362-E2EB-BA7F1C83F1C7" name="USERS_PK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>046D0E0E-31EA-7F67-8317-EC1977E87A6F</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="D8F76BA2-E878-AF53-3A26-21BDD66C1F15"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

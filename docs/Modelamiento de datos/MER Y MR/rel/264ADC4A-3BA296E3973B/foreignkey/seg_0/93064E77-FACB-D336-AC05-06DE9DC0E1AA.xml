@@ -1,0 +1,17 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<FKIndexAssociation class="oracle.dbtools.crest.model.design.relational.FKIndexAssociation" directorySegmentName="seg_0" id="93064E77-FACB-D336-AC05-06DE9DC0E1AA" containerWithKeyObject="A716277D-2160-4848-D843-7EC4138A0F48" localFKIndex="5A43E93F-D568-44FF-0730-96346CEBE9F0" name="CHATS_CHAT_STATUSES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>E1B90F16-C96E-5B6B-3DA1-767BF6CF503E</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<referredTableLongName>CHAT_STATUSES</referredTableLongName>
+<deleteRule>NO ACTION</deleteRule>
+<referredTableID>DA6C1492-9938-B8E7-F8C8-5BE1DE84DE92</referredTableID>
+<keyObject>A41A7F22-82ED-FD20-2B2A-1A9B8A408029</keyObject>
+<referredKeyID>A41A7F22-82ED-FD20-2B2A-1A9B8A408029</referredKeyID>
+<mandatory>false</mandatory>
+<refColNames>chatStatus_id</refColNames>
+<transferable>true</transferable>
+<rely>false</rely>
+<columnDependencyConstraintGenerateInDDL>true</columnDependencyConstraintGenerateInDDL>
+</FKIndexAssociation>

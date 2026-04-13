@@ -1,0 +1,17 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<FKIndexAssociation class="oracle.dbtools.crest.model.design.relational.FKIndexAssociation" directorySegmentName="seg_0" id="40D7B25C-242A-0CFB-E3ED-BE9A5B037A0D" containerWithKeyObject="7B49D61F-D2C1-5573-B075-F3FBA1ED6CFB" localFKIndex="E1E071B5-68EA-EEAB-2491-29A19A809AB6" name="USER_DOCUMENTS_DOCUMENT_TYPES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>05E494DA-F63E-2114-E40F-DCA6E5100C16</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<referredTableLongName>DOCUMENT_TYPES</referredTableLongName>
+<deleteRule>NO ACTION</deleteRule>
+<referredTableID>5D0E5C2F-D81D-783A-2763-4B88645EDB66</referredTableID>
+<keyObject>AD0CCCE6-45F5-B90A-F0B7-B8F926E95CC1</keyObject>
+<referredKeyID>AD0CCCE6-45F5-B90A-F0B7-B8F926E95CC1</referredKeyID>
+<mandatory>false</mandatory>
+<refColNames>docType_id</refColNames>
+<transferable>true</transferable>
+<rely>false</rely>
+<columnDependencyConstraintGenerateInDDL>true</columnDependencyConstraintGenerateInDDL>
+</FKIndexAssociation>

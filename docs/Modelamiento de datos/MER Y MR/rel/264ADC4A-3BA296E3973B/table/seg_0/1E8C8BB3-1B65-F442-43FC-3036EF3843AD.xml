@@ -1,0 +1,75 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="1E8C8BB3-1B65-F442-43FC-3036EF3843AD" name="userRoles_users">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="USER_ROLES_userRole_id" id="94AB0DCC-27C7-4190-727F-6AD91FC3F645">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="FC7371FB-B205-754C-25A7-FD63B5E605D6" referredColumn="5DC22842-5187-37B0-2A8C-0B16CB5330C8"/>
+</associations>
+</Column>
+<Column name="USERS_user_id" id="10A4964A-67FB-6687-0BB1-50FEF30E650F">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="7A3DA2F3-4A2E-8307-7FED-DB63E8BA9C07" referredColumn="D8F76BA2-E878-AF53-3A26-21BDD66C1F15"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="3E137BFA-D2DE-D4BF-4787-8AEFEEB97587" name="userRoles_users_PK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="94AB0DCC-27C7-4190-727F-6AD91FC3F645"/>
+<colUsage columnID="10A4964A-67FB-6687-0BB1-50FEF30E650F"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="C46F7D2B-7F8A-3341-AB72-894107DE003B" name="userRoles_users_USER_ROLES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>A7CD5F86-C838-5CE9-9CF0-418C0E3733C8</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="94AB0DCC-27C7-4190-727F-6AD91FC3F645"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="57140652-718D-971E-B6CD-C79B15BE4D23" name="userRoles_users_USERS_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>A7CD5F86-C838-5CE9-9CF0-418C0E3733C8</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="10A4964A-67FB-6687-0BB1-50FEF30E650F"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

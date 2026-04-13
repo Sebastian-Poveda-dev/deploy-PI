@@ -1,0 +1,99 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="51BD3C47-4AA7-3C6E-E5AF-350093E51201" name="CASE_DOCUMENTS">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:48:58 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="caseDocument_id" id="42243DA3-FB10-ABEF-2BB0-176F549A1F2F">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:49:31 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="caseDocument_name" id="26EEE926-D160-D9EA-ED8C-76793705C223">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:49:40 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="caseDocument_uploadDate" id="AD8C1ED1-F096-1EC8-9AA1-576795ED36F3">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:50:40 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="docType_id" id="2BD786CC-CACF-3DE1-9823-6AFCC24FD3FC">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 18:09:48 UTC</createdTime>
+<generatorID>BB4B803C-5EBA-486C-1221-97C43F5EA4B7</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<nullsAllowed>true</nullsAllowed>
+<referedAttribute>8F4DBAAB-88AA-863E-CD4C-FE12AE939860</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="case_id" id="6BFC359D-86B5-5519-90E8-DBA8B557B1E1">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 18:10:57 UTC</createdTime>
+<generatorID>489AAB22-14F1-08BF-7CC4-B6209294FB32</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<nullsAllowed>true</nullsAllowed>
+<referedAttribute>0E4B1F3E-40CF-DB8E-6C87-66FF6A26BF46</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="F86167F2-BEBC-5783-B659-C314A60F0012" name="CASE_DOCUMENTS PK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 17:49:39 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>42243DA3-FB10-ABEF-2BB0-176F549A1F2F</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>
