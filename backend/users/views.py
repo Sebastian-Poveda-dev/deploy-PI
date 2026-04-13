@@ -69,7 +69,7 @@ def professors_view(request):
     return JsonResponse(list(professors), safe=False)
 
 
-<<<<<<< HEAD
+
 def _user_to_dict(user):
     return {
         'id': user.id,
@@ -133,7 +133,7 @@ class UserManagementDetailView(APIView):
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(_user_to_dict(user))
-=======
+
 @require_GET
 def beneficiaries_view(request):
     if not request.user.is_authenticated:
@@ -152,4 +152,4 @@ def beneficiaries_view(request):
             }
         )
     return JsonResponse(data, safe=False)
->>>>>>> dev
+

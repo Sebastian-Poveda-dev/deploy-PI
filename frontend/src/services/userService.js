@@ -33,7 +33,7 @@ export async function getProfessors() {
   return response.json()
 }
 
-<<<<<<< HEAD
+
 export async function getUsers() {
   const response = await fetch('/users/', { credentials: 'include' })
   if (!response.ok) throw new Error('No fue posible cargar los usuarios.')
@@ -68,7 +68,7 @@ export async function updateUserAsAdmin(userId, patch) {
   if (!response.ok) throw new Error(data.detail ?? 'No fue posible actualizar el usuario.')
   return data
 }
-=======
+
 export async function getBeneficiaries() {
   const response = await fetch('/users/beneficiaries/', {
     credentials: 'include',
@@ -76,4 +76,4 @@ export async function getBeneficiaries() {
   if (!response.ok) return []
   return response.json()
 }
->>>>>>> dev
+//
