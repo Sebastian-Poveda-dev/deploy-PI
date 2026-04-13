@@ -299,7 +299,7 @@ class AdminUserCreationTest(TestCase):
         self.assertEqual(user.groups.count(), 1)
 
 
-<<<<<<< HEAD
+
 class AdminUserManagementServiceTest(TestCase):
     """Tests for list_users and update_user service functions."""
 
@@ -579,4 +579,4 @@ class BeneficiaryListEndpointTest(TestCase):
         self.assertTrue(any(item['full_name'] == 'Laura Gomez' for item in payload))
         self.assertTrue(any(item['id'] == User.objects.get(username='beneficiary_new').id for item in payload))
 
->>>>>>> dev
+
