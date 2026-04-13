@@ -9,9 +9,6 @@ from .views import (
     UserManagementListCreateView,
     UserManagementDetailView,
 )
-=======
-from .views import beneficiaries_view, login_view, me_view, professors_view, register_view
->>>>>>> dev
 
 app_name = 'users'
 
