@@ -1,0 +1,19 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Relation class="oracle.dbtools.crest.model.design.logical.Relation" name="cases_caseDocuments" directorySegmentName="seg_0" id="489AAB22-14F1-08BF-7CC4-B6209294FB32">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 18:10:57 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<sourcePk>E8B362C0-7D8F-9867-7C91-F0BADFDF5C88</sourcePk>
+<identifying>false</identifying>
+<optionalSource>false</optionalSource>
+<optionalTarget>true</optionalTarget>
+<sourceCardinality>1</sourceCardinality>
+<sourceEntity>1E7DC88E-64A6-14EB-0315-21728FE5CDC5</sourceEntity>
+<targetCardinalityString>*</targetCardinalityString>
+<targetEntity>51BD3C47-4AA7-3C6E-E5AF-350093E51201</targetEntity>
+<transferable>true</transferable>
+<deleteRule>NO ACTION</deleteRule>
+</Relation>

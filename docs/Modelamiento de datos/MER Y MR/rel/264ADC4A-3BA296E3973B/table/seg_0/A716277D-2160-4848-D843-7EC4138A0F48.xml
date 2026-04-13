@@ -1,0 +1,75 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="A716277D-2160-4848-D843-7EC4138A0F48" name="CHATS">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>5A0124DE-C6E6-E7C6-5CA5-82D2BCC9FD2D</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="chat_id" id="D982B8D4-A57A-C699-60D0-24A8AD63BDEF">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>0EEA6123-50A7-0322-4A22-7F285C99FA2F</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="chat_creationDate" id="0BD89810-2760-E3DB-344C-57F0DB30FD38">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>3F5907BD-DD49-0396-7580-018CB41F540E</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="CHAT_STATUSES_chatStatus_id" id="6F6739AF-91D0-E796-6E43-74B3155A3A14">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>32C6C147-B0D8-7EDE-947B-7B1300186E39</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<nullsAllowed>true</nullsAllowed>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="93064E77-FACB-D336-AC05-06DE9DC0E1AA" referredColumn="F3471C02-45FA-BCEA-7C4D-DBA9E29CC77F"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="5FF60A38-43E1-13AF-7699-06396F4623C4" name="CHATS_PK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>603A7EDB-8F04-96A0-197B-184DD6070CC2</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="D982B8D4-A57A-C699-60D0-24A8AD63BDEF"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="5A43E93F-D568-44FF-0730-96346CEBE9F0" name="CHATS_CHAT_STATUSES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>E1B90F16-C96E-5B6B-3DA1-767BF6CF503E</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="6F6739AF-91D0-E796-6E43-74B3155A3A14"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

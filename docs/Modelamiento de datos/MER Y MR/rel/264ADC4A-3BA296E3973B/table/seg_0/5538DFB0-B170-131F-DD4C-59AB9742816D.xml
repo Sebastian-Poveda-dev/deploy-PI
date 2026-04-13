@@ -1,0 +1,75 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="5538DFB0-B170-131F-DD4C-59AB9742816D" name="users_cases">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="USERS_user_id" id="28FB789D-47D1-55ED-1C5C-F72AE5339EAD">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="70880B04-AE91-C071-D740-653361D735C7" referredColumn="D8F76BA2-E878-AF53-3A26-21BDD66C1F15"/>
+</associations>
+</Column>
+<Column name="CASES_case_id" id="005AC17D-5DB0-D31D-0D4B-F48BCEBD029E">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT027</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="7109BECD-A0B9-6468-EDED-F50578E0BAA1" referredColumn="5EF7A748-B9DA-3904-A96E-E53EADA1A1DD"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="BE34C9A9-8A24-FAD1-8352-F7C1C6F08CF9" name="users_cases_PK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="28FB789D-47D1-55ED-1C5C-F72AE5339EAD"/>
+<colUsage columnID="005AC17D-5DB0-D31D-0D4B-F48BCEBD029E"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="11CA8B1F-9055-D2DC-2984-706C65E6A281" name="users_cases_USERS_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>5847F970-6037-5F7E-8E23-D1CA609823BE</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="28FB789D-47D1-55ED-1C5C-F72AE5339EAD"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="E99483F1-8993-5642-DDFE-18FC6641BB91" name="users_cases_CASES_FK">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 20:02:10 UTC</createdTime>
+<generatorID>5847F970-6037-5F7E-8E23-D1CA609823BE</generatorID>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="005AC17D-5DB0-D31D-0D4B-F48BCEBD029E"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

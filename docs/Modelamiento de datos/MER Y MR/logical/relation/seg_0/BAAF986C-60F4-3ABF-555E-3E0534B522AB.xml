@@ -1,0 +1,19 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Relation class="oracle.dbtools.crest.model.design.logical.Relation" name="users_messages" directorySegmentName="seg_0" id="BAAF986C-60F4-3ABF-555E-3E0534B522AB">
+<createdBy>jumar</createdBy>
+<createdTime>2026-03-15 18:17:26 UTC</createdTime>
+<ownerDesignName>modeladoDatos_grupo1</ownerDesignName>
+<engineerTo>
+<item key="264ADC4A-C556-8674-7CE4-3BA296E3973B" value="true"/>
+</engineerTo>
+<sourcePk>046D0E0E-31EA-7F67-8317-EC1977E87A6F</sourcePk>
+<identifying>false</identifying>
+<optionalSource>false</optionalSource>
+<optionalTarget>true</optionalTarget>
+<sourceCardinality>1</sourceCardinality>
+<sourceEntity>66D8298E-2575-370D-32D9-E056576B780F</sourceEntity>
+<targetCardinalityString>*</targetCardinalityString>
+<targetEntity>FA30C515-D3C9-3FB6-2153-E0568AEC9A53</targetEntity>
+<transferable>true</transferable>
+<deleteRule>NO ACTION</deleteRule>
+</Relation>
