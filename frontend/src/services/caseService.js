@@ -13,13 +13,20 @@ function formatDate(isoString) {
 }
 
 function mapCase(raw) {
+  const assignedUsersList = Array.isArray(raw.assigned_users)
+    ? raw.assigned_users.map((u) => u.name)
+    : []
+
   return {
     id: raw.id,
     status: STATUS_MAP[raw.status] ?? raw.status.toUpperCase(),
     category: raw.category,
     createdAt: formatDate(raw.created_at),
     updatedAt: formatDate(raw.updated_at),
-    assignedUsers: raw.assigned_users.map((u) => u.name).join(', '),
+    beneficiaryId: raw.beneficiary,
+    beneficiaryName: raw.beneficiary_name ?? '',
+    assignedUsersList,
+    assignedUsers: assignedUsersList.join(', '),
     description: raw.description ?? raw.details ?? '',
   }
 }
