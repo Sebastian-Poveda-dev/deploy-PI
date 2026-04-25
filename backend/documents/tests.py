@@ -1,5 +1,7 @@
 from datetime import timedelta
+from io import StringIO
 
+from django.core.management import call_command
 from django.http import FileResponse
 from django.test import TestCase, override_settings
 from django.conf import settings
@@ -722,4 +724,33 @@ class DocumentExpirationVerificationTest(TestCase):
                 event_type='upcoming',
             ).exists()
         )
+
+
+class DocumentExpirationCommandTest(DocumentExpirationVerificationTest):
+    def test_management_command_runs_verification_and_reports_created_notifications(self):
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Command Notice',
+            expiration_date=today + timedelta(days=2),
+        )
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+        out = StringIO()
+
+        call_command(
+            'check_document_expirations',
+            '--today',
+            str(today),
+            '--alert-days',
+            '3',
+            stdout=out,
+        )
+
+        self.assertTrue(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.student,
+                event_type='upcoming',
+            ).exists()
+        )
+        self.assertIn('Created 1 notification(s).', out.getvalue())
 
