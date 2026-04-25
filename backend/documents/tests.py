@@ -1,8 +1,11 @@
+from datetime import timedelta
+
 from django.http import FileResponse
 from django.test import TestCase, override_settings
 from django.conf import settings
 from django.apps import apps
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -583,4 +586,140 @@ class DocumentDownloadApiTest(DocumentApiBaseTest):
 
         content = b''.join(response.streaming_content)
         self.assertEqual(content, self.file_content)
+
+
+class DocumentExpirationVerificationTest(TestCase):
+    """Red-phase tests for expiring and expired document notifications."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='expiration_subclinic')
+        self.category, _ = Category.objects.get_or_create(name='expiration_category')
+
+        self.student = User.objects.create_user(username='student_expiration', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(
+            username='beneficiary_expiration',
+            password='pass',
+        )
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case with expiring documents',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+
+    def _upload_document(self, *, name, expiration_date=None):
+        return upload_document(
+            case=self.case,
+            user=self.student,
+            file=SimpleUploadedFile(
+                f'{name.lower().replace(" ", "_")}.pdf',
+                b'expiration content',
+                content_type='application/pdf',
+            ),
+            name=name,
+            description=f'Document {name}',
+            expiration_date=expiration_date,
+        )
+
+    def test_document_within_alert_range_creates_notification_for_assigned_student(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Power of Attorney',
+            expiration_date=today + timedelta(days=2),
+        )
+
+        created_notifications = verify_document_expirations(today=today, alert_days=3)
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+        notification = Notification.objects.get(document=document, recipient=self.student)
+
+        self.assertEqual(len(created_notifications), 1)
+        self.assertEqual(notification.event_type, 'upcoming')
+        self.assertIn(document.name, notification.message)
+        self.assertIn(str(document.expiration_date), notification.message)
+
+    def test_expired_document_is_marked_and_generates_expired_notification(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Expired Contract',
+            expiration_date=today - timedelta(days=1),
+        )
+
+        created_notifications = verify_document_expirations(today=today, alert_days=3)
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+        notification = Notification.objects.get(document=document, recipient=self.student)
+        document.refresh_from_db()
+
+        self.assertEqual(len(created_notifications), 1)
+        self.assertEqual(notification.event_type, 'expired')
+        self.assertTrue(document.is_expired)
+
+    def test_verification_does_not_generate_duplicate_notifications_for_same_event(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Upcoming Evidence',
+            expiration_date=today + timedelta(days=1),
+        )
+
+        first_run = verify_document_expirations(today=today, alert_days=3)
+        second_run = verify_document_expirations(today=today, alert_days=3)
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+
+        self.assertEqual(len(first_run), 1)
+        self.assertEqual(second_run, [])
+        self.assertEqual(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.student,
+                event_type='upcoming',
+            ).count(),
+            1,
+        )
+
+    def test_document_without_expiration_date_is_ignored(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(name='Open Document')
+
+        created_notifications = verify_document_expirations(today=today, alert_days=3)
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+
+        self.assertEqual(created_notifications, [])
+        self.assertFalse(
+            Notification.objects.filter(document=document, recipient=self.student).exists()
+        )
+
+    def test_alert_range_can_be_configured(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Five Day Notice',
+            expiration_date=today + timedelta(days=5),
+        )
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+
+        no_alert_notifications = verify_document_expirations(today=today, alert_days=3)
+        alert_notifications = verify_document_expirations(today=today, alert_days=5)
+
+        self.assertEqual(no_alert_notifications, [])
+        self.assertEqual(len(alert_notifications), 1)
+        self.assertTrue(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.student,
+                event_type='upcoming',
+            ).exists()
+        )
 
