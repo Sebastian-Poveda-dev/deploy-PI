@@ -1,8 +1,11 @@
+from datetime import date
+
+from django.conf import settings
 from django.db import transaction
 from django.http import FileResponse
 
 from cases.models import CaseLog
-from documents.models import Document
+from documents.models import Document, DocumentExpirationNotification
 
 DOCUMENT_PRIVILEGED_ROLES = {'admin', 'advisor'}
 DOCUMENT_FORBIDDEN_ROLES = {'beneficiary'}
@@ -106,3 +109,72 @@ def download_document(document_id, user):
 
     filename = document.file.name.split('/')[-1]
     return FileResponse(document.file.open('rb'), as_attachment=True, filename=filename)
+
+
+def verify_document_expirations(*, today=None, alert_days=None):
+    """
+    Verify documents with expiration dates and create one notification per event.
+
+    Current recipients:
+      assigned students on the case
+
+    Generated events:
+      upcoming -> expiration date is within the configured alert range
+      expired  -> expiration date is before today
+    """
+    today = today or date.today()
+    alert_days = (
+        settings.DOCUMENT_EXPIRATION_ALERT_DAYS
+        if alert_days is None
+        else alert_days
+    )
+
+    created_notifications = []
+    documents = Document.objects.filter(expiration_date__isnull=False).select_related('case')
+
+    for document in documents:
+        recipients = list(document.case.users.filter(groups__name='student').distinct())
+        if not recipients:
+            continue
+
+        if document.expiration_date < today:
+            if not document.is_expired:
+                document.is_expired = True
+                document.save(update_fields=['is_expired'])
+
+            for recipient in recipients:
+                notification, created = DocumentExpirationNotification.objects.get_or_create(
+                    document=document,
+                    recipient=recipient,
+                    event_type=DocumentExpirationNotification.EVENT_EXPIRED,
+                    defaults={
+                        'message': (
+                            f"Document '{document.name}' expired on "
+                            f"{document.expiration_date}."
+                        )
+                    },
+                )
+                if created:
+                    created_notifications.append(notification)
+            continue
+
+        days_until_expiration = (document.expiration_date - today).days
+        if days_until_expiration > alert_days:
+            continue
+
+        for recipient in recipients:
+            notification, created = DocumentExpirationNotification.objects.get_or_create(
+                document=document,
+                recipient=recipient,
+                event_type=DocumentExpirationNotification.EVENT_UPCOMING,
+                defaults={
+                    'message': (
+                        f"Document '{document.name}' expires on "
+                        f"{document.expiration_date}."
+                    )
+                },
+            )
+            if created:
+                created_notifications.append(notification)
+
+    return created_notifications

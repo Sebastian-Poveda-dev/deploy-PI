@@ -12,6 +12,7 @@ class Document(models.Model):
     file = models.FileField(upload_to=document_upload_path)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     expiration_date = models.DateField(null=True, blank=True)
+    is_expired = models.BooleanField(default=False)
 
     case = models.ForeignKey(
         'cases.Case',
@@ -26,3 +27,32 @@ class Document(models.Model):
 
     def __str__(self):
         return f'{self.name} (Case #{self.case_id})'
+
+
+class DocumentExpirationNotification(models.Model):
+    EVENT_UPCOMING = 'upcoming'
+    EVENT_EXPIRED = 'expired'
+    EVENT_CHOICES = [
+        (EVENT_UPCOMING, 'Upcoming'),
+        (EVENT_EXPIRED, 'Expired'),
+    ]
+
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name='expiration_notifications',
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='document_expiration_notifications',
+    )
+    event_type = models.CharField(max_length=20, choices=EVENT_CHOICES)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('document', 'recipient', 'event_type')
+
+    def __str__(self):
+        return f"{self.document.name} -> {self.recipient.username} ({self.event_type})"
