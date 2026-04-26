@@ -138,12 +138,25 @@ class CreateCaseTest(TestCase):
         self.assertEqual(case.status.name, 'active')
 
     def test_student_creates_case_with_pending_authorization_status(self):
-        case = create_case(self.student, 'description', self.category, self.subclinic, professor=self.professor)
+        case = create_case(
+            self.student,
+            'description',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
         self.assertEqual(case.status.name, 'pending_authorization')
 
     def test_student_without_professor_cannot_create_case(self):
         with self.assertRaises(ValueError):
-            create_case(self.student, 'description', self.category, self.subclinic)
+            create_case(
+                self.student,
+                'description',
+                self.category,
+                self.subclinic,
+                beneficiary=self.beneficiary,
+            )
 
     def test_beneficiary_cannot_create_case(self):
         with self.assertRaises(PermissionError):
@@ -204,7 +217,14 @@ class CaseLogServiceTest(TestCase):
         self.other_student = User.objects.create_user(username='other_student_logs', password='pass')
         assign_role(self.other_student, 'student')
 
-        self.case = create_case(self.student, 'Case for logs', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Case for logs',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
 
 
     def test_valid_roles_can_create_case_log(self):
@@ -282,7 +302,14 @@ class UpdateCaseTest(TestCase):
         assign_role(self.other_student, 'student')
 
         # student is creator (auto-assigned); professor is co-assigned via create_case
-        self.case = create_case(self.student, 'Original description', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Original description',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
 
     # --- Access control ---
 
@@ -367,7 +394,14 @@ class ApproveCaseTest(TestCase):
         assign_role(self.beneficiary, 'beneficiary')
 
         # student creates the case → status is "pending_authorization", both student and professor assigned
-        self.case = create_case(self.student, 'Pending case', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Pending case',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
 
 
     # --- Access control ---
@@ -444,7 +478,14 @@ class RejectCaseAssignmentTest(TestCase):
 
 
         # student creates the case; professor co-assigned via create_case
-        self.case = create_case(self.student, 'Case for rejection', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Case for rejection',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
 
     # --- Access control ---
 
@@ -532,7 +573,14 @@ class CaseApiTest(APITestCase):
         assign_role(self.beneficiary, 'beneficiary')
 
 
-        self.case = create_case(self.student, 'Initial API case', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Initial API case',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
 
     def test_create_case_requires_authentication(self):
         response = self.client.post('/cases/', {
@@ -657,7 +705,14 @@ class CaseListApiTest(APITestCase):
         self.beneficiary = User.objects.create_user(username='beneficiary_list_api', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
-        self.case = create_case(self.student, 'Case for listing', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Case for listing',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
 
 
     def test_unauthenticated_request_is_rejected(self):
@@ -703,6 +758,52 @@ class CaseListApiTest(APITestCase):
         self.assertIn(self.student.username, usernames)
 
 
+class BeneficiaryCaseListApiTest(APITestCase):
+    """API tests for GET /cases/beneficiary/."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='beneficiary_tracking_subclinic')
+        self.category, _ = Category.objects.get_or_create(name='beneficiary_tracking_category')
+
+        self.student = User.objects.create_user(username='student_beneficiary_case_api', password='pass')
+        assign_role(self.student, 'student')
+
+        self.professor = User.objects.create_user(username='professor_beneficiary_case_api', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_case_api', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.other_beneficiary = User.objects.create_user(username='other_beneficiary_case_api', password='pass')
+        assign_role(self.other_beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case visible to beneficiary endpoint',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
+        self.other_case = create_case(
+            self.student,
+            'Case for a different beneficiary',
+            self.category,
+            self.subclinic,
+            beneficiary=self.other_beneficiary,
+            professor=self.professor,
+        )
+
+    def test_authenticated_beneficiary_can_list_their_cases_from_dedicated_endpoint(self):
+        self.client.force_authenticate(self.beneficiary)
+        response = self.client.get('/cases/beneficiary/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [case['id'] for case in response.data]
+        self.assertIn(self.case.id, ids)
+        self.assertNotIn(self.other_case.id, ids)
+
+
 class CaseLogApiTest(APITestCase):
     """API tests for case logs endpoints wired to the service layer."""
 
@@ -729,7 +830,14 @@ class CaseLogApiTest(APITestCase):
         assign_role(self.beneficiary, 'beneficiary')
 
 
-        self.case = create_case(self.student, 'Case with logs endpoint', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Case with logs endpoint',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
 
         self.initial_log = create_case_log(self.student, self.case, 'Initial chat message')
 

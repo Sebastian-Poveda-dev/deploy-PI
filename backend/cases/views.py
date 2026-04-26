@@ -83,6 +83,14 @@ class CaseListCreateAPIView(APIView):
 		return Response(CaseSerializer(case).data, status=status.HTTP_201_CREATED)
 
 
+class BeneficiaryCaseListAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		cases = Case.objects.filter(beneficiary=request.user)
+		return Response(CaseSerializer(cases, many=True).data, status=status.HTTP_200_OK)
+
+
 class CaseDetailAPIView(APIView):
 	permission_classes = [IsAuthenticated]
 
