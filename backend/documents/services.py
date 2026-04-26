@@ -133,9 +133,11 @@ def verify_document_expirations(*, today=None, alert_days=None):
     documents = Document.objects.filter(expiration_date__isnull=False).select_related('case')
 
     for document in documents:
-        recipients = list(document.case.users.filter(groups__name='student').distinct())
-        if not recipients:
+        student_recipients = list(document.case.users.filter(groups__name='student').distinct())
+        if not student_recipients:
             continue
+        advisor_recipients = list(document.case.users.filter(groups__name='advisor').distinct())
+        recipients = student_recipients + advisor_recipients
 
         if document.expiration_date < today:
             if not document.is_expired:
