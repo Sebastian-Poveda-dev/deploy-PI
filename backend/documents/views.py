@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -111,12 +113,12 @@ class DocumentExpirationVerificationAPIView(APIView):
             today=serializer.validated_data.get('today'),
             alert_days=serializer.validated_data.get('alert_days'),
         )
-        processed_date = serializer.validated_data.get('today')
+        processed_date = serializer.validated_data.get('today') or date.today()
 
         return Response(
             {
                 'created_notifications': len(notifications),
-                'processed_date': str(processed_date) if processed_date else None,
+                'processed_date': str(processed_date),
             },
             status=status.HTTP_200_OK,
         )

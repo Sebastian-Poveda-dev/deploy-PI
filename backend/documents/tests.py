@@ -889,6 +889,19 @@ class DocumentExpirationTriggerApiTest(DocumentApiBaseTest):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['created_notifications'], 1)
 
+    def test_trigger_uses_default_values_when_payload_is_empty(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_notifications'], 1)
+        self.assertIsNotNone(response.data['processed_date'])
+
     def test_student_cannot_trigger_document_expiration_verification(self):
         self.client.force_authenticate(self.student)
 
