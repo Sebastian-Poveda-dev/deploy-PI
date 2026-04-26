@@ -928,3 +928,66 @@ class DocumentExpirationTriggerApiTest(DocumentApiBaseTest):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+
+class DocumentExpirationEndToEndApiTest(DocumentApiBaseTest):
+    def setUp(self):
+        super().setUp()
+        self.today = timezone.now().date()
+        self.document = upload_document(
+            case=self.case,
+            user=self.student,
+            file=self._file('e2e.pdf', content=b'e2e content'),
+            name='End To End Doc',
+            description='E2E verification doc',
+            expiration_date=self.today + timedelta(days=1),
+        )
+
+    def test_trigger_then_list_returns_created_notification(self):
+        self.client.force_authenticate(self.admin)
+
+        trigger_response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(trigger_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(trigger_response.data['created_notifications'], 1)
+
+        self.client.force_authenticate(self.student)
+        list_response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_response.data), 1)
+        self.assertEqual(list_response.data[0]['document_id'], self.document.id)
+        self.assertEqual(list_response.data[0]['event_type'], 'upcoming')
+        self.assertEqual(list_response.data[0]['priority'], 'medium')
+
+    def test_running_trigger_twice_does_not_duplicate_notifications(self):
+        self.client.force_authenticate(self.admin)
+
+        first_response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+        second_response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_response.data['created_notifications'], 1)
+        self.assertEqual(second_response.data['created_notifications'], 0)
+
