@@ -7,8 +7,17 @@ from rest_framework.views import APIView
 from cases.models import Case
 
 from .models import Document
-from .serializers import DocumentSerializer, DocumentUploadSerializer
-from .services import download_document, get_case_documents, upload_document
+from .serializers import (
+    DocumentExpirationNotificationSerializer,
+    DocumentSerializer,
+    DocumentUploadSerializer,
+)
+from .services import (
+    download_document,
+    get_case_documents,
+    get_user_document_notifications,
+    upload_document,
+)
 
 
 class CaseDocumentListCreateAPIView(APIView):
@@ -66,3 +75,14 @@ class DocumentDownloadAPIView(APIView):
             return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
         except ValueError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DocumentNotificationListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        notifications = get_user_document_notifications(request.user)
+        return Response(
+            DocumentExpirationNotificationSerializer(notifications, many=True).data,
+            status=status.HTTP_200_OK,
+        )

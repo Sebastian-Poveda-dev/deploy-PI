@@ -756,3 +756,57 @@ class DocumentExpirationCommandTest(DocumentExpirationVerificationTest):
         )
         self.assertIn('Created 1 notification(s).', out.getvalue())
 
+
+class DocumentNotificationApiTest(DocumentApiBaseTest):
+    def setUp(self):
+        super().setUp()
+        today = timezone.now().date()
+        self.document = upload_document(
+            case=self.case,
+            user=self.student,
+            file=self._file('notification.pdf', content=b'notification content'),
+            name='Notification Doc',
+            description='Notification trigger doc',
+            expiration_date=today + timedelta(days=1),
+        )
+
+        from documents.services import verify_document_expirations
+
+        verify_document_expirations(today=today, alert_days=3)
+
+    def test_authenticated_user_can_list_own_notifications(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertSetEqual(
+            set(response.data[0].keys()),
+            {
+                'id',
+                'document_id',
+                'document_name',
+                'event_type',
+                'priority',
+                'message',
+                'created_at',
+                'expiration_date',
+            },
+        )
+        self.assertEqual(response.data[0]['document_id'], self.document.id)
+        self.assertEqual(response.data[0]['priority'], 'medium')
+
+    def test_user_only_sees_their_own_notifications(self):
+        self.client.force_authenticate(self.other_student)
+
+        response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_notifications_endpoint_requires_authentication(self):
+        response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+

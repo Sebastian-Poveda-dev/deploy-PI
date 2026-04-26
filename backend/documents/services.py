@@ -180,3 +180,9 @@ def verify_document_expirations(*, today=None, alert_days=None):
                 created_notifications.append(notification)
 
     return created_notifications
+
+
+def get_user_document_notifications(user):
+    return DocumentExpirationNotification.objects.filter(
+        recipient=user,
+    ).select_related('document').order_by('-created_at', '-id')
