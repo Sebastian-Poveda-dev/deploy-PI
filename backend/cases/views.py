@@ -87,6 +87,13 @@ class BeneficiaryCaseListAPIView(APIView):
 	permission_classes = [IsAuthenticated]
 
 	def get(self, request):
+		role = request.user.groups.values_list('name', flat=True).first()
+		if role != 'beneficiary':
+			return Response(
+				{'detail': 'Only beneficiaries can view beneficiary cases.'},
+				status=status.HTTP_403_FORBIDDEN,
+			)
+
 		cases = Case.objects.filter(beneficiary=request.user)
 		return Response(CaseSerializer(cases, many=True).data, status=status.HTTP_200_OK)
 

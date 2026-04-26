@@ -771,6 +771,9 @@ class BeneficiaryCaseListApiTest(APITestCase):
         self.professor = User.objects.create_user(username='professor_beneficiary_case_api', password='pass')
         assign_role(self.professor, 'professor')
 
+        self.admin = User.objects.create_user(username='admin_beneficiary_case_api', password='pass')
+        assign_role(self.admin, 'admin')
+
         self.beneficiary = User.objects.create_user(username='beneficiary_case_api', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
@@ -802,6 +805,20 @@ class BeneficiaryCaseListApiTest(APITestCase):
         ids = [case['id'] for case in response.data]
         self.assertIn(self.case.id, ids)
         self.assertNotIn(self.other_case.id, ids)
+
+    def test_non_beneficiary_user_cannot_access_beneficiary_case_endpoint(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.get('/cases/beneficiary/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'Only beneficiaries can view beneficiary cases.')
+
+    def test_admin_cannot_access_beneficiary_case_endpoint(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get('/cases/beneficiary/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'Only beneficiaries can view beneficiary cases.')
 
 
 class CaseLogApiTest(APITestCase):
