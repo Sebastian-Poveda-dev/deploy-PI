@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from cases.forms import CaseCreateForm
-from cases.models import Case, Category, Subclinic
+from cases.models import Case, CaseStatus, Category, Subclinic
 from cases.services import create_case, create_case_log, get_case_logs, update_case, approve_case, reject_case_assignment
 from users.services import assign_role
 
@@ -44,6 +44,9 @@ class CaseCreateFormAndTemplateTest(TestCase):
             last_name='Perez',
         )
         assign_role(self.non_beneficiary, 'student')
+
+        self.professor = User.objects.create_user(username='professor_form', password='pass')
+        assign_role(self.professor, 'professor')
 
     def _form_data(self, **overrides):
         data = {
@@ -194,6 +197,25 @@ class CreateCaseTest(TestCase):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
 
         self.assertTrue(case.users.filter(pk=preferred_student.pk).exists())
+
+    def test_student_with_lower_workload_gets_assigned_first(self):
+        available_student = User.objects.create_user(username='available_student', password='pass')
+        assign_role(available_student, 'student')
+
+        active_status = CaseStatus.objects.get(name='active')
+        loaded_case = Case.objects.create(
+            description='Existing workload',
+            created_by=self.admin,
+            category=self.category,
+            subclinic=self.subclinic,
+            status=active_status,
+            beneficiary=self.beneficiary,
+        )
+        loaded_case.users.add(self.student)
+
+        case = create_case(self.admin, 'new case', self.category, self.subclinic, beneficiary=self.beneficiary)
+
+        self.assertTrue(case.users.filter(pk=available_student.pk).exists())
 
     def test_initial_log_is_created(self):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
