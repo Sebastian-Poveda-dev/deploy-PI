@@ -26,15 +26,28 @@ def register_beneficiary(username, password, residence_address='', phone_number=
     return user
 
 
-def admin_create_user(username, password, role, residence_address='', phone_number=''):
+def admin_create_user(
+    username,
+    password,
+    role,
+    residence_address='',
+    phone_number='',
+    favorite_category=None,
+):
     """Create a user with a specific role (for admin-driven creation)."""
     user = User.objects.create_user(
         username=username,
         password=password,
         residence_address=residence_address,
         phone_number=phone_number,
+        favorite_category=favorite_category,
     )
     assign_role(user, role)
+
+    if role != 'student' and user.favorite_category_id is not None:
+        user.favorite_category = None
+        user.save(update_fields=['favorite_category'])
+
     return user
 
 
@@ -63,6 +76,15 @@ def update_user(requesting_user, target_user, data):
         if new_role not in VALID_ROLES:
             raise ValueError(f"Invalid role '{new_role}'.")
         assign_role(target_user, new_role)
+
+    if 'favorite_category' in data:
+        target_user.favorite_category = data['favorite_category']
+        target_user.save(update_fields=['favorite_category'])
+
+    role_after_update = target_user.groups.values_list('name', flat=True).first()
+    if role_after_update != 'student' and target_user.favorite_category_id is not None:
+        target_user.favorite_category = None
+        target_user.save(update_fields=['favorite_category'])
 
     if 'is_active' in data:
         target_user.is_active = data['is_active']
