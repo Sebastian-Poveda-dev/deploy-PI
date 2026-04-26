@@ -727,6 +727,40 @@ class DocumentExpirationVerificationTest(TestCase):
             ).exists()
         )
 
+    def test_upcoming_notification_creates_case_log_entry(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Upcoming Log Doc',
+            expiration_date=today + timedelta(days=2),
+        )
+
+        verify_document_expirations(today=today, alert_days=3)
+
+        self.assertTrue(
+            self.case.logs.filter(
+                content__icontains=f"Expiration notification created for document '{document.name}'"
+            ).exists()
+        )
+
+    def test_expired_notification_creates_case_log_entry(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Expired Log Doc',
+            expiration_date=today - timedelta(days=1),
+        )
+
+        verify_document_expirations(today=today, alert_days=3)
+
+        self.assertTrue(
+            self.case.logs.filter(
+                content__icontains=f"Document '{document.name}' marked as expired"
+            ).exists()
+        )
+
 
 class DocumentExpirationCommandTest(DocumentExpirationVerificationTest):
     def test_management_command_runs_verification_and_reports_created_notifications(self):

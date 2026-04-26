@@ -141,7 +141,7 @@ def verify_document_expirations(*, today=None, alert_days=None):
             if not document.is_expired:
                 document.is_expired = True
                 document.save(update_fields=['is_expired'])
-
+            created_for_event = False
             for recipient in recipients:
                 notification, created = DocumentExpirationNotification.objects.get_or_create(
                     document=document,
@@ -156,13 +156,20 @@ def verify_document_expirations(*, today=None, alert_days=None):
                     },
                 )
                 if created:
+                    created_for_event = True
                     created_notifications.append(notification)
+            if created_for_event:
+                _create_expiration_case_log(
+                    document,
+                    f"Document '{document.name}' marked as expired on {document.expiration_date}.",
+                )
             continue
 
         days_until_expiration = (document.expiration_date - today).days
         if days_until_expiration > alert_days:
             continue
 
+        created_for_event = False
         for recipient in recipients:
             notification, created = DocumentExpirationNotification.objects.get_or_create(
                 document=document,
@@ -177,7 +184,16 @@ def verify_document_expirations(*, today=None, alert_days=None):
                 },
             )
             if created:
+                created_for_event = True
                 created_notifications.append(notification)
+        if created_for_event:
+            _create_expiration_case_log(
+                document,
+                (
+                    f"Expiration notification created for document '{document.name}' "
+                    f"with expiration date {document.expiration_date}."
+                ),
+            )
 
     return created_notifications
 
@@ -186,3 +202,15 @@ def get_user_document_notifications(user):
     return DocumentExpirationNotification.objects.filter(
         recipient=user,
     ).select_related('document').order_by('-created_at', '-id')
+
+
+def _create_expiration_case_log(document, content):
+    case_user = document.case.created_by
+    if document.case.users.filter(groups__name='student').exists():
+        case_user = document.case.users.filter(groups__name='student').first()
+
+    CaseLog.objects.create(
+        case=document.case,
+        user=case_user,
+        content=content,
+    )
