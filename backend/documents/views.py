@@ -9,6 +9,7 @@ from cases.models import Case
 from .models import Document
 from .serializers import (
     DocumentExpirationNotificationSerializer,
+    DocumentExpirationVerificationSerializer,
     DocumentSerializer,
     DocumentUploadSerializer,
 )
@@ -17,7 +18,11 @@ from .services import (
     get_case_documents,
     get_user_document_notifications,
     upload_document,
+    verify_document_expirations,
 )
+
+
+DOCUMENT_EXPIRATION_TRIGGER_ALLOWED_ROLES = {'admin', 'advisor'}
 
 
 class CaseDocumentListCreateAPIView(APIView):
@@ -84,5 +89,34 @@ class DocumentNotificationListAPIView(APIView):
         notifications = get_user_document_notifications(request.user)
         return Response(
             DocumentExpirationNotificationSerializer(notifications, many=True).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class DocumentExpirationVerificationAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        role = request.user.groups.values_list('name', flat=True).first()
+        if role not in DOCUMENT_EXPIRATION_TRIGGER_ALLOWED_ROLES:
+            return Response(
+                {'detail': 'Only admins and advisors can trigger expiration verification.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = DocumentExpirationVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        notifications = verify_document_expirations(
+            today=serializer.validated_data.get('today'),
+            alert_days=serializer.validated_data.get('alert_days'),
+        )
+        processed_date = serializer.validated_data.get('today')
+
+        return Response(
+            {
+                'created_notifications': len(notifications),
+                'processed_date': str(processed_date) if processed_date else None,
+            },
             status=status.HTTP_200_OK,
         )

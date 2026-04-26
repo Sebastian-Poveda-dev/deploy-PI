@@ -45,3 +45,8 @@ class DocumentExpirationNotificationSerializer(serializers.ModelSerializer):
             'created_at',
             'expiration_date',
         ]
+
+
+class DocumentExpirationVerificationSerializer(serializers.Serializer):
+    today = serializers.DateField(required=False)
+    alert_days = serializers.IntegerField(required=False, min_value=0)

@@ -810,3 +810,74 @@ class DocumentNotificationApiTest(DocumentApiBaseTest):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+
+class DocumentExpirationTriggerApiTest(DocumentApiBaseTest):
+    def setUp(self):
+        super().setUp()
+        self.today = timezone.now().date()
+        self.document = upload_document(
+            case=self.case,
+            user=self.student,
+            file=self._file('trigger.pdf', content=b'trigger content'),
+            name='Trigger Doc',
+            description='Trigger verification doc',
+            expiration_date=self.today + timedelta(days=1),
+        )
+
+    def test_admin_can_trigger_document_expiration_verification(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_notifications'], 1)
+        self.assertEqual(response.data['processed_date'], str(self.today))
+
+    def test_advisor_can_trigger_document_expiration_verification(self):
+        self.client.force_authenticate(self.advisor)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_notifications'], 1)
+
+    def test_student_cannot_trigger_document_expiration_verification(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_trigger_endpoint_requires_authentication(self):
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
