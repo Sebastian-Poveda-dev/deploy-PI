@@ -95,6 +95,15 @@ class BeneficiaryCaseListAPIView(APIView):
 			)
 
 		cases = Case.objects.filter(beneficiary=request.user)
+		if not cases.exists():
+			return Response(
+				{
+					'detail': 'No tiene casos registrados',
+					'cases': [],
+				},
+				status=status.HTTP_200_OK,
+			)
+
 		return Response(CaseSerializer(cases, many=True).data, status=status.HTTP_200_OK)
 
 

@@ -820,6 +820,20 @@ class BeneficiaryCaseListApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data['detail'], 'Only beneficiaries can view beneficiary cases.')
 
+    def test_beneficiary_without_cases_gets_empty_state_message(self):
+        beneficiary_without_cases = User.objects.create_user(
+            username='beneficiary_without_cases_api',
+            password='pass',
+        )
+        assign_role(beneficiary_without_cases, 'beneficiary')
+
+        self.client.force_authenticate(beneficiary_without_cases)
+        response = self.client.get('/cases/beneficiary/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['detail'], 'No tiene casos registrados')
+        self.assertEqual(response.data['cases'], [])
+
 
 class CaseLogApiTest(APITestCase):
     """API tests for case logs endpoints wired to the service layer."""
