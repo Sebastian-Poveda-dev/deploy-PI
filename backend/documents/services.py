@@ -148,6 +148,7 @@ def verify_document_expirations(*, today=None, alert_days=None):
                     recipient=recipient,
                     event_type=DocumentExpirationNotification.EVENT_EXPIRED,
                     defaults={
+                        'priority': DocumentExpirationNotification.PRIORITY_HIGH,
                         'message': (
                             f"Document '{document.name}' expired on "
                             f"{document.expiration_date}."
@@ -168,6 +169,7 @@ def verify_document_expirations(*, today=None, alert_days=None):
                 recipient=recipient,
                 event_type=DocumentExpirationNotification.EVENT_UPCOMING,
                 defaults={
+                    'priority': DocumentExpirationNotification.PRIORITY_MEDIUM,
                     'message': (
                         f"Document '{document.name}' expires on "
                         f"{document.expiration_date}."

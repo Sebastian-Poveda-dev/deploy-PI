@@ -643,6 +643,7 @@ class DocumentExpirationVerificationTest(TestCase):
 
         self.assertEqual(len(created_notifications), 1)
         self.assertEqual(notification.event_type, 'upcoming')
+        self.assertEqual(notification.priority, 'medium')
         self.assertIn(document.name, notification.message)
         self.assertIn(str(document.expiration_date), notification.message)
 
@@ -662,6 +663,7 @@ class DocumentExpirationVerificationTest(TestCase):
 
         self.assertEqual(len(created_notifications), 1)
         self.assertEqual(notification.event_type, 'expired')
+        self.assertEqual(notification.priority, 'high')
         self.assertTrue(document.is_expired)
 
     def test_verification_does_not_generate_duplicate_notifications_for_same_event(self):

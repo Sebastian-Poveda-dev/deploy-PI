@@ -12,6 +12,6 @@ class DocumentAdmin(admin.ModelAdmin):
 
 @admin.register(DocumentExpirationNotification)
 class DocumentExpirationNotificationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'document', 'recipient', 'event_type', 'created_at')
-    list_filter = ('event_type', 'created_at')
+    list_display = ('id', 'document', 'recipient', 'event_type', 'priority', 'created_at')
+    list_filter = ('event_type', 'priority', 'created_at')
     search_fields = ('document__name', 'recipient__username', 'message')

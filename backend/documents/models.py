@@ -32,9 +32,15 @@ class Document(models.Model):
 class DocumentExpirationNotification(models.Model):
     EVENT_UPCOMING = 'upcoming'
     EVENT_EXPIRED = 'expired'
+    PRIORITY_MEDIUM = 'medium'
+    PRIORITY_HIGH = 'high'
     EVENT_CHOICES = [
         (EVENT_UPCOMING, 'Upcoming'),
         (EVENT_EXPIRED, 'Expired'),
+    ]
+    PRIORITY_CHOICES = [
+        (PRIORITY_MEDIUM, 'Medium'),
+        (PRIORITY_HIGH, 'High'),
     ]
 
     document = models.ForeignKey(
@@ -48,6 +54,11 @@ class DocumentExpirationNotification(models.Model):
         related_name='document_expiration_notifications',
     )
     event_type = models.CharField(max_length=20, choices=EVENT_CHOICES)
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default=PRIORITY_MEDIUM,
+    )
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
