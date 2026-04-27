@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'users',
     'cases',
     'documents',
+    'communications',
 ]
 
 MIDDLEWARE = [
