@@ -4,7 +4,7 @@ import logo from '../assets/logo/logo-icesi-white.png'
 const NAV_ITEMS = [
   { label: 'Inicio', path: '/dashboard' },
   { label: 'Casos', path: '/dashboard/cases' },
-  { label: 'Chats' },
+  { label: 'Chats', path: '/dashboard/chats' },
   { label: 'Permisos', path: '/dashboard/permissions' },
   { label: 'Métricas' },
 ]

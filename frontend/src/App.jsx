@@ -4,6 +4,7 @@ import BeneficiaryRegister from './components/BeneficiaryRegister'
 import Dashboard from './pages/Dashboard'
 import Cases from './pages/Cases'
 import Permissions from './pages/Permissions'
+import Chats from './pages/Chats'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/register" element={<BeneficiaryRegister />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard/cases" element={<Cases />} />
+        <Route path="/dashboard/chats" element={<Chats />} />
         <Route path="/dashboard/permissions" element={<Permissions />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
