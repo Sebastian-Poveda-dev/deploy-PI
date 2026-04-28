@@ -1,11 +1,7 @@
-from django.apps import apps
-from django.conf import settings
 from rest_framework import serializers
 
 from .models import Conversation, Message
-from .services import build_external_contact
-
-User = apps.get_model(settings.AUTH_USER_MODEL)
+from .services import get_user_role
 
 
 def user_display_name(user):
@@ -17,77 +13,47 @@ def user_summary(user):
     return {
         'id': user.id,
         'username': user.username,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'full_name': user_display_name(user),
         'name': user_display_name(user),
+        'role': get_user_role(user),
     }
 
 
+class ChatUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    full_name = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
+
+    def get_full_name(self, obj):
+        return user_display_name(obj)
+
+    def get_role(self, obj):
+        return get_user_role(obj)
+
+
 class ConversationCreateSerializer(serializers.Serializer):
-    beneficiary_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
-        source='beneficiary',
+    participant_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        allow_empty=False,
     )
-    channel = serializers.ChoiceField(choices=[choice[0] for choice in Conversation.CHANNEL_CHOICES])
+    title = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
-
-class ConversationSerializer(serializers.ModelSerializer):
-    creator = serializers.SerializerMethodField()
-    creator_name = serializers.SerializerMethodField()
-    beneficiary = serializers.SerializerMethodField()
-    beneficiary_name = serializers.SerializerMethodField()
-    beneficiary_email = serializers.EmailField(source='beneficiary.email', read_only=True)
-    beneficiary_phone = serializers.CharField(source='beneficiary.phone_number', read_only=True)
-    beneficiary_phone_number = serializers.CharField(source='beneficiary.phone_number', read_only=True)
-    external_url = serializers.SerializerMethodField()
-    external_url_warning = serializers.SerializerMethodField()
-
-    def _external_contact(self, obj):
-        return build_external_contact(obj)
-
-    def get_creator(self, obj):
-        return user_summary(obj.creator)
-
-    def get_creator_name(self, obj):
-        return user_display_name(obj.creator)
-
-    def get_beneficiary(self, obj):
-        return user_summary(obj.beneficiary)
-
-    def get_beneficiary_name(self, obj):
-        return user_display_name(obj.beneficiary)
-
-    def get_external_url(self, obj):
-        external_url, _warning = self._external_contact(obj)
-        return external_url
-
-    def get_external_url_warning(self, obj):
-        _external_url, warning = self._external_contact(obj)
-        return warning or None
-
-    class Meta:
-        model = Conversation
-        fields = [
-            'id',
-            'channel',
-            'creator',
-            'creator_name',
-            'beneficiary',
-            'beneficiary_name',
-            'beneficiary_email',
-            'beneficiary_phone',
-            'beneficiary_phone_number',
-            'external_url',
-            'external_url_warning',
-            'created_at',
-            'updated_at',
-        ]
-
-
-class MessageCreateSerializer(serializers.Serializer):
-    content = serializers.CharField(allow_blank=True, trim_whitespace=False)
+    def validate(self, attrs):
+        unsupported_fields = {'channel', 'beneficiary_id', 'external_url'}.intersection(self.initial_data)
+        if unsupported_fields:
+            field_list = ', '.join(sorted(unsupported_fields))
+            raise serializers.ValidationError(f'Unsupported chat fields: {field_list}.')
+        return attrs
 
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.SerializerMethodField()
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
     sender_name = serializers.SerializerMethodField()
     is_current_user = serializers.SerializerMethodField()
 
@@ -109,8 +75,39 @@ class MessageSerializer(serializers.ModelSerializer):
             'id',
             'conversation',
             'sender',
+            'sender_username',
             'sender_name',
             'content',
             'created_at',
             'is_current_user',
         ]
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+    participants = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+
+    def get_participants(self, obj):
+        return [user_summary(user) for user in obj.participants.all()]
+
+    def get_last_message(self, obj):
+        messages = getattr(obj, 'prefetched_last_messages', None)
+        message = messages[0] if messages else obj.messages.select_related('sender').order_by('-created_at', '-id').first()
+        if message is None:
+            return None
+        return MessageSerializer(message, context=self.context).data
+
+    class Meta:
+        model = Conversation
+        fields = [
+            'id',
+            'title',
+            'participants',
+            'last_message',
+            'created_at',
+            'updated_at',
+        ]
+
+
+class MessageCreateSerializer(serializers.Serializer):
+    content = serializers.CharField(allow_blank=True, trim_whitespace=False)

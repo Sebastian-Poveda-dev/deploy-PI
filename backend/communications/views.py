@@ -1,11 +1,12 @@
-from django.shortcuts import get_object_or_404
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Conversation
 from .serializers import (
+    ChatUserSerializer,
     ConversationCreateSerializer,
     ConversationSerializer,
     MessageCreateSerializer,
@@ -14,18 +15,33 @@ from .serializers import (
 from .services import (
     create_conversation,
     create_message,
+    list_chat_users,
     list_conversations_for_user,
     list_messages,
 )
 
 
-class ConversationListCreateAPIView(APIView):
+class SessionAuthentication401(SessionAuthentication):
+    def authenticate_header(self, request):
+        return 'Session'
+
+
+class AuthenticatedChatAPIView(APIView):
+    authentication_classes = [SessionAuthentication401]
     permission_classes = [IsAuthenticated]
 
+
+class ChatUserListAPIView(AuthenticatedChatAPIView):
+    def get(self, request):
+        users = list_chat_users(request.user)
+        return Response(ChatUserSerializer(users, many=True).data, status=status.HTTP_200_OK)
+
+
+class ConversationListCreateAPIView(AuthenticatedChatAPIView):
     def get(self, request):
         conversations = list_conversations_for_user(request.user)
         return Response(
-            ConversationSerializer(conversations, many=True).data,
+            ConversationSerializer(conversations, many=True, context={'request': request}).data,
             status=status.HTTP_200_OK,
         )
 
@@ -36,8 +52,8 @@ class ConversationListCreateAPIView(APIView):
         try:
             conversation = create_conversation(
                 creator=request.user,
-                beneficiary=serializer.validated_data['beneficiary'],
-                channel=serializer.validated_data['channel'],
+                participant_ids=serializer.validated_data['participant_ids'],
+                title=serializer.validated_data.get('title', ''),
             )
         except PermissionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
@@ -45,25 +61,17 @@ class ConversationListCreateAPIView(APIView):
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ConversationSerializer(conversation).data,
+            ConversationSerializer(conversation, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
 
 
-class MessageListCreateAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get_conversation(self, pk):
-        return get_object_or_404(
-            Conversation.objects.select_related('creator', 'beneficiary'),
-            pk=pk,
-        )
-
+class MessageListCreateAPIView(AuthenticatedChatAPIView):
     def get(self, request, pk):
-        conversation = self.get_conversation(pk)
-
         try:
-            messages = list_messages(conversation, request.user)
+            messages = list_messages(request.user, pk)
+        except ObjectDoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         except PermissionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
@@ -73,16 +81,17 @@ class MessageListCreateAPIView(APIView):
         )
 
     def post(self, request, pk):
-        conversation = self.get_conversation(pk)
         serializer = MessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
             message = create_message(
-                conversation=conversation,
-                sender=request.user,
+                user=request.user,
+                conversation_id=pk,
                 content=serializer.validated_data['content'],
             )
+        except ObjectDoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         except PermissionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
         except ValueError as exc:
