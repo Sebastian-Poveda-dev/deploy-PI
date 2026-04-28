@@ -11,6 +11,19 @@ function messageFrom(data, fallback) {
   return data.detail ?? data.message ?? fallback
 }
 
+export async function getChatUsers() {
+  const response = await fetch('/communications/users/', {
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const data = await readJson(response)
+    throw new Error(messageFrom(data, 'No se pudo cargar el chat'))
+  }
+
+  return response.json()
+}
+
 export async function getConversations() {
   const response = await fetch('/communications/conversations/', {
     credentials: 'include',
@@ -18,13 +31,13 @@ export async function getConversations() {
 
   if (!response.ok) {
     const data = await readJson(response)
-    throw new Error(messageFrom(data, 'No fue posible cargar las conversaciones.'))
+    throw new Error(messageFrom(data, 'No se pudo cargar el chat'))
   }
 
   return response.json()
 }
 
-export async function createConversation({ beneficiaryId, channel }) {
+export async function createConversation({ participantIds, title = '' }) {
   const response = await fetch('/communications/conversations/', {
     method: 'POST',
     credentials: 'include',
@@ -33,14 +46,14 @@ export async function createConversation({ beneficiaryId, channel }) {
       'X-CSRFToken': getCsrfToken(),
     },
     body: JSON.stringify({
-      beneficiary_id: beneficiaryId,
-      channel,
+      participant_ids: participantIds,
+      title,
     }),
   })
 
   const data = await readJson(response)
   if (!response.ok) {
-    throw new Error(messageFrom(data, 'No fue posible crear la conversación.'))
+    throw new Error(messageFrom(data, 'No se pudo cargar el chat'))
   }
 
   return data
@@ -53,7 +66,7 @@ export async function getMessages(conversationId) {
 
   if (!response.ok) {
     const data = await readJson(response)
-    throw new Error(messageFrom(data, 'No fue posible cargar los mensajes.'))
+    throw new Error(messageFrom(data, 'No se pudo cargar el chat'))
   }
 
   return response.json()
@@ -72,7 +85,7 @@ export async function sendMessage(conversationId, content) {
 
   const data = await readJson(response)
   if (!response.ok) {
-    throw new Error(messageFrom(data, 'No fue posible enviar el mensaje.'))
+    throw new Error(messageFrom(data, 'No se pudo cargar el chat'))
   }
 
   return data

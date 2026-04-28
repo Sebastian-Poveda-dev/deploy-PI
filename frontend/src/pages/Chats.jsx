@@ -1,27 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DashboardLayout from '../layouts/DashboardLayout'
 import {
   createConversation,
+  getChatUsers,
   getConversations,
   getMessages,
   sendMessage,
 } from '../services/communicationService'
-import { getBeneficiaries } from '../services/userService'
+import { createConversationSocket } from '../services/chatSocketService'
 
-const CHANNELS = [
-  { value: 'whatsapp', label: 'WhatsApp', action: 'Abrir WhatsApp' },
-  { value: 'email', label: 'Correo electrónico', action: 'Abrir correo' },
-  { value: 'phone', label: 'Llamada telefónica', action: 'Llamar' },
-]
-
-const EMPTY_FORM = {
-  beneficiaryId: '',
-  channel: 'whatsapp',
-}
-
-function getChannel(channel) {
-  return CHANNELS.find((item) => item.value === channel) ?? CHANNELS[0]
-}
+const SOCKET_OPEN = 1
 
 function formatTime(value) {
   if (!value) return ''
@@ -33,45 +21,74 @@ function formatTime(value) {
   }).format(new Date(value))
 }
 
-function participantName(conversation) {
-  return conversation?.beneficiary_name ?? conversation?.beneficiary?.name ?? 'Beneficiario'
+function userName(user) {
+  if (!user) return 'Usuario'
+  return user.full_name || user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username
 }
 
-function creatorName(conversation) {
-  return conversation?.creator_name ?? conversation?.creator?.name ?? 'Usuario'
+function messageSenderName(message) {
+  return message.sender_name || userName(message.sender) || message.sender_username || 'Usuario'
+}
+
+function conversationName(conversation) {
+  if (!conversation) return ''
+  if (conversation.title) return conversation.title
+  const names = (conversation.participants || []).map(userName).filter(Boolean)
+  return names.join(', ') || `Conversación #${conversation.id}`
+}
+
+function normalizeParticipantIds(ids) {
+  return Array.from(new Set(ids.map(Number))).filter(Boolean)
+}
+
+function connectionLabel(status) {
+  if (status === 'connected') return 'Conectado'
+  if (status === 'connecting') return 'Reconectando'
+  return 'Sin conexión en tiempo real'
 }
 
 function NewConversationModal({
   isOpen,
-  beneficiaries,
-  beneficiariesLoading,
+  users,
+  loadingUsers,
   submitting,
   error,
   onClose,
   onCreate,
 }) {
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [title, setTitle] = useState('')
+  const [query, setQuery] = useState('')
+  const [selectedIds, setSelectedIds] = useState([])
   const [fieldError, setFieldError] = useState('')
+
+  const filteredUsers = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return users
+    return users.filter((user) => {
+      const haystack = `${user.username} ${user.first_name} ${user.last_name} ${user.full_name} ${user.role}`.toLowerCase()
+      return haystack.includes(needle)
+    })
+  }, [query, users])
 
   if (!isOpen) return null
 
-  function setField(field) {
-    return (event) => {
-      setForm((prev) => ({ ...prev, [field]: event.target.value }))
-      setFieldError('')
-    }
+  function toggleUser(userId) {
+    setSelectedIds((current) => (
+      current.includes(userId)
+        ? current.filter((id) => id !== userId)
+        : [...current, userId]
+    ))
+    setFieldError('')
   }
 
   function handleSubmit(event) {
     event.preventDefault()
-    if (!form.beneficiaryId) {
-      setFieldError('Selecciona un beneficiario.')
+    const participantIds = normalizeParticipantIds(selectedIds)
+    if (participantIds.length === 0) {
+      setFieldError('Selecciona al menos un participante.')
       return
     }
-    onCreate({
-      beneficiaryId: Number(form.beneficiaryId),
-      channel: form.channel,
-    })
+    onCreate({ participantIds, title: title.trim() })
   }
 
   return (
@@ -79,7 +96,7 @@ function NewConversationModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
       onClick={(event) => event.target === event.currentTarget && onClose()}
     >
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+      <div className="flex max-h-[86vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-800">Nueva conversación</h2>
           <button
@@ -93,46 +110,77 @@ function NewConversationModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col" noValidate>
           <div className="space-y-4 px-6 py-5">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-700">Beneficiario</label>
-              <select
-                value={form.beneficiaryId}
-                onChange={setField('beneficiaryId')}
-                disabled={beneficiariesLoading || submitting}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2] disabled:opacity-60"
-              >
-                <option value="">
-                  {beneficiariesLoading ? 'Cargando beneficiarios...' : 'Selecciona un beneficiario'}
-                </option>
-                {beneficiaries.map((beneficiary) => (
-                  <option key={beneficiary.id} value={beneficiary.id}>
-                    {beneficiary.name ?? beneficiary.username ?? `Beneficiario #${beneficiary.id}`}
-                  </option>
-                ))}
-              </select>
-              {fieldError && <p className="text-xs text-red-500">{fieldError}</p>}
+              <label className="block text-sm font-medium text-slate-700">Título opcional</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                disabled={submitting}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2] disabled:opacity-60"
+                placeholder="Ej. Equipo del caso civil"
+              />
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-700">Canal</label>
-              <select
-                value={form.channel}
-                onChange={setField('channel')}
+              <label className="block text-sm font-medium text-slate-700">Buscar usuario</label>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
                 disabled={submitting}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2] disabled:opacity-60"
-              >
-                {CHANNELS.map((channel) => (
-                  <option key={channel.value} value={channel.value}>
-                    {channel.label}
-                  </option>
+                className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2] disabled:opacity-60"
+                placeholder="Buscar usuario"
+              />
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-800">Participantes</p>
+                <p className="text-xs font-medium text-slate-400">{selectedIds.length} seleccionados</p>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-200">
+                {loadingUsers && (
+                  <div className="px-4 py-8 text-center text-sm font-medium text-slate-400">
+                    Cargando usuarios...
+                  </div>
+                )}
+
+                {!loadingUsers && filteredUsers.length === 0 && (
+                  <div className="px-4 py-8 text-center text-sm font-medium text-slate-400">
+                    No hay usuarios disponibles.
+                  </div>
+                )}
+
+                {!loadingUsers && filteredUsers.map((user) => (
+                  <label
+                    key={user.id}
+                    className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(user.id)}
+                      onChange={() => toggleUser(user.id)}
+                      disabled={submitting}
+                      className="h-4 w-4 rounded border-slate-300 text-[#5454F2] focus:ring-[#5454F2]"
+                    />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm font-semibold text-slate-800">{userName(user)}</span>
+                      <span className="truncate text-xs text-slate-500">
+                        {user.username} · {user.role || 'sin rol'}
+                      </span>
+                    </span>
+                  </label>
                 ))}
-              </select>
+              </div>
+              {fieldError && <p className="mt-2 text-xs font-medium text-red-500">{fieldError}</p>}
             </div>
 
             {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
+              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600">
                 {error}
               </p>
             )}
@@ -143,14 +191,14 @@ function NewConversationModal({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={submitting || beneficiariesLoading}
-              className="rounded-lg bg-[#5454F2] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submitting || loadingUsers}
+              className="rounded-xl bg-[#5454F2] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? 'Creando...' : 'Crear'}
             </button>
@@ -162,19 +210,22 @@ function NewConversationModal({
 }
 
 function Chats() {
+  const socketRef = useRef(null)
+  const selectedConversationIdRef = useRef(null)
   const [conversations, setConversations] = useState([])
   const [selectedConversationId, setSelectedConversationId] = useState(null)
   const [messages, setMessages] = useState([])
-  const [beneficiaries, setBeneficiaries] = useState([])
+  const [chatUsers, setChatUsers] = useState([])
   const [loadingConversations, setLoadingConversations] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
-  const [beneficiariesLoading, setBeneficiariesLoading] = useState(false)
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const [sending, setSending] = useState(false)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [messageError, setMessageError] = useState('')
   const [createError, setCreateError] = useState('')
   const [content, setContent] = useState('')
+  const [socketStatus, setSocketStatus] = useState('disconnected')
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false)
 
   const selectedConversation = useMemo(
@@ -182,7 +233,25 @@ function Chats() {
     [conversations, selectedConversationId],
   )
 
-  async function loadConversations(selectFirst = false) {
+  const selectedParticipants = selectedConversation?.participants || []
+  const canSend = Boolean(selectedConversation && content.trim() && !sending && !loadingMessages)
+
+  const mergeMessage = useCallback((message) => {
+    setMessages((current) => {
+      if (current.some((item) => item.id === message.id)) {
+        return current.map((item) => (item.id === message.id ? { ...item, ...message } : item))
+      }
+      return [...current, message]
+    })
+
+    setConversations((current) => current.map((conversation) => (
+      conversation.id === message.conversation
+        ? { ...conversation, last_message: message, updated_at: message.created_at }
+        : conversation
+    )))
+  }, [])
+
+  const loadConversations = useCallback(async (selectFirst = false) => {
     setLoadingConversations(true)
     setError('')
     try {
@@ -191,12 +260,15 @@ function Chats() {
       if (selectFirst && data.length > 0) {
         setSelectedConversationId((current) => current ?? data[0].id)
       }
+      if (data.length === 0) {
+        setSelectedConversationId(null)
+      }
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'No se pudo cargar el chat')
     } finally {
       setLoadingConversations(false)
     }
-  }
+  }, [])
 
   const loadMessages = useCallback(async (conversationId = selectedConversationId) => {
     if (!conversationId) {
@@ -210,41 +282,84 @@ function Chats() {
       const data = await getMessages(conversationId)
       setMessages(data)
     } catch (err) {
-      setMessageError(err.message)
+      setMessageError(err.message || 'No se pudo cargar el chat')
     } finally {
       setLoadingMessages(false)
     }
   }, [selectedConversationId])
 
-  async function loadBeneficiaries() {
-    setBeneficiariesLoading(true)
+  async function loadChatUsers() {
+    setLoadingUsers(true)
+    setCreateError('')
     try {
-      const data = await getBeneficiaries()
-      setBeneficiaries(data)
-    } catch {
-      setCreateError('No fue posible cargar los beneficiarios.')
+      const data = await getChatUsers()
+      setChatUsers(data)
+    } catch (err) {
+      setCreateError(err.message || 'No se pudo cargar el chat')
     } finally {
-      setBeneficiariesLoading(false)
+      setLoadingUsers(false)
     }
   }
 
   useEffect(() => {
     loadConversations(true)
-  }, [])
+  }, [loadConversations])
 
   useEffect(() => {
-    if (selectedConversationId) {
-      loadMessages(selectedConversationId)
-    } else {
+    selectedConversationIdRef.current = selectedConversationId
+    if (!selectedConversationId) {
       setMessages([])
+      setSocketStatus('disconnected')
+      socketRef.current?.close()
+      socketRef.current = null
+      return undefined
     }
-  }, [loadMessages, selectedConversationId])
+
+    loadMessages(selectedConversationId)
+    setSocketStatus('connecting')
+
+    const socket = createConversationSocket(selectedConversationId, {
+      onOpen: () => {
+        if (selectedConversationIdRef.current === selectedConversationId) {
+          setSocketStatus('connected')
+        }
+      },
+      onMessage: (payload) => {
+        if (payload?.type === 'message' && payload.message) {
+          mergeMessage(payload.message)
+          return
+        }
+        if (payload?.type === 'error') {
+          setMessageError(payload.errors?.content || payload.errors?.detail || 'No se pudo cargar el chat')
+        }
+      },
+      onError: () => {
+        if (selectedConversationIdRef.current === selectedConversationId) {
+          setSocketStatus('disconnected')
+        }
+      },
+      onClose: () => {
+        if (selectedConversationIdRef.current === selectedConversationId) {
+          setSocketStatus('disconnected')
+        }
+      },
+    })
+
+    socketRef.current = socket
+
+    return () => {
+      socket.close()
+      if (socketRef.current === socket) {
+        socketRef.current = null
+      }
+    }
+  }, [loadMessages, mergeMessage, selectedConversationId])
 
   function openNewConversation() {
     setCreateError('')
     setIsNewConversationOpen(true)
-    if (beneficiaries.length === 0) {
-      loadBeneficiaries()
+    if (chatUsers.length === 0) {
+      loadChatUsers()
     }
   }
 
@@ -253,16 +368,14 @@ function Chats() {
     setCreateError('')
     try {
       const conversation = await createConversation(payload)
-      setConversations((prev) => [
+      setConversations((current) => [
         conversation,
-        ...prev.filter((item) => item.id !== conversation.id),
+        ...current.filter((item) => item.id !== conversation.id),
       ])
       setSelectedConversationId(conversation.id)
       setIsNewConversationOpen(false)
-      setMessages([])
-      await loadMessages(conversation.id)
     } catch (err) {
-      setCreateError(err.message)
+      setCreateError(err.message || 'No se pudo cargar el chat')
     } finally {
       setCreating(false)
     }
@@ -276,19 +389,119 @@ function Chats() {
     setSending(true)
     setMessageError('')
     try {
-      await sendMessage(selectedConversation.id, trimmed)
-      setContent('')
-      await loadMessages(selectedConversation.id)
+      const socket = socketRef.current
+      if (socket?.readyState === SOCKET_OPEN) {
+        socket.sendMessage(trimmed)
+        setContent('')
+      } else {
+        const message = await sendMessage(selectedConversation.id, trimmed)
+        setContent('')
+        mergeMessage(message)
+        await loadMessages(selectedConversation.id)
+      }
       loadConversations()
     } catch (err) {
-      setMessageError(err.message)
+      setMessageError(err.message || 'No se pudo cargar el chat')
     } finally {
       setSending(false)
     }
   }
 
-  const selectedChannel = selectedConversation ? getChannel(selectedConversation.channel) : null
-  const canSend = Boolean(selectedConversation && content.trim() && !sending && !loadingMessages)
+  function renderConversationList() {
+    if (loadingConversations) {
+      return (
+        <div className="flex h-full min-h-52 items-center justify-center px-4">
+          <p className="text-sm font-medium text-slate-400">Cargando conversaciones...</p>
+        </div>
+      )
+    }
+
+    if (conversations.length === 0) {
+      return (
+        <div className="flex h-full min-h-52 items-center justify-center px-6 text-center">
+          <p className="text-sm font-medium text-slate-400">No tienes conversaciones todavía</p>
+        </div>
+      )
+    }
+
+    return (
+      <ul className="divide-y divide-slate-100">
+        {conversations.map((conversation) => {
+          const isSelected = conversation.id === selectedConversationId
+          return (
+            <li key={conversation.id}>
+              <button
+                type="button"
+                onClick={() => setSelectedConversationId(conversation.id)}
+                className={`w-full px-4 py-3 text-left transition-colors ${
+                  isSelected ? 'bg-[#5454F2]/10' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-800">
+                      {conversationName(conversation)}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-slate-500">
+                      {conversation.last_message?.content || 'Sin mensajes'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[11px] font-medium text-slate-400">
+                    {formatTime(conversation.last_message?.created_at || conversation.updated_at)}
+                  </span>
+                </div>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    )
+  }
+
+  function renderMessages() {
+    if (loadingMessages) {
+      return (
+        <div className="flex h-full min-h-64 items-center justify-center">
+          <p className="text-sm font-medium text-slate-400">Cargando mensajes...</p>
+        </div>
+      )
+    }
+
+    if (messages.length === 0) {
+      return (
+        <div className="flex h-full min-h-64 items-center justify-center">
+          <p className="text-sm font-medium text-slate-400">No hay mensajes todavía.</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${message.is_current_user ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-[78%] rounded-xl px-4 py-3 shadow-sm ${
+                message.is_current_user
+                  ? 'bg-[#5454F2] text-white'
+                  : 'border border-slate-200 bg-white text-slate-800'
+              }`}
+            >
+              <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-xs font-semibold">{messageSenderName(message)}</span>
+                <span className={`text-[11px] ${message.is_current_user ? 'text-white/70' : 'text-slate-400'}`}>
+                  {formatTime(message.created_at)}
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap break-words text-sm leading-6">{message.content}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -298,7 +511,7 @@ function Chats() {
           <button
             type="button"
             onClick={openNewConversation}
-            className="inline-flex items-center justify-center rounded-lg bg-[#5454F2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7]"
+            className="inline-flex items-center justify-center rounded-xl bg-[#5454F2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7]"
           >
             Nueva conversación
           </button>
@@ -310,67 +523,20 @@ function Chats() {
           </p>
         )}
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[20rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[21rem_minmax(0,1fr)]">
           <aside className="flex min-h-72 flex-col border-b border-slate-200 lg:border-b-0 lg:border-r">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-slate-800">Conversaciones</h2>
+              <h2 className="text-sm font-semibold text-slate-800">Chats</h2>
               <button
                 type="button"
                 onClick={() => loadConversations(true)}
                 disabled={loadingConversations}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Actualizar
               </button>
             </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {loadingConversations && (
-                <div className="flex h-full min-h-52 items-center justify-center px-4">
-                  <p className="text-sm font-medium text-slate-400">Cargando conversaciones...</p>
-                </div>
-              )}
-
-              {!loadingConversations && conversations.length === 0 && (
-                <div className="flex h-full min-h-52 items-center justify-center px-6 text-center">
-                  <p className="text-sm font-medium text-slate-400">No hay conversaciones.</p>
-                </div>
-              )}
-
-              {!loadingConversations && conversations.length > 0 && (
-                <ul className="divide-y divide-slate-100">
-                  {conversations.map((conversation) => {
-                    const channel = getChannel(conversation.channel)
-                    const isSelected = conversation.id === selectedConversationId
-                    return (
-                      <li key={conversation.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedConversationId(conversation.id)}
-                          className={`w-full px-4 py-3 text-left transition-colors ${
-                            isSelected ? 'bg-[#5454F2]/10' : 'hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-slate-800">
-                                {participantName(conversation)}
-                              </p>
-                              <p className="mt-1 text-xs font-medium text-slate-500">
-                                {channel.label}
-                              </p>
-                            </div>
-                            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
-                              #{conversation.id}
-                            </span>
-                          </div>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{renderConversationList()}</div>
           </aside>
 
           <div className="flex min-h-0 flex-col">
@@ -380,44 +546,31 @@ function Chats() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="truncate text-lg font-semibold text-slate-800">
-                        {participantName(selectedConversation)}
+                        {conversationName(selectedConversation)}
                       </h2>
-                      <span className="rounded-full bg-[#5454F2]/10 px-2.5 py-1 text-xs font-semibold text-[#5454F2]">
-                        {selectedChannel.label}
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          socketStatus === 'connected'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {connectionLabel(socketStatus)}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {selectedConversation.beneficiary_email || 'Sin correo registrado'} ·{' '}
-                      {selectedConversation.beneficiary_phone
-                        || selectedConversation.beneficiary_phone_number
-                        || 'Sin teléfono registrado'}
+                    <p className="mt-1 truncate text-sm text-slate-500">
+                      Participantes: {selectedParticipants.map(userName).join(', ')}
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedConversation.external_url ? (
-                      <a
-                        href={selectedConversation.external_url}
-                        target={selectedConversation.channel === 'whatsapp' ? '_blank' : undefined}
-                        rel={selectedConversation.channel === 'whatsapp' ? 'noreferrer' : undefined}
-                        className="inline-flex items-center justify-center rounded-lg bg-[#5454F2] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7]"
-                      >
-                        {selectedChannel.action}
-                      </a>
-                    ) : (
-                      <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
-                        Este beneficiario no tiene datos de contacto para este canal.
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => loadMessages(selectedConversation.id)}
-                      disabled={loadingMessages}
-                      className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Actualizar
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadMessages(selectedConversation.id)}
+                    disabled={loadingMessages}
+                    className="self-start rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 xl:self-auto"
+                  >
+                    Actualizar
+                  </button>
                 </div>
 
                 {messageError && (
@@ -427,52 +580,7 @@ function Chats() {
                 )}
 
                 <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-5 py-5">
-                  {loadingMessages && (
-                    <div className="flex h-full min-h-64 items-center justify-center">
-                      <p className="text-sm font-medium text-slate-400">Cargando mensajes...</p>
-                    </div>
-                  )}
-
-                  {!loadingMessages && messages.length === 0 && (
-                    <div className="flex h-full min-h-64 items-center justify-center">
-                      <p className="text-sm font-medium text-slate-400">No hay mensajes.</p>
-                    </div>
-                  )}
-
-                  {!loadingMessages && messages.length > 0 && (
-                    <div className="space-y-4">
-                      {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.is_current_user ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[78%] rounded-xl px-4 py-3 shadow-sm ${
-                              message.is_current_user
-                                ? 'bg-[#5454F2] text-white'
-                                : 'border border-slate-200 bg-white text-slate-800'
-                            }`}
-                          >
-                            <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <span className="text-xs font-semibold">
-                                {message.sender_name ?? message.sender?.name ?? creatorName(selectedConversation)}
-                              </span>
-                              <span
-                                className={`text-[11px] ${
-                                  message.is_current_user ? 'text-white/70' : 'text-slate-400'
-                                }`}
-                              >
-                                {formatTime(message.created_at)}
-                              </span>
-                            </div>
-                            <p className="whitespace-pre-wrap break-words text-sm leading-6">
-                              {message.content}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {renderMessages()}
                 </div>
 
                 <form onSubmit={handleSendMessage} className="border-t border-slate-200 bg-white px-5 py-4">
@@ -497,7 +605,7 @@ function Chats() {
               </>
             ) : (
               <div className="flex h-full min-h-96 items-center justify-center px-6 text-center">
-                <p className="text-sm font-medium text-slate-400">Selecciona una conversación.</p>
+                <p className="text-sm font-medium text-slate-400">Selecciona una conversación</p>
               </div>
             )}
           </div>
@@ -505,10 +613,10 @@ function Chats() {
       </section>
 
       <NewConversationModal
-        key={isNewConversationOpen ? 'open' : 'closed'}
+        key={isNewConversationOpen ? 'new-conversation-open' : 'new-conversation-closed'}
         isOpen={isNewConversationOpen}
-        beneficiaries={beneficiaries}
-        beneficiariesLoading={beneficiariesLoading}
+        users={chatUsers}
+        loadingUsers={loadingUsers}
         submitting={creating}
         error={createError}
         onClose={() => setIsNewConversationOpen(false)}
