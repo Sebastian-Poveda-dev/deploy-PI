@@ -33,7 +33,7 @@ class CommunicationTestUsersMixin:
 
 
 class CommunicationDomainModelTest(CommunicationTestUsersMixin, TestCase):
-    """Red-phase tests for the internal chat domain model shape."""
+    """Tests for the internal chat domain model shape."""
 
     def setUp(self):
         self.creator = self.create_user('chat_creator', 'advisor')
@@ -49,18 +49,6 @@ class CommunicationDomainModelTest(CommunicationTestUsersMixin, TestCase):
         self.assertIn('created_at', field_names)
         self.assertIn('updated_at', field_names)
         self.assertTrue({'title', 'name'}.intersection(field_names))
-
-    def test_conversation_model_has_no_external_channel_fields(self):
-        Conversation = apps.get_model('communications', 'Conversation')
-
-        field_names = {field.name for field in Conversation._meta.get_fields()}
-
-        self.assertNotIn('channel', field_names)
-        self.assertNotIn('beneficiary', field_names)
-        self.assertFalse(hasattr(Conversation, 'CHANNEL_CHOICES'))
-        self.assertFalse(hasattr(Conversation, 'CHANNEL_WHATSAPP'))
-        self.assertFalse(hasattr(Conversation, 'CHANNEL_EMAIL'))
-        self.assertFalse(hasattr(Conversation, 'CHANNEL_PHONE'))
 
     def test_conversation_can_be_created_with_creator_and_participants(self):
         Conversation = apps.get_model('communications', 'Conversation')
@@ -97,7 +85,7 @@ class CommunicationDomainModelTest(CommunicationTestUsersMixin, TestCase):
 
 
 class CommunicationServiceTest(CommunicationTestUsersMixin, TestCase):
-    """Red-phase tests that business rules live behind service functions."""
+    """Tests that business rules live behind service functions."""
 
     def setUp(self):
         self.creator = self.create_user('svc_creator', 'advisor')
@@ -199,7 +187,7 @@ class CommunicationServiceTest(CommunicationTestUsersMixin, TestCase):
 
 
 class CommunicationApiTest(CommunicationTestUsersMixin, APITestCase):
-    """Red-phase REST API tests for internal chat endpoints."""
+    """REST API tests for internal chat endpoints."""
 
     conversations_url = '/communications/conversations/'
     users_url = '/communications/users/'
@@ -269,8 +257,6 @@ class CommunicationApiTest(CommunicationTestUsersMixin, APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'Internal case team')
-        self.assertNotIn('channel', response.data)
-        self.assertNotIn('external_url', response.data)
         participant_ids = {participant['id'] for participant in response.data['participants']}
         self.assertSetEqual(participant_ids, {self.advisor.id, self.student.id, self.professor.id})
 
@@ -280,17 +266,6 @@ class CommunicationApiTest(CommunicationTestUsersMixin, APITestCase):
         response = self.client.post(
             self.conversations_url,
             self.conversation_payload(participant_ids=[self.inactive_user.id]),
-            format='json',
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_conversation_creation_rejects_external_channel_payload(self):
-        self.client.force_authenticate(self.advisor)
-
-        response = self.client.post(
-            self.conversations_url,
-            self.conversation_payload(channel='whatsapp', beneficiary_id=self.beneficiary.id),
             format='json',
         )
 

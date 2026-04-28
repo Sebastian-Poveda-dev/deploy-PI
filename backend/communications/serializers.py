@@ -43,13 +43,6 @@ class ConversationCreateSerializer(serializers.Serializer):
     )
     title = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
-    def validate(self, attrs):
-        unsupported_fields = {'channel', 'beneficiary_id', 'external_url'}.intersection(self.initial_data)
-        if unsupported_fields:
-            field_list = ', '.join(sorted(unsupported_fields))
-            raise serializers.ValidationError(f'Unsupported chat fields: {field_list}.')
-        return attrs
-
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.SerializerMethodField()
