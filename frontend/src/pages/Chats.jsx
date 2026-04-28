@@ -10,6 +10,7 @@ import {
 import { createConversationSocket } from '../services/chatSocketService'
 
 const SOCKET_OPEN = 1
+const CONVERSATION_REFRESH_MS = 15000
 
 function formatTime(value) {
   if (!value) return ''
@@ -39,6 +40,28 @@ function conversationName(conversation) {
 
 function normalizeParticipantIds(ids) {
   return Array.from(new Set(ids.map(Number))).filter(Boolean)
+}
+
+function conversationTimestamp(conversation) {
+  return new Date(
+    conversation.last_message?.created_at || conversation.updated_at || conversation.created_at || 0,
+  ).getTime()
+}
+
+function sortConversations(items) {
+  return [...items].sort((a, b) => conversationTimestamp(b) - conversationTimestamp(a))
+}
+
+function mergeConversations(current, incoming) {
+  const byId = new Map()
+  current.forEach((conversation) => {
+    byId.set(conversation.id, conversation)
+  })
+  incoming.forEach((conversation) => {
+    const existing = byId.get(conversation.id)
+    byId.set(conversation.id, existing ? { ...existing, ...conversation } : conversation)
+  })
+  return sortConversations(Array.from(byId.values()))
 }
 
 function connectionLabel(status) {
@@ -244,19 +267,21 @@ function Chats() {
       return [...current, message]
     })
 
-    setConversations((current) => current.map((conversation) => (
+    setConversations((current) => sortConversations(current.map((conversation) => (
       conversation.id === message.conversation
         ? { ...conversation, last_message: message, updated_at: message.created_at }
         : conversation
-    )))
+    ))))
   }, [])
 
-  const loadConversations = useCallback(async (selectFirst = false) => {
-    setLoadingConversations(true)
+  const loadConversations = useCallback(async ({ selectFirst = false, silent = false } = {}) => {
+    if (!silent) {
+      setLoadingConversations(true)
+    }
     setError('')
     try {
       const data = await getConversations()
-      setConversations(data)
+      setConversations(mergeConversations([], data))
       if (selectFirst && data.length > 0) {
         setSelectedConversationId((current) => current ?? data[0].id)
       }
@@ -266,7 +291,9 @@ function Chats() {
     } catch (err) {
       setError(err.message || 'No se pudo cargar el chat')
     } finally {
-      setLoadingConversations(false)
+      if (!silent) {
+        setLoadingConversations(false)
+      }
     }
   }, [])
 
@@ -302,7 +329,17 @@ function Chats() {
   }
 
   useEffect(() => {
-    loadConversations(true)
+    loadConversations({ selectFirst: true })
+  }, [loadConversations])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      loadConversations({ silent: true })
+    }, CONVERSATION_REFRESH_MS)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
   }, [loadConversations])
 
   useEffect(() => {
@@ -368,10 +405,7 @@ function Chats() {
     setCreateError('')
     try {
       const conversation = await createConversation(payload)
-      setConversations((current) => [
-        conversation,
-        ...current.filter((item) => item.id !== conversation.id),
-      ])
+      setConversations((current) => mergeConversations(current, [conversation]))
       setSelectedConversationId(conversation.id)
       setIsNewConversationOpen(false)
     } catch (err) {
@@ -399,12 +433,18 @@ function Chats() {
         mergeMessage(message)
         await loadMessages(selectedConversation.id)
       }
-      loadConversations()
+      loadConversations({ silent: true })
     } catch (err) {
       setMessageError(err.message || 'No se pudo cargar el chat')
     } finally {
       setSending(false)
     }
+  }
+
+  function handleMessageKeyDown(event) {
+    if (event.key !== 'Enter' || event.shiftKey || !canSend) return
+    event.preventDefault()
+    handleSendMessage(event)
   }
 
   function renderConversationList() {
@@ -525,16 +565,8 @@ function Chats() {
 
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[21rem_minmax(0,1fr)]">
           <aside className="flex min-h-72 flex-col border-b border-slate-200 lg:border-b-0 lg:border-r">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div className="border-b border-slate-200 px-4 py-3">
               <h2 className="text-sm font-semibold text-slate-800">Chats</h2>
-              <button
-                type="button"
-                onClick={() => loadConversations(true)}
-                disabled={loadingConversations}
-                className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Actualizar
-              </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">{renderConversationList()}</div>
           </aside>
@@ -588,6 +620,7 @@ function Chats() {
                     <textarea
                       value={content}
                       onChange={(event) => setContent(event.target.value)}
+                      onKeyDown={handleMessageKeyDown}
                       placeholder="Escribe un mensaje..."
                       rows={2}
                       disabled={sending}
