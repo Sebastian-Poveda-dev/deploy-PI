@@ -41,12 +41,15 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne',
     'django.contrib.staticfiles',
     'rest_framework',
+    'channels',
     # Local apps
     'users',
     'cases',
     'documents',
+    'communications',
 ]
 
 MIDDLEWARE = [
@@ -78,6 +81,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'lawclinic.wsgi.application'
+ASGI_APPLICATION = 'lawclinic.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database
