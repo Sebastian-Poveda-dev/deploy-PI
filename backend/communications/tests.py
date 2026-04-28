@@ -1,8 +1,7 @@
-import unittest
-
 from asgiref.sync import sync_to_async
 from django.apps import apps
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase
@@ -400,9 +399,8 @@ class CommunicationApiTest(CommunicationTestUsersMixin, APITestCase):
         self.assertTrue(user_summary_keys().issubset(response.data[0].keys()))
 
 
-@unittest.skip('WebSocket chat will be implemented in the Channels phase.')
 class CommunicationWebSocketTest(CommunicationTestUsersMixin, TransactionTestCase):
-    """Red-phase WebSocket tests for real-time internal chat delivery."""
+    """WebSocket tests for real-time internal chat delivery."""
 
     reset_sequences = True
 
@@ -421,7 +419,7 @@ class CommunicationWebSocketTest(CommunicationTestUsersMixin, TransactionTestCas
         conversation.participants.add(self.advisor, self.student)
         return conversation
 
-    async def connect(self, user):
+    async def connect(self, user=None):
         from channels.testing import WebsocketCommunicator
         from lawclinic.asgi import application
 
@@ -429,7 +427,7 @@ class CommunicationWebSocketTest(CommunicationTestUsersMixin, TransactionTestCas
             application,
             f'/ws/communications/conversations/{self.conversation.id}/',
         )
-        communicator.scope['user'] = user
+        communicator.scope['user'] = user or AnonymousUser()
         connected, _ = await communicator.connect()
         return communicator, connected
 
@@ -447,6 +445,13 @@ class CommunicationWebSocketTest(CommunicationTestUsersMixin, TransactionTestCas
         finally:
             await communicator.disconnect()
 
+    async def test_unauthenticated_user_cannot_connect(self):
+        communicator, connected = await self.connect()
+        try:
+            self.assertFalse(connected)
+        finally:
+            await communicator.disconnect()
+
     async def test_websocket_message_is_persisted_and_broadcast(self):
         sender, sender_connected = await self.connect(self.advisor)
         recipient, recipient_connected = await self.connect(self.student)
@@ -454,12 +459,13 @@ class CommunicationWebSocketTest(CommunicationTestUsersMixin, TransactionTestCas
             self.assertTrue(sender_connected)
             self.assertTrue(recipient_connected)
 
-            await sender.send_json_to({'content': 'Live update for the team.'})
+            await sender.send_json_to({'type': 'message', 'content': 'Live update for the team.'})
             event = await recipient.receive_json_from()
 
-            self.assertEqual(event['type'], 'message.created')
+            self.assertEqual(event['type'], 'message')
             self.assertEqual(event['message']['content'], 'Live update for the team.')
-            self.assertEqual(event['message']['sender']['id'], self.advisor.id)
+            self.assertEqual(event['message']['sender'], self.advisor.id)
+            self.assertEqual(event['message']['sender_username'], self.advisor.username)
             self.assertFalse(event['message']['is_current_user'])
 
             Message = apps.get_model('communications', 'Message')
@@ -480,7 +486,7 @@ class CommunicationWebSocketTest(CommunicationTestUsersMixin, TransactionTestCas
         try:
             self.assertTrue(connected)
 
-            await communicator.send_json_to({'content': '   '})
+            await communicator.send_json_to({'type': 'message', 'content': '   '})
             event = await communicator.receive_json_from()
 
             self.assertEqual(event['type'], 'error')
