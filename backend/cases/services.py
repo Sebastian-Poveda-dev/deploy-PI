@@ -92,8 +92,15 @@ def create_case(user, description, category, subclinic, beneficiary, professor=N
     status = CaseStatus.objects.get(name=ROLE_STATUS_MAP[role])
 
     with transaction.atomic():
-        assigned_student = _pick_student_for_case(category)
-        assigned_professor = _pick_professor_for_case(excluded_user_ids=[assigned_student.pk])
+        if role == 'student':
+            assigned_student = user
+            assigned_professor = _pick_professor_for_case(excluded_user_ids=[user.pk])
+        elif role == 'professor':
+            assigned_student = _pick_student_for_case(category)
+            assigned_professor = user
+        else:
+            assigned_student = _pick_student_for_case(category)
+            assigned_professor = _pick_professor_for_case(excluded_user_ids=[assigned_student.pk])
 
         case = Case(
             description=description,

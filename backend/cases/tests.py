@@ -221,6 +221,16 @@ class CreateCaseTest(TestCase):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertTrue(case.logs.filter(content__icontains='Case created by').exists())
 
+    def test_student_creator_is_assigned_as_student(self):
+        case = create_case(self.student, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
+        self.assertTrue(case.users.filter(pk=self.student.pk).exists())
+        self.assertEqual(case.users.filter(groups__name='professor').count(), 1)
+
+    def test_professor_creator_is_assigned_as_professor(self):
+        case = create_case(self.professor, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
+        self.assertTrue(case.users.filter(pk=self.professor.pk).exists())
+        self.assertEqual(case.users.filter(groups__name='student').count(), 1)
+
     def test_case_is_persisted_to_database(self):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertIsNotNone(case.pk)
@@ -631,14 +641,15 @@ class CaseApiTest(APITestCase):
             'category_id': self.category.id,
             'subclinic_id': self.subclinic.id,
             'beneficiary_id': self.beneficiary.id,
-
-            'professor_id': self.professor.id,
-
         }, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['description'], 'Created via API')
         self.assertEqual(response.data['created_by'], self.student.id)
+
+        from cases.models import Case
+        created_case = Case.objects.get(pk=response.data['id'])
+        self.assertTrue(created_case.users.filter(pk=self.student.pk).exists())
 
     def test_create_case_invalid_input_returns_400(self):
         self.client.force_authenticate(self.student)
