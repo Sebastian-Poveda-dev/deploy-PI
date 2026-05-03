@@ -11,6 +11,7 @@ import { createConversationSocket } from '../services/chatSocketService'
 
 const SOCKET_OPEN = 1
 const CONVERSATION_REFRESH_MS = 15000
+const ALLOWED_CHAT_ROLES = new Set(['admin', 'advisor', 'professor', 'student'])
 
 function formatTime(value) {
   if (!value) return ''
@@ -50,6 +51,10 @@ function conversationTimestamp(conversation) {
 
 function sortConversations(items) {
   return [...items].sort((a, b) => conversationTimestamp(b) - conversationTimestamp(a))
+}
+
+function filterChatUsers(users) {
+  return (users || []).filter((user) => ALLOWED_CHAT_ROLES.has((user.role || '').toLowerCase()))
 }
 
 function mergeConversations(current, incoming) {
@@ -320,7 +325,7 @@ function Chats() {
     setCreateError('')
     try {
       const data = await getChatUsers()
-      setChatUsers(data)
+      setChatUsers(filterChatUsers(data))
     } catch (err) {
       setCreateError(err.message || 'No se pudo cargar el chat')
     } finally {
