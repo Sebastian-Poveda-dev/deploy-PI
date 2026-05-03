@@ -1,3 +1,7 @@
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import Count, Q
+
 from .models import Case, CaseAssignment, CaseLog, CaseStatus
 
 APPROVAL_ALLOWED_ROLES = {'admin', 'advisor', 'professor'}
@@ -21,10 +25,53 @@ CASE_UPDATE_ALLOWED_ROLES = {'admin', 'advisor', 'professor', 'student'}
 CASE_UPDATE_PRIVILEGED_ROLES = {'admin', 'advisor'}
 CASE_UPDATE_ALLOWED_FIELDS = {'description', 'category', 'subclinic'}
 
+WORKLOAD_ACTIVE_STATUSES = {'active', 'pending_authorization', 'in_progress'}
 
-def create_case(user, description, category, subclinic, beneficiary, professor=None):
+
+def _users_with_workload_for_role(role_name):
+    User = get_user_model()
+    return (
+        User.objects.filter(is_active=True, groups__name=role_name)
+        .distinct()
+        .annotate(
+            workload=Count(
+                'case_assignments',
+                filter=Q(case_assignments__case__status__name__in=WORKLOAD_ACTIVE_STATUSES),
+                distinct=True,
+            )
+        )
+    )
+
+
+def _pick_student_for_case(category):
+    candidates = list(_users_with_workload_for_role('student'))
+    if not candidates:
+        raise ValueError('Cannot create case: no active students are available for assignment.')
+
+    def student_score(student):
+        # Matching the preferred category gives a small boost without ignoring workload balance.
+        preference_bonus = 0.5 if student.favorite_category_id == category.id else 0.0
+        return (student.workload - preference_bonus, student.workload, student.id)
+
+    return min(candidates, key=student_score)
+
+
+def _pick_professor_for_case(excluded_user_ids=None):
+    excluded_user_ids = excluded_user_ids or []
+    professor = (
+        _users_with_workload_for_role('professor')
+        .exclude(pk__in=excluded_user_ids)
+        .order_by('workload', 'id')
+        .first()
+    )
+    if professor is None:
+        raise ValueError('Cannot create case: no active professors are available for assignment.')
+    return professor
+
+
+def create_case(user, description, category, subclinic, beneficiary):
     """
-    Create a case on behalf of a user.
+    Create a case on behalf of a user and auto-assign one student and one professor.
 
         status is determined by the user's role:
       admin / advisor / professor → active
@@ -44,27 +91,45 @@ def create_case(user, description, category, subclinic, beneficiary, professor=N
 
     status = CaseStatus.objects.get(name=ROLE_STATUS_MAP[role])
 
-    case = Case(
-        description=description,
-        created_by=user,
-        category=category,
-        subclinic=subclinic,
-        status=status,
-        beneficiary=beneficiary,
-    )
-    case.full_clean()
-    case.save()
+    with transaction.atomic():
+        if role == 'student':
+            assigned_student = user
+            assigned_professor = _pick_professor_for_case(excluded_user_ids=[user.pk])
+        elif role == 'professor':
+            assigned_student = _pick_student_for_case(category)
+            assigned_professor = user
+        else:
+            assigned_student = _pick_student_for_case(category)
+            assigned_professor = _pick_professor_for_case(excluded_user_ids=[assigned_student.pk])
 
-    CaseAssignment.objects.create(case=case, user=user)
+        case = Case(
+            description=description,
+            created_by=user,
+            category=category,
+            subclinic=subclinic,
+            status=status,
+            beneficiary=beneficiary,
+        )
+        case.full_clean()
+        case.save()
 
-    if professor is not None and professor.pk != user.pk:
-        CaseAssignment.objects.create(case=case, user=professor)
+        CaseAssignment.objects.bulk_create(
+            [
+                CaseAssignment(case=case, user=assigned_student),
+                CaseAssignment(case=case, user=assigned_professor),
+            ],
+            ignore_conflicts=True,
+        )
 
-    CaseLog.objects.create(
-        case=case,
-        user=user,
-        content=f'Case created by {user.username}',
-    )
+        CaseLog.objects.create(
+            case=case,
+            user=user,
+            content=(
+                f'Case created by {user.username}. '
+                f'Assigned student: {assigned_student.username}; '
+                f'assigned professor: {assigned_professor.username}.'
+            ),
+        )
 
     return case
 

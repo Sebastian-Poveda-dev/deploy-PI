@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from cases.forms import CaseCreateForm
-from cases.models import Case, Category, Subclinic
+from cases.models import Case, CaseStatus, Category, Subclinic
 from cases.services import create_case, create_case_log, get_case_logs, update_case, approve_case, reject_case_assignment
 from users.services import assign_role
 
@@ -44,6 +44,9 @@ class CaseCreateFormAndTemplateTest(TestCase):
             last_name='Perez',
         )
         assign_role(self.non_beneficiary, 'student')
+
+        self.professor = User.objects.create_user(username='professor_form', password='pass')
+        assign_role(self.professor, 'professor')
 
     def _form_data(self, **overrides):
         data = {
@@ -138,12 +141,27 @@ class CreateCaseTest(TestCase):
         self.assertEqual(case.status.name, 'active')
 
     def test_student_creates_case_with_pending_authorization_status(self):
-        case = create_case(self.student, 'description', self.category, self.subclinic, professor=self.professor)
+        case = create_case(
+            self.student,
+            'description',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
         self.assertEqual(case.status.name, 'pending_authorization')
 
-    def test_student_without_professor_cannot_create_case(self):
+    def test_case_creation_requires_available_students_and_professors(self):
+        self.student.groups.clear()
+        self.professor.groups.clear()
+
         with self.assertRaises(ValueError):
-            create_case(self.student, 'description', self.category, self.subclinic)
+            create_case(
+                self.admin,
+                'description',
+                self.category,
+                self.subclinic,
+                beneficiary=self.beneficiary,
+            )
 
     def test_beneficiary_cannot_create_case(self):
         with self.assertRaises(PermissionError):
@@ -163,15 +181,55 @@ class CreateCaseTest(TestCase):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.subclinic, self.subclinic)
 
-    # --- Creator assignment and log ---
+    # --- Auto-assignment and log ---
 
-    def test_creator_is_automatically_assigned_to_case(self):
+    def test_case_is_automatically_assigned_to_student_and_professor(self):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
-        self.assertTrue(case.users.filter(pk=self.admin.pk).exists())
+        self.assertEqual(case.users.filter(groups__name='student').count(), 1)
+        self.assertEqual(case.users.filter(groups__name='professor').count(), 1)
+
+    def test_student_with_matching_favorite_category_gets_priority(self):
+        preferred_student = User.objects.create_user(username='preferred_student', password='pass')
+        assign_role(preferred_student, 'student')
+        preferred_student.favorite_category = self.category
+        preferred_student.save(update_fields=['favorite_category'])
+
+        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
+
+        self.assertTrue(case.users.filter(pk=preferred_student.pk).exists())
+
+    def test_student_with_lower_workload_gets_assigned_first(self):
+        available_student = User.objects.create_user(username='available_student', password='pass')
+        assign_role(available_student, 'student')
+
+        active_status = CaseStatus.objects.get(name='active')
+        loaded_case = Case.objects.create(
+            description='Existing workload',
+            created_by=self.admin,
+            category=self.category,
+            subclinic=self.subclinic,
+            status=active_status,
+            beneficiary=self.beneficiary,
+        )
+        loaded_case.users.add(self.student)
+
+        case = create_case(self.admin, 'new case', self.category, self.subclinic, beneficiary=self.beneficiary)
+
+        self.assertTrue(case.users.filter(pk=available_student.pk).exists())
 
     def test_initial_log_is_created(self):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertTrue(case.logs.filter(content__icontains='Case created by').exists())
+
+    def test_student_creator_is_assigned_as_student(self):
+        case = create_case(self.student, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
+        self.assertTrue(case.users.filter(pk=self.student.pk).exists())
+        self.assertEqual(case.users.filter(groups__name='professor').count(), 1)
+
+    def test_professor_creator_is_assigned_as_professor(self):
+        case = create_case(self.professor, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
+        self.assertTrue(case.users.filter(pk=self.professor.pk).exists())
+        self.assertEqual(case.users.filter(groups__name='student').count(), 1)
 
     def test_case_is_persisted_to_database(self):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
@@ -204,7 +262,13 @@ class CaseLogServiceTest(TestCase):
         self.other_student = User.objects.create_user(username='other_student_logs', password='pass')
         assign_role(self.other_student, 'student')
 
-        self.case = create_case(self.student, 'Case for logs', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Case for logs',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
 
     def test_valid_roles_can_create_case_log(self):
@@ -281,8 +345,14 @@ class UpdateCaseTest(TestCase):
         self.other_student = User.objects.create_user(username='other_student_upd', password='pass')
         assign_role(self.other_student, 'student')
 
-        # student is creator (auto-assigned); professor is co-assigned via create_case
-        self.case = create_case(self.student, 'Original description', self.category, self.subclinic, professor=self.professor)
+        # case is auto-assigned to one student and one professor
+        self.case = create_case(
+            self.student,
+            'Original description',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
     # --- Access control ---
 
@@ -366,8 +436,14 @@ class ApproveCaseTest(TestCase):
         self.beneficiary = User.objects.create_user(username='beneficiary_appr', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
-        # student creates the case → status is "pending_authorization", both student and professor assigned
-        self.case = create_case(self.student, 'Pending case', self.category, self.subclinic, professor=self.professor)
+        # student creates the case → status is "pending_authorization"
+        self.case = create_case(
+            self.student,
+            'Pending case',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
 
     # --- Access control ---
@@ -443,8 +519,14 @@ class RejectCaseAssignmentTest(TestCase):
         assign_role(self.other_student, 'student')
 
 
-        # student creates the case; professor co-assigned via create_case
-        self.case = create_case(self.student, 'Case for rejection', self.category, self.subclinic, professor=self.professor)
+        # student creates the case and assignments are picked automatically
+        self.case = create_case(
+            self.student,
+            'Case for rejection',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
     # --- Access control ---
 
@@ -532,7 +614,13 @@ class CaseApiTest(APITestCase):
         assign_role(self.beneficiary, 'beneficiary')
 
 
-        self.case = create_case(self.student, 'Initial API case', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Initial API case',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
     def test_create_case_requires_authentication(self):
         response = self.client.post('/cases/', {
@@ -552,14 +640,15 @@ class CaseApiTest(APITestCase):
             'description': 'Created via API',
             'category_id': self.category.id,
             'subclinic_id': self.subclinic.id,
-
-            'professor_id': self.professor.id,
-
+            'beneficiary_id': self.beneficiary.id,
         }, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['description'], 'Created via API')
         self.assertEqual(response.data['created_by'], self.student.id)
+
+        created_case = Case.objects.get(pk=response.data['id'])
+        self.assertTrue(created_case.users.filter(pk=self.student.pk).exists())
 
     def test_create_case_invalid_input_returns_400(self):
         self.client.force_authenticate(self.student)
@@ -657,7 +746,13 @@ class CaseListApiTest(APITestCase):
         self.beneficiary = User.objects.create_user(username='beneficiary_list_api', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
-        self.case = create_case(self.student, 'Case for listing', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Case for listing',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
 
     def test_unauthenticated_request_is_rejected(self):
@@ -729,7 +824,13 @@ class CaseLogApiTest(APITestCase):
         assign_role(self.beneficiary, 'beneficiary')
 
 
-        self.case = create_case(self.student, 'Case with logs endpoint', self.category, self.subclinic, professor=self.professor)
+        self.case = create_case(
+            self.student,
+            'Case with logs endpoint',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
         self.initial_log = create_case_log(self.student, self.case, 'Initial chat message')
 

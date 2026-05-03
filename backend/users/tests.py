@@ -9,6 +9,7 @@ from rest_framework.test import APITestCase
 from .services import admin_create_user, assign_role, list_users, update_user
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
+Category = apps.get_model('cases', 'Category')
 
 
 class UserCreationTest(TestCase):
@@ -380,6 +381,8 @@ class AdminUserManagementApiTest(APITestCase):
         self.student = User.objects.create_user(username='student_api_mgmt', password='pass')
         assign_role(self.student, 'student')
 
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
     # --- GET /users/ ---
 
     def test_admin_can_list_all_users(self):
@@ -545,6 +548,43 @@ class AdminUserManagementApiTest(APITestCase):
             'role': 'student',
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_create_non_student_with_favorite_category_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post('/users/', {
+            'username': 'newprofessor_cat',
+            'password': 'pass1234',
+            'role': 'professor',
+            'favorite_category_id': self.category.id,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_student_with_favorite_category_succeeds(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post('/users/', {
+            'username': 'newstudent_cat',
+            'password': 'pass1234',
+            'role': 'student',
+            'favorite_category_id': self.category.id,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_update_non_student_with_favorite_category_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        professor = User.objects.create_user(username='professor_cat_upd', password='pass')
+        assign_role(professor, 'professor')
+        response = self.client.patch(f'/users/{professor.id}/', {
+            'favorite_category_id': self.category.id,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_student_with_favorite_category_succeeds(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(f'/users/{self.student.id}/', {
+            'favorite_category_id': self.category.id,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
 class BeneficiaryListEndpointTest(TestCase):
     """Tests for the beneficiaries endpoint used by case creation form/modal."""
 
