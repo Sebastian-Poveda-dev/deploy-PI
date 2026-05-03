@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
 import StatusBadge from './StatusBadge'
-import { approveCase, rejectCase } from '../services/caseService'
-import { canApproveCase, canRejectCase } from '../utils/permissions'
+import { approveCase, rejectCase, requestCancellation, reviewCancellation } from '../services/caseService'
+import { canApproveCase, canRejectCase, canRequestCancellation, canReviewCancellation } from '../utils/permissions'
 
 function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, currentUser, onCaseUpdated }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [cancellationReason, setCancellationReason] = useState('')
 
   useEffect(() => {
     if (!isOpen) {
       setPendingAction(null)
       setProcessing(false)
       setActionError('')
+      setCancellationReason('')
     }
   }, [isOpen])
 
@@ -35,10 +37,26 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
         const updated = await approveCase(caseData.id)
         setPendingAction(null)
         onCaseUpdated?.(updated)
-      } else {
+      } else if (pendingAction === 'reject') {
         await rejectCase(caseData.id)
         setPendingAction(null)
         onCaseUpdated?.(null)
+      } else if (pendingAction === 'request-cancellation') {
+        if (!cancellationReason.trim()) {
+          throw new Error('Por favor, indica un motivo para la reasignación.')
+        }
+        await requestCancellation(caseData.id, cancellationReason)
+        setPendingAction(null)
+        onClose() // Refresh needed, simpler to close and let parent refresh
+        onCaseUpdated?.(null) // Signal refresh
+      } else if (pendingAction === 'approve-cancellation') {
+        await reviewCancellation(caseData.pendingCancellation.id, 'approve')
+        setPendingAction(null)
+        onCaseUpdated?.(null) // Signal refresh
+      } else if (pendingAction === 'reject-cancellation') {
+        await reviewCancellation(caseData.pendingCancellation.id, 'reject')
+        setPendingAction(null)
+        onCaseUpdated?.(null) // Signal refresh
       }
     } catch (err) {
       setActionError(err.message)
@@ -49,6 +67,8 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
 
   const showApprove = canApproveCase(currentUser, caseData)
   const showReject = canRejectCase(currentUser, caseData)
+  const showRequestCancellation = canRequestCancellation(currentUser, caseData)
+  const showReviewCancellation = canReviewCancellation(currentUser, caseData)
 
   const assignedUsersList = caseData?.assignedUsers
     ? caseData.assignedUsers.split(',').map((user) => user.trim()).filter(Boolean)
@@ -124,6 +144,18 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
             </div>
           </section>
 
+          {caseData?.pendingCancellation && (
+            <section className="rounded-lg border-2 border-amber-200 bg-amber-50 p-4">
+              <h3 className="text-sm font-bold text-amber-800">Solicitud de Reasignación Pendiente</h3>
+              <p className="mt-1 text-sm text-amber-700">
+                <span className="font-semibold">Solicitado por:</span> {caseData.pendingCancellation.requested_by_name}
+              </p>
+              <p className="mt-1 text-sm text-amber-700 italic">
+                "{caseData.pendingCancellation.reason}"
+              </p>
+            </section>
+          )}
+
           {/* Footer */}
           <section className="space-y-3 border-t border-slate-200 pt-4">
 
@@ -131,10 +163,23 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
             {pendingAction && (
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                 <p className="text-sm font-medium text-slate-700">
-                  {pendingAction === 'approve'
-                    ? '¿Estás seguro de aprobar este caso?'
-                    : '¿Estás seguro de rechazar tu asignación en este caso?'}
+                  {pendingAction === 'approve' && '¿Estás seguro de aprobar este caso?'}
+                  {pendingAction === 'reject' && '¿Estás seguro de rechazar tu asignación?'}
+                  {pendingAction === 'request-cancellation' && 'Solicitar reasignación del caso:'}
+                  {pendingAction === 'approve-cancellation' && '¿Estás seguro de aprobar la reasignación? El estudiante actual será removido.'}
+                  {pendingAction === 'reject-cancellation' && '¿Estás seguro de rechazar la reasignación?'}
                 </p>
+
+                {pendingAction === 'request-cancellation' && (
+                  <textarea
+                    value={cancellationReason}
+                    onChange={(e) => setCancellationReason(e.target.value)}
+                    placeholder="Describe el motivo (ej: sobrecarga académica)..."
+                    className="mt-2 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    rows={3}
+                  />
+                )}
+
                 {actionError && (
                   <p className="mt-1 text-xs text-red-500">{actionError}</p>
                 )}
@@ -149,7 +194,7 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setPendingAction(null); setActionError('') }}
+                    onClick={() => { setPendingAction(null); setActionError(''); setCancellationReason('') }}
                     disabled={processing}
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60"
                   >
@@ -179,6 +224,33 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
                   >
                     Rechazar Caso
                   </button>
+                )}
+                {showRequestCancellation && !pendingAction && (
+                  <button
+                    type="button"
+                    onClick={() => setPendingAction('request-cancellation')}
+                    className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
+                  >
+                    Solicitar Reasignación
+                  </button>
+                )}
+                {showReviewCancellation && !pendingAction && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setPendingAction('approve-cancellation')}
+                      className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                    >
+                      Aprobar Reasignación
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingAction('reject-cancellation')}
+                      className="inline-flex items-center justify-center rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+                    >
+                      Rechazar Reasignación
+                    </button>
+                  </>
                 )}
               </div>
               <div className="flex gap-3">

@@ -798,6 +798,306 @@ class CaseListApiTest(APITestCase):
         self.assertIn(self.student.username, usernames)
 
 
+class CaseCancellationRequestTest(TestCase):
+    """Tests for case cancellation request creation and retrieval."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='cancellation_sub')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_cancel', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.professor = User.objects.create_user(username='professor_cancel', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.student = User.objects.create_user(username='student_cancel', password='pass')
+        assign_role(self.student, 'student')
+
+        self.other_student = User.objects.create_user(username='other_student_cancel', password='pass')
+        assign_role(self.other_student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_cancel', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case for cancellation',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+
+    def test_student_can_create_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Academic overload',
+        )
+        self.assertEqual(request.status, CaseCancellationRequest.PENDING)
+        self.assertEqual(request.requested_by, self.student)
+        self.assertEqual(request.case, self.case)
+
+    def test_cancellation_request_starts_with_pending_status(self):
+        from cases.models import CaseCancellationRequest
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Too much work',
+        )
+        self.assertEqual(request.status, CaseCancellationRequest.PENDING)
+        self.assertIsNone(request.reviewed_by)
+        self.assertIsNone(request.reviewed_at)
+
+    def test_only_one_pending_request_per_case(self):
+        from cases.models import CaseCancellationRequest
+        from django.db import IntegrityError
+
+        CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='First request',
+        )
+
+        with self.assertRaises(IntegrityError):
+            CaseCancellationRequest.objects.create(
+                case=self.case,
+                requested_by=self.student,
+                reason='Second request',
+            )
+
+    def test_multiple_pending_requests_different_cases_allowed(self):
+        from cases.models import CaseCancellationRequest
+
+        case2 = create_case(
+            self.student,
+            'Second case',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+
+        req1 = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Request 1',
+        )
+        req2 = CaseCancellationRequest.objects.create(
+            case=case2,
+            requested_by=self.student,
+            reason='Request 2',
+        )
+
+        self.assertEqual(req1.status, CaseCancellationRequest.PENDING)
+        self.assertEqual(req2.status, CaseCancellationRequest.PENDING)
+
+    def test_multiple_requests_same_case_allowed_if_not_pending(self):
+        from cases.models import CaseCancellationRequest
+
+        req1 = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='First request',
+            status=CaseCancellationRequest.REJECTED,
+        )
+
+        req2 = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Second request',
+            status=CaseCancellationRequest.PENDING,
+        )
+
+        self.assertEqual(req1.status, CaseCancellationRequest.REJECTED)
+        self.assertEqual(req2.status, CaseCancellationRequest.PENDING)
+
+
+class CaseCancellationRequestApprovalTest(TestCase):
+    """Tests for case cancellation request approval logic and reassignment."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='approval_cancel_sub')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_approve_cancel', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.professor = User.objects.create_user(username='professor_approve_cancel', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.professor2 = User.objects.create_user(username='professor2_approve_cancel', password='pass')
+        assign_role(self.professor2, 'professor')
+
+        self.student = User.objects.create_user(username='student_approve_cancel', password='pass')
+        assign_role(self.student, 'student')
+
+        self.student2 = User.objects.create_user(username='student2_approve_cancel', password='pass')
+        assign_role(self.student2, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_approve_cancel', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case for approval test',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+        # Ensure we have the correct assignment
+        self.assigned_professor = self.case.users.filter(groups__name='professor').first()
+        self.assigned_student = self.student
+
+    def test_professor_can_approve_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import approve_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.assigned_student,
+            reason='Overloaded',
+        )
+
+        approved = approve_cancellation_request(request, self.assigned_professor)
+
+        self.assertEqual(approved.status, CaseCancellationRequest.APPROVED)
+        self.assertEqual(approved.reviewed_by, self.assigned_professor)
+        self.assertIsNotNone(approved.reviewed_at)
+
+    def test_professor_can_reject_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import reject_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.assigned_student,
+            reason='Overloaded',
+        )
+
+        rejected = reject_cancellation_request(request, self.assigned_professor)
+
+        self.assertEqual(rejected.status, CaseCancellationRequest.REJECTED)
+        self.assertEqual(rejected.reviewed_by, self.assigned_professor)
+        self.assertIsNotNone(rejected.reviewed_at)
+
+    def test_admin_can_approve_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import approve_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.assigned_student,
+            reason='Overloaded',
+        )
+
+        approved = approve_cancellation_request(request, self.admin)
+        self.assertEqual(approved.status, CaseCancellationRequest.APPROVED)
+
+    def test_only_assigned_professor_or_admin_can_approve(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import approve_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.assigned_student,
+            reason='Overloaded',
+        )
+
+        with self.assertRaises(PermissionError):
+            approve_cancellation_request(request, self.professor2)
+
+    def test_student_cannot_approve_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import approve_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.assigned_student,
+            reason='Overloaded',
+        )
+
+        with self.assertRaises(PermissionError):
+            approve_cancellation_request(request, self.student2)
+
+    def test_approval_triggers_case_reassignment(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import approve_cancellation_request
+
+        # Student is initially assigned
+        self.assertTrue(self.case.users.filter(pk=self.assigned_student.pk).exists())
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.assigned_student,
+            reason='Overloaded',
+        )
+
+        approve_cancellation_request(request, self.assigned_professor)
+
+        # Student should no longer be assigned
+        self.assertFalse(self.case.users.filter(pk=self.assigned_student.pk).exists())
+
+        # A new student should be assigned
+        new_student = self.case.users.filter(groups__name='student').first()
+        self.assertIsNotNone(new_student)
+        self.assertNotEqual(new_student.pk, self.assigned_student.pk)
+
+    def test_rejection_does_not_trigger_reassignment(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import reject_cancellation_request
+
+        original_student = self.assigned_student
+        self.assertTrue(self.case.users.filter(pk=original_student.pk).exists())
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=original_student,
+            reason='Overloaded',
+        )
+
+        reject_cancellation_request(request, self.assigned_professor)
+
+        # Original student should still be assigned
+        self.assertTrue(self.case.users.filter(pk=original_student.pk).exists())
+
+        # No new student should be assigned
+        student_count = self.case.users.filter(groups__name='student').count()
+        self.assertEqual(student_count, 1)
+
+    def test_approval_creates_case_log(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import approve_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.assigned_student,
+            reason='Overloaded',
+        )
+
+        approve_cancellation_request(request, self.assigned_professor)
+
+        self.assertTrue(
+            self.case.logs.filter(content__icontains='cancellation.*approved', icontains=True).exists()
+            or self.case.logs.filter(content__icontains='reassigned').exists()
+        )
+
+    def test_cannot_approve_non_pending_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import approve_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.assigned_student,
+            reason='Overloaded',
+            status=CaseCancellationRequest.REJECTED,
+        )
+
+        with self.assertRaises(ValueError):
+            approve_cancellation_request(request, self.assigned_professor)
+
+
+
 class CaseLogApiTest(APITestCase):
     """API tests for case logs endpoints wired to the service layer."""
 
