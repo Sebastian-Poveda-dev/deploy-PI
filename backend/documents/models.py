@@ -31,11 +31,13 @@ class Document(models.Model):
 
 class DocumentExpirationNotification(models.Model):
     EVENT_UPCOMING = 'upcoming'
+    EVENT_UPCOMING_URGENT = 'upcoming_urgent'
     EVENT_EXPIRED = 'expired'
     PRIORITY_MEDIUM = 'medium'
     PRIORITY_HIGH = 'high'
     EVENT_CHOICES = [
         (EVENT_UPCOMING, 'Upcoming'),
+        (EVENT_UPCOMING_URGENT, 'Upcoming urgent'),
         (EVENT_EXPIRED, 'Expired'),
     ]
     PRIORITY_CHOICES = [
