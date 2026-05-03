@@ -647,7 +647,6 @@ class CaseApiTest(APITestCase):
         self.assertEqual(response.data['description'], 'Created via API')
         self.assertEqual(response.data['created_by'], self.student.id)
 
-        from cases.models import Case
         created_case = Case.objects.get(pk=response.data['id'])
         self.assertTrue(created_case.users.filter(pk=self.student.pk).exists())
 
