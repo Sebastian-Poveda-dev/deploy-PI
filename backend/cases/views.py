@@ -16,6 +16,7 @@ from .serializers import (
 	CaseLogSerializer,
 	CaseSerializer,
 	CaseUpdateSerializer,
+	PublicBeneficiaryCaseStatusSerializer,
 )
 from .services import (
 	approve_case,
@@ -113,6 +114,38 @@ class BeneficiaryCaseListAPIView(APIView):
 
 		return Response(
 			{'cases': BeneficiaryCaseSerializer(cases, many=True).data},
+			status=status.HTTP_200_OK,
+		)
+
+
+class PublicBeneficiaryCaseTrackingAPIView(APIView):
+	permission_classes = []
+	authentication_classes = []
+
+	def post(self, request):
+		identification_number = str(request.data.get('identification_number', '')).strip()
+		if not identification_number:
+			return Response(
+				{'detail': 'La cedula es requerida.'},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		cases = Case.objects.filter(
+			beneficiary__identification_number=identification_number,
+			beneficiary__groups__name='beneficiary',
+		).distinct()
+
+		if not cases.exists():
+			return Response(
+				{
+					'detail': 'No tiene casos registrados',
+					'cases': [],
+				},
+				status=status.HTTP_200_OK,
+			)
+
+		return Response(
+			{'cases': PublicBeneficiaryCaseStatusSerializer(cases, many=True).data},
 			status=status.HTTP_200_OK,
 		)
 

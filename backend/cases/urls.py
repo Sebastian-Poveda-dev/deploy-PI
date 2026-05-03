@@ -9,11 +9,13 @@ from .views import (
     CaseLogListCreateAPIView,
     CaseListCreateAPIView,
     CaseRejectAssignmentAPIView,
+    PublicBeneficiaryCaseTrackingAPIView,
     case_create_form_view,
 )
 
 urlpatterns = [
     path('create/', case_create_form_view, name='case-create-form'),
+    path('track/', PublicBeneficiaryCaseTrackingAPIView.as_view(), name='public-beneficiary-case-track'),
     path('beneficiary/', BeneficiaryCaseListAPIView.as_view(), name='beneficiary-case-list'),
     path('', CaseListCreateAPIView.as_view(), name='case-list-create'),
     path('<int:pk>/', CaseDetailAPIView.as_view(), name='case-detail'),

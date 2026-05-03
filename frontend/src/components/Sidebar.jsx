@@ -6,7 +6,7 @@ import { getCurrentUser } from '../services/userService'
 const NAV_ITEMS = [
   { label: 'Inicio', path: '/dashboard' },
   { label: 'Casos', path: '/dashboard/cases' },
-  { label: 'Chats' },
+  { label: 'Chats', path: '/dashboard/chats' },
   { label: 'Permisos', path: '/dashboard/permissions' },
   { label: 'Metricas' },
 ]
@@ -28,6 +28,12 @@ function Sidebar() {
     return NAV_ITEMS
   }, [currentUser])
 
+  function isActive(path) {
+    if (!path) return false
+    if (path === '/dashboard') return location.pathname === path
+    return location.pathname === path || location.pathname.startsWith(`${path}/`)
+  }
+
   return (
     <aside className="flex h-screen w-64 flex-shrink-0 flex-col bg-[#5454F2]">
       <div className="flex items-center justify-center px-6 py-8">
@@ -42,7 +48,7 @@ function Sidebar() {
                 type="button"
                 onClick={() => item.path && navigate(item.path)}
                 className={`w-full cursor-pointer rounded-md px-4 py-2.5 text-left text-sm font-medium text-[#FFFFFF] transition duration-200 hover:bg-white/10 ${
-                  item.path && location.pathname === item.path ? 'bg-white/20' : ''
+                  isActive(item.path) ? 'bg-white/20' : ''
                 }`}
               >
                 {item.label}

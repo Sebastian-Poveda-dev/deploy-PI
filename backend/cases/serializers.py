@@ -48,6 +48,14 @@ class BeneficiaryCaseSerializer(serializers.ModelSerializer):
         fields = ['id', 'status']
 
 
+class PublicBeneficiaryCaseStatusSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(source='status.name', read_only=True)
+
+    class Meta:
+        model = Case
+        fields = ['status']
+
+
 class CaseCreateSerializer(serializers.Serializer):
     description = serializers.CharField()
     category_id = serializers.PrimaryKeyRelatedField(
@@ -61,13 +69,6 @@ class CaseCreateSerializer(serializers.Serializer):
     beneficiary_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(groups__name='beneficiary').distinct(),
         source='beneficiary',
-    )
-    professor_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(groups__name='professor'),
-        source='professor',
-        required=False,
-        allow_null=True,
-        default=None,
     )
 
     def validate_beneficiary(self, beneficiary):

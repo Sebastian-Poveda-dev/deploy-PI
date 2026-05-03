@@ -36,13 +36,14 @@ function BeneficiaryRegister() {
       first_name: String(formData.get('first_name') || '').trim(),
       last_name: String(formData.get('last_name') || '').trim(),
       email: String(formData.get('email') || '').trim(),
+      identification_number: String(formData.get('identification_number') || '').trim(),
       residence_address: String(formData.get('residence_address') || '').trim(),
       phone_number: String(formData.get('phone_number') || '').trim(),
       password1: String(formData.get('password1') || ''),
       password2: String(formData.get('password2') || ''),
     }
 
-    if (!payload.username || !payload.first_name || !payload.last_name || !payload.email) {
+    if (!payload.username || !payload.first_name || !payload.last_name || !payload.email || !payload.identification_number) {
       setError('Completa los campos obligatorios para registrarte.')
       return
     }
@@ -50,7 +51,7 @@ function BeneficiaryRegister() {
     setLoading(true)
     try {
       await registerBeneficiary(payload)
-      navigate('/login')
+      navigate('/')
     } catch (err) {
       const backendErrors = err?.errors || {}
       const firstField = Object.keys(backendErrors)[0]

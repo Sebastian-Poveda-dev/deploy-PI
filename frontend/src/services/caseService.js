@@ -43,14 +43,13 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createCase({ description, categoryId, subclinicId, beneficiaryId, professorId }) {
+export async function createCase({ description, categoryId, subclinicId, beneficiaryId }) {
   const body = {
     description,
     category_id: categoryId,
     subclinic_id: subclinicId,
     beneficiary_id: beneficiaryId,
   }
-  if (professorId != null) body.professor_id = professorId
 
   const response = await fetch('/cases/', {
     method: 'POST',
@@ -134,6 +133,26 @@ export async function getBeneficiaryCases() {
 
   return {
     cases: cases.map(mapBeneficiaryCase),
+    detail: data.detail ?? '',
+  }
+}
+
+export async function trackBeneficiaryCases(identificationNumber) {
+  const response = await fetch('/cases/track/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ identification_number: identificationNumber }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.detail ?? 'No fue posible consultar el estado del caso.')
+  }
+
+  return {
+    cases: Array.isArray(data.cases) ? data.cases.map(mapBeneficiaryCase) : [],
     detail: data.detail ?? '',
   }
 }
