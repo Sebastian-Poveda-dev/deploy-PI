@@ -600,9 +600,8 @@ class CaseApiTest(APITestCase):
             'description': 'Created via API',
             'category_id': self.category.id,
             'subclinic_id': self.subclinic.id,
-
+            'beneficiary_id': self.beneficiary.id,
             'professor_id': self.professor.id,
-
         }, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -705,12 +704,23 @@ class CaseListApiTest(APITestCase):
         self.beneficiary = User.objects.create_user(username='beneficiary_list_api', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
+        self.other_beneficiary = User.objects.create_user(username='other_beneficiary_list_api', password='pass')
+        assign_role(self.other_beneficiary, 'beneficiary')
+
         self.case = create_case(
             self.student,
             'Case for listing',
             self.category,
             self.subclinic,
             beneficiary=self.beneficiary,
+            professor=self.professor,
+        )
+        self.other_case = create_case(
+            self.student,
+            'Case for another beneficiary',
+            self.category,
+            self.subclinic,
+            beneficiary=self.other_beneficiary,
             professor=self.professor,
         )
 
@@ -739,6 +749,14 @@ class CaseListApiTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         ids = [c['id'] for c in response.data]
         self.assertIn(self.case.id, ids)
+        self.assertIn(self.other_case.id, ids)
+
+    def test_beneficiary_only_sees_their_own_cases_in_general_case_list(self):
+        self.client.force_authenticate(self.beneficiary)
+        response = self.client.get('/cases/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [{'id': self.case.id, 'status': 'pending_authorization'}])
 
     def test_response_contains_expected_fields(self):
         self.client.force_authenticate(self.student)
@@ -802,9 +820,17 @@ class BeneficiaryCaseListApiTest(APITestCase):
         response = self.client.get('/cases/beneficiary/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        ids = [case['id'] for case in response.data]
+        ids = [case['id'] for case in response.data['cases']]
         self.assertIn(self.case.id, ids)
         self.assertNotIn(self.other_case.id, ids)
+        self.assertEqual(response.data['cases'][0]['status'], 'pending_authorization')
+
+    def test_beneficiary_endpoint_only_exposes_minimal_case_information(self):
+        self.client.force_authenticate(self.beneficiary)
+        response = self.client.get('/cases/beneficiary/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(set(response.data['cases'][0].keys()), {'id', 'status'})
 
     def test_non_beneficiary_user_cannot_access_beneficiary_case_endpoint(self):
         self.client.force_authenticate(self.student)

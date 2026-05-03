@@ -31,6 +31,13 @@ function mapCase(raw) {
   }
 }
 
+function mapBeneficiaryCase(raw) {
+  return {
+    id: raw.id,
+    status: STATUS_MAP[raw.status] ?? raw.status.toUpperCase(),
+  }
+}
+
 function getCsrfToken() {
   const match = document.cookie.match(/csrftoken=([^;]+)/)
   return match ? match[1] : ''
@@ -110,4 +117,23 @@ export async function getCases() {
 
   const data = await response.json()
   return data.map(mapCase)
+}
+
+export async function getBeneficiaryCases() {
+  const response = await fetch('/cases/beneficiary/', {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw new Error('No fue posible cargar el estado del caso.')
+  }
+
+  const data = await response.json()
+  const cases = Array.isArray(data) ? data : data.cases ?? []
+
+  return {
+    cases: cases.map(mapBeneficiaryCase),
+    detail: data.detail ?? '',
+  }
 }

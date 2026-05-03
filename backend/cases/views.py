@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from .forms import CaseCreateForm
 from .models import Case
 from .serializers import (
+	BeneficiaryCaseSerializer,
 	CaseCreateSerializer,
 	CaseLogCreateSerializer,
 	CaseLogSerializer,
@@ -63,6 +64,12 @@ class CaseListCreateAPIView(APIView):
 
 	def get(self, request):
 		role = request.user.groups.values_list('name', flat=True).first()
+		if role == 'beneficiary':
+			cases = Case.objects.filter(beneficiary=request.user)
+			return Response(
+				BeneficiaryCaseSerializer(cases, many=True).data,
+				status=status.HTTP_200_OK,
+			)
 		if role in PRIVILEGED_ROLES:
 			cases = Case.objects.all()
 		else:
@@ -104,7 +111,10 @@ class BeneficiaryCaseListAPIView(APIView):
 				status=status.HTTP_200_OK,
 			)
 
-		return Response(CaseSerializer(cases, many=True).data, status=status.HTTP_200_OK)
+		return Response(
+			{'cases': BeneficiaryCaseSerializer(cases, many=True).data},
+			status=status.HTTP_200_OK,
+		)
 
 
 class CaseDetailAPIView(APIView):

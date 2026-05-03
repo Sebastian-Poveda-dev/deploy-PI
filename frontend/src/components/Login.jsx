@@ -74,7 +74,7 @@ function Login() {
       }
 
       if (response.ok && data?.authenticated) {
-        navigate('/dashboard')
+        navigate(data?.role === 'beneficiary' ? '/dashboard/cases' : '/dashboard')
         return
       }
 
