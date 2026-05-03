@@ -113,6 +113,11 @@ class UserManagementListCreateView(APIView):
 
         favorite_category = None
         if favorite_category_id not in (None, ''):
+            if new_role != 'student':
+                return Response(
+                    {'detail': 'favorite_category_id is only valid for students.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             favorite_category = Category.objects.filter(pk=favorite_category_id).first()
             if favorite_category is None:
                 return Response(
@@ -145,9 +150,14 @@ class UserManagementDetailView(APIView):
         payload = dict(request.data)
         if 'favorite_category_id' in request.data:
             favorite_category_id = request.data.get('favorite_category_id')
-            if favorite_category_id in (None, ''):
-                payload['favorite_category'] = None
-            else:
+            if favorite_category_id not in (None, ''):
+                # Determine the effective role after this update
+                effective_role = request.data.get('role') or target.groups.values_list('name', flat=True).first()
+                if effective_role != 'student':
+                    return Response(
+                        {'detail': 'favorite_category_id is only valid for students.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 favorite_category = Category.objects.filter(pk=favorite_category_id).first()
                 if favorite_category is None:
                     return Response(
@@ -155,6 +165,8 @@ class UserManagementDetailView(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 payload['favorite_category'] = favorite_category
+            else:
+                payload['favorite_category'] = None
             payload.pop('favorite_category_id', None)
 
         try:

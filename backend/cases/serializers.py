@@ -54,13 +54,6 @@ class CaseCreateSerializer(serializers.Serializer):
         queryset=User.objects.filter(groups__name='beneficiary').distinct(),
         source='beneficiary',
     )
-    professor_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(groups__name='professor'),
-        source='professor',
-        required=False,
-        allow_null=True,
-        default=None,
-    )
 
     def validate_beneficiary(self, beneficiary):
         if not beneficiary.groups.filter(name='beneficiary').exists():
