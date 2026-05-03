@@ -69,7 +69,7 @@ def _pick_professor_for_case(excluded_user_ids=None):
     return professor
 
 
-def create_case(user, description, category, subclinic, beneficiary, professor=None):
+def create_case(user, description, category, subclinic, beneficiary):
     """
     Create a case on behalf of a user and auto-assign one student and one professor.
 
