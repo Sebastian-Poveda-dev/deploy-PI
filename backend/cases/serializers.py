@@ -7,6 +7,28 @@ from .models import Case, CaseLog, Category, Subclinic
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
 
+class CaseCancellationRequestSerializer(serializers.ModelSerializer):
+    requested_by_name = serializers.CharField(source='requested_by.username', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.username', read_only=True)
+
+    class Meta:
+        from .models import CaseCancellationRequest
+        model = CaseCancellationRequest
+        fields = [
+            'id',
+            'case',
+            'requested_by',
+            'requested_by_name',
+            'reason',
+            'status',
+            'reviewed_by',
+            'reviewed_by_name',
+            'created_at',
+            'reviewed_at',
+        ]
+        read_only_fields = ['status', 'reviewed_by', 'reviewed_at', 'requested_by', 'case']
+
+
 class CaseSerializer(serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(read_only=True)
     status = serializers.CharField(source='status.name', read_only=True)
@@ -15,13 +37,20 @@ class CaseSerializer(serializers.ModelSerializer):
     assigned_users = serializers.SerializerMethodField()
     beneficiary = serializers.PrimaryKeyRelatedField(read_only=True)
     beneficiary_name = serializers.SerializerMethodField()
+    pending_cancellation_request = serializers.SerializerMethodField()
 
     def get_assigned_users(self, obj):
-        return [{'name': user.username} for user in obj.users.all()]
+        return [{'name': user.username, 'id': user.id} for user in obj.users.all()]
 
     def get_beneficiary_name(self, obj):
         full_name = f'{obj.beneficiary.first_name} {obj.beneficiary.last_name}'.strip()
         return full_name or obj.beneficiary.username
+
+    def get_pending_cancellation_request(self, obj):
+        request = obj.cancellation_requests.filter(status='pending').first()
+        if request:
+            return CaseCancellationRequestSerializer(request).data
+        return None
 
     class Meta:
         model = Case
@@ -37,6 +66,7 @@ class CaseSerializer(serializers.ModelSerializer):
             'beneficiary',
             'beneficiary_name',
             'assigned_users',
+            'pending_cancellation_request',
         ]
 
 

@@ -9,15 +9,21 @@ from .views import (
     CaseListCreateAPIView,
     CaseRejectAssignmentAPIView,
     case_create_form_view,
+    CreateCancellationRequestAPIView,
+    ReviewCancellationRequestAPIView,
+    ListCancellationRequestsAPIView,
 )
 
 urlpatterns = [
     path('create/', case_create_form_view, name='case-create-form'),
     path('', CaseListCreateAPIView.as_view(), name='case-list-create'),
+    path('cancellation-requests/', ListCancellationRequestsAPIView.as_view(), name='cancellation-request-list'),
+    path('cancellation-requests/<int:pk>/review/', ReviewCancellationRequestAPIView.as_view(), name='cancellation-request-review'),
     path('<int:pk>/', CaseDetailAPIView.as_view(), name='case-detail'),
     path('<int:pk>/approve/', CaseApproveAPIView.as_view(), name='case-approve'),
     path('<int:pk>/documents/', CaseDocumentListCreateAPIView.as_view(), name='case-documents'),
     path('<int:pk>/logs/', CaseLogListCreateAPIView.as_view(), name='case-logs'),
+    path('<int:pk>/request-cancellation/', CreateCancellationRequestAPIView.as_view(), name='case-request-cancellation'),
     path(
         '<int:pk>/reject-assignment/',
         CaseRejectAssignmentAPIView.as_view(),

@@ -35,8 +35,18 @@ class CaseCreateForm(forms.Form):
         full_name = f'{user.first_name} {user.last_name}'.strip()
         return full_name or user.username
 
-    def clean_beneficiary(self):
-        beneficiary = self.cleaned_data['beneficiary']
-        if not beneficiary.groups.filter(name='beneficiary').exists():
-            raise forms.ValidationError('Selected user must belong to the beneficiary group.')
-        return beneficiary
+class CaseCancellationRequestForm(forms.ModelForm):
+    class Meta:
+        from .models import CaseCancellationRequest
+        model = CaseCancellationRequest
+        fields = ['reason']
+        widgets = {
+            'reason': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Describe the reason for reassignment (e.g., academic overload)'}),
+        }
+
+
+class CaseCancellationReviewForm(forms.Form):
+    status = forms.ChoiceField(
+        choices=[('approved', 'Approve'), ('rejected', 'Reject')],
+        widget=forms.RadioSelect,
+    )
