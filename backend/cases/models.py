@@ -111,3 +111,54 @@ class CaseLog(models.Model):
 
     def __str__(self):
         return f'Log by {self.user} on Case #{self.case_id}'
+
+
+class CaseCancellationRequest(models.Model):
+    PENDING = 'pending'
+    APPROVED = 'approved'
+    REJECTED = 'rejected'
+
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (APPROVED, 'Approved'),
+        (REJECTED, 'Rejected'),
+    ]
+
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='cancellation_requests',
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='cancellation_requests_created',
+    )
+    reason = models.TextField(help_text='Reason for cancellation request')
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=PENDING,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cancellation_requests_reviewed',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['case'],
+                condition=models.Q(status='pending'),
+                name='unique_pending_cancellation_per_case',
+            ),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Cancellation request for Case #{self.case_id} by {self.requested_by.username}'

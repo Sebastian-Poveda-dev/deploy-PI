@@ -3,8 +3,16 @@ from django.db import models
 
 
 class User(AbstractUser):
+    identification_number = models.CharField(max_length=30, unique=True, null=True, blank=True)
     residence_address = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
+    favorite_category = models.ForeignKey(
+        'cases.Category',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='preferred_by_users',
+    )
     registration_date = models.DateTimeField(auto_now_add=True)
 
     def assign_role(self, role_name):

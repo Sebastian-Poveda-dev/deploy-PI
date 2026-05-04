@@ -1,3 +1,5 @@
+import { buildApiUrl } from './apiClient'
+
 function getCsrfToken() {
   const match = document.cookie.match(/csrftoken=([^;]+)/)
   return match ? match[1] : ''
@@ -30,7 +32,7 @@ function mapLog(raw) {
 }
 
 export async function getLogs(caseId) {
-  const response = await fetch(`/cases/${caseId}/logs/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/logs/`), {
     method: 'GET',
     credentials: 'include',
   })
@@ -45,7 +47,7 @@ export async function getLogs(caseId) {
 }
 
 export async function createLog(caseId, data) {
-  const response = await fetch(`/cases/${caseId}/logs/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/logs/`), {
     method: 'POST',
     credentials: 'include',
     headers: {

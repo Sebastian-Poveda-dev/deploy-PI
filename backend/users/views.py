@@ -11,6 +11,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from cases.models import Category
+
 from .forms import BeneficiaryRegisterForm
 from .services import admin_create_user, list_users, update_user
 
@@ -28,7 +30,8 @@ def login_view(request):
         return JsonResponse({'authenticated': False}, status=401)
 
     login(request, user)
-    return JsonResponse({'authenticated': True}, status=200)
+    role = user.groups.values_list('name', flat=True).first()
+    return JsonResponse({'authenticated': True, 'role': role or ''}, status=200)
 
 
 @require_POST
@@ -75,6 +78,7 @@ def _user_to_dict(user):
         'username': user.username,
         'role': user.groups.values_list('name', flat=True).first() or '',
         'is_active': user.is_active,
+        'favorite_category_id': user.favorite_category_id,
     }
 
 
@@ -97,6 +101,7 @@ class UserManagementListCreateView(APIView):
         username = request.data.get('username', '').strip()
         password = request.data.get('password', '').strip()
         new_role = request.data.get('role', '').strip()
+        favorite_category_id = request.data.get('favorite_category_id', None)
 
         if not username or not password or not new_role:
             return Response(
@@ -107,8 +112,27 @@ class UserManagementListCreateView(APIView):
         if User.objects.filter(username=username).exists():
             return Response({'detail': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        favorite_category = None
+        if favorite_category_id not in (None, ''):
+            if new_role != 'student':
+                return Response(
+                    {'detail': 'favorite_category_id is only valid for students.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            favorite_category = Category.objects.filter(pk=favorite_category_id).first()
+            if favorite_category is None:
+                return Response(
+                    {'detail': 'favorite_category_id is invalid.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         try:
-            user = admin_create_user(username, password, new_role)
+            user = admin_create_user(
+                username,
+                password,
+                new_role,
+                favorite_category=favorite_category,
+            )
         except Group.DoesNotExist:
             return Response(
                 {'detail': f"Role '{new_role}' does not exist."},
@@ -124,8 +148,30 @@ class UserManagementDetailView(APIView):
     def patch(self, request, pk):
         target = get_object_or_404(User, pk=pk)
 
+        payload = dict(request.data)
+        if 'favorite_category_id' in request.data:
+            favorite_category_id = request.data.get('favorite_category_id')
+            if favorite_category_id not in (None, ''):
+                # Determine the effective role after this update
+                effective_role = request.data.get('role') or target.groups.values_list('name', flat=True).first()
+                if effective_role != 'student':
+                    return Response(
+                        {'detail': 'favorite_category_id is only valid for students.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                favorite_category = Category.objects.filter(pk=favorite_category_id).first()
+                if favorite_category is None:
+                    return Response(
+                        {'detail': 'favorite_category_id is invalid.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                payload['favorite_category'] = favorite_category
+            else:
+                payload['favorite_category'] = None
+            payload.pop('favorite_category_id', None)
+
         try:
-            user = update_user(request.user, target, request.data)
+            user = update_user(request.user, target, payload)
         except PermissionError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
         except (ValueError, Group.DoesNotExist) as exc:

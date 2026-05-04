@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -19,42 +20,75 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def env_list(name, default=None):
+    raw = os.getenv(name, '')
+    if not raw:
+        return list(default or [])
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-x#ivdg#)vez=sbq-#gli&@bnsb$g*e2@ut&qufnfmc2d8@=il_'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-x#ivdg#)vez=sbq-#gli&@bnsb$g*e2@ut&qufnfmc2d8@=il_')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool('DEBUG', True)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS')
 
-CSRF_TRUSTED_ORIGINS = [
+DEFAULT_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
 ]
+
+CSRF_TRUSTED_ORIGINS = DEFAULT_ALLOWED_ORIGINS + env_list('CSRF_TRUSTED_ORIGINS')
+CORS_ALLOWED_ORIGINS = DEFAULT_ALLOWED_ORIGINS + env_list('CORS_ALLOWED_ORIGINS')
+CORS_ALLOW_CREDENTIALS = True
+
+SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax' if DEBUG else 'None')
+CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax' if DEBUG else 'None')
+SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', not DEBUG)
+CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+
+if env_bool('USE_X_FORWARDED_PROTO', not DEBUG):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne',
     'django.contrib.staticfiles',
     'rest_framework',
+    'channels',
     # Local apps
     'users',
     'cases',
     'documents',
+    'communications',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'documents.middleware.DocumentExpirationHeartbeatMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -78,15 +112,24 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'lawclinic.wsgi.application'
+ASGI_APPLICATION = 'lawclinic.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+SQLITE_PATH = os.getenv('SQLITE_PATH')
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': SQLITE_PATH or (BASE_DIR / 'db.sqlite3'),
     }
 }
 
@@ -126,9 +169,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+DOCUMENT_EXPIRATION_ALERT_DAYS = 3
+DOCUMENT_EXPIRATION_URGENT_ALERT_DAYS = 1
+DOCUMENT_EXPIRATION_AUTO_CHECK_INTERVAL_SECONDS = 30
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

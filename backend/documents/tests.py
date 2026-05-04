@@ -1,12 +1,18 @@
+from datetime import timedelta
+from io import StringIO
+
+from django.core.management import call_command
+from django.core.cache import cache
 from django.http import FileResponse
 from django.test import TestCase, override_settings
 from django.conf import settings
 from django.apps import apps
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from cases.models import Category, Subclinic
+from cases.models import CaseAssignment, Category, Subclinic
 from cases.services import create_case
 from documents.models import Document
 from documents.test_storage import TestMemoryStorage
@@ -338,6 +344,9 @@ class DocumentApiBaseTest(APITestCase):
         self.student = User.objects.create_user(username=self._name('student'), password='pass')
         assign_role(self.student, 'student')
 
+        self.professor = User.objects.create_user(username=self._name('professor'), password='pass')
+        assign_role(self.professor, 'professor')
+
         self.other_student = User.objects.create_user(
             username=self._name('other_student'),
             password='pass',
@@ -583,4 +592,584 @@ class DocumentDownloadApiTest(DocumentApiBaseTest):
 
         content = b''.join(response.streaming_content)
         self.assertEqual(content, self.file_content)
+
+
+class DocumentExpirationVerificationTest(TestCase):
+    """Red-phase tests for expiring and expired document notifications."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='expiration_subclinic')
+        self.category, _ = Category.objects.get_or_create(name='expiration_category')
+
+        self.student = User.objects.create_user(username='student_expiration', password='pass')
+        assign_role(self.student, 'student')
+
+        self.advisor = User.objects.create_user(username='advisor_expiration', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.professor = User.objects.create_user(username='professor_expiration', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.beneficiary = User.objects.create_user(
+            username='beneficiary_expiration',
+            password='pass',
+        )
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case with expiring documents',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+        CaseAssignment.objects.create(case=self.case, user=self.advisor)
+        CaseAssignment.objects.create(case=self.case, user=self.professor)
+
+    def _upload_document(self, *, name, expiration_date=None):
+        return upload_document(
+            case=self.case,
+            user=self.student,
+            file=SimpleUploadedFile(
+                f'{name.lower().replace(" ", "_")}.pdf',
+                b'expiration content',
+                content_type='application/pdf',
+            ),
+            name=name,
+            description=f'Document {name}',
+            expiration_date=expiration_date,
+        )
+
+    def test_document_within_alert_range_creates_notifications_for_case_team(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Power of Attorney',
+            expiration_date=today + timedelta(days=2),
+        )
+
+        created_notifications = verify_document_expirations(today=today, alert_days=3)
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+        notification = Notification.objects.get(document=document, recipient=self.student)
+
+        self.assertEqual(len(created_notifications), 3)
+        self.assertEqual(notification.event_type, 'upcoming')
+        self.assertEqual(notification.priority, 'medium')
+        self.assertIn(document.name, notification.message)
+        self.assertIn(str(document.expiration_date), notification.message)
+        advisor_notification = Notification.objects.get(document=document, recipient=self.advisor)
+        self.assertEqual(advisor_notification.event_type, 'upcoming')
+        self.assertEqual(advisor_notification.priority, 'medium')
+        professor_notification = Notification.objects.get(document=document, recipient=self.professor)
+        self.assertEqual(professor_notification.event_type, 'upcoming')
+        self.assertEqual(professor_notification.priority, 'medium')
+
+    def test_expired_document_is_marked_and_generates_expired_notification(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Expired Contract',
+            expiration_date=today - timedelta(days=1),
+        )
+
+        created_notifications = verify_document_expirations(today=today, alert_days=3)
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+        notification = Notification.objects.get(document=document, recipient=self.student)
+        document.refresh_from_db()
+
+        self.assertEqual(len(created_notifications), 3)
+        self.assertEqual(notification.event_type, 'expired')
+        self.assertEqual(notification.priority, 'high')
+        self.assertTrue(document.is_expired)
+        advisor_notification = Notification.objects.get(document=document, recipient=self.advisor)
+        self.assertEqual(advisor_notification.event_type, 'expired')
+        self.assertEqual(advisor_notification.priority, 'high')
+        professor_notification = Notification.objects.get(document=document, recipient=self.professor)
+        self.assertEqual(professor_notification.event_type, 'expired')
+        self.assertEqual(professor_notification.priority, 'high')
+
+    def test_verification_does_not_generate_duplicate_notifications_for_same_event(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Upcoming Evidence',
+            expiration_date=today + timedelta(days=1),
+        )
+
+        first_run = verify_document_expirations(today=today, alert_days=3)
+        second_run = verify_document_expirations(today=today, alert_days=3)
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+
+        self.assertEqual(len(first_run), 3)
+        self.assertEqual(second_run, [])
+        self.assertEqual(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.student,
+                event_type='upcoming_urgent',
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.advisor,
+                event_type='upcoming_urgent',
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.professor,
+                event_type='upcoming_urgent',
+            ).count(),
+            1,
+        )
+
+    def test_document_without_expiration_date_is_ignored(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(name='Open Document')
+
+        created_notifications = verify_document_expirations(today=today, alert_days=3)
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+
+        self.assertEqual(created_notifications, [])
+        self.assertFalse(
+            Notification.objects.filter(document=document, recipient=self.student).exists()
+        )
+
+    def test_alert_range_can_be_configured(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Five Day Notice',
+            expiration_date=today + timedelta(days=5),
+        )
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+
+        no_alert_notifications = verify_document_expirations(today=today, alert_days=3)
+        alert_notifications = verify_document_expirations(today=today, alert_days=5)
+
+        self.assertEqual(no_alert_notifications, [])
+        self.assertEqual(len(alert_notifications), 3)
+        self.assertTrue(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.student,
+                event_type='upcoming',
+            ).exists()
+        )
+
+    def test_urgent_follow_up_is_created_one_day_before_expiration(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Urgent Appeal',
+            expiration_date=today + timedelta(days=3),
+        )
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+
+        first_window_notifications = verify_document_expirations(today=today, alert_days=3)
+        urgent_notifications = verify_document_expirations(
+            today=today + timedelta(days=2),
+            alert_days=3,
+        )
+        duplicate_urgent_notifications = verify_document_expirations(
+            today=today + timedelta(days=2),
+            alert_days=3,
+        )
+
+        self.assertEqual(len(first_window_notifications), 3)
+        self.assertEqual(len(urgent_notifications), 3)
+        self.assertEqual(duplicate_urgent_notifications, [])
+        self.assertTrue(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.student,
+                event_type='upcoming_urgent',
+                priority='high',
+            ).exists()
+        )
+
+    def test_all_advisors_receive_expiration_notifications(self):
+        from documents.services import verify_document_expirations
+
+        other_advisor = User.objects.create_user(username='other_advisor_expiration', password='pass')
+        assign_role(other_advisor, 'advisor')
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Advisor Broadcast',
+            expiration_date=today + timedelta(days=2),
+        )
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+
+        created_notifications = verify_document_expirations(today=today, alert_days=3)
+
+        self.assertEqual(len(created_notifications), 4)
+        self.assertTrue(
+            Notification.objects.filter(
+                document=document,
+                recipient=other_advisor,
+                event_type='upcoming',
+            ).exists()
+        )
+
+    @override_settings(DOCUMENT_EXPIRATION_AUTO_CHECK_INTERVAL_SECONDS=3600)
+    def test_automatic_verification_is_throttled_between_requests(self):
+        from documents.services import run_automatic_document_expiration_check
+
+        cache.clear()
+        today = timezone.now().date()
+        self._upload_document(
+            name='Automatic Check Doc',
+            expiration_date=today + timedelta(days=2),
+        )
+
+        first_run = run_automatic_document_expiration_check()
+        second_run = run_automatic_document_expiration_check()
+
+        self.assertEqual(len(first_run), 3)
+        self.assertEqual(second_run, [])
+
+    def test_upcoming_notification_creates_case_log_entry(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Upcoming Log Doc',
+            expiration_date=today + timedelta(days=2),
+        )
+
+        verify_document_expirations(today=today, alert_days=3)
+
+        self.assertTrue(
+            self.case.logs.filter(
+                content__icontains=f"Expiration notification created for document '{document.name}'"
+            ).exists()
+        )
+
+    def test_expired_notification_creates_case_log_entry(self):
+        from documents.services import verify_document_expirations
+
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Expired Log Doc',
+            expiration_date=today - timedelta(days=1),
+        )
+
+        verify_document_expirations(today=today, alert_days=3)
+
+        self.assertTrue(
+            self.case.logs.filter(
+                content__icontains=f"Document '{document.name}' marked as expired"
+            ).exists()
+        )
+
+
+class DocumentExpirationCommandTest(DocumentExpirationVerificationTest):
+    def test_management_command_runs_verification_and_reports_created_notifications(self):
+        today = timezone.now().date()
+        document = self._upload_document(
+            name='Command Notice',
+            expiration_date=today + timedelta(days=2),
+        )
+        Notification = apps.get_model('documents', 'DocumentExpirationNotification')
+        out = StringIO()
+
+        call_command(
+            'check_document_expirations',
+            '--today',
+            str(today),
+            '--alert-days',
+            '3',
+            stdout=out,
+        )
+
+        self.assertTrue(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.student,
+                event_type='upcoming',
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.advisor,
+                event_type='upcoming',
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                document=document,
+                recipient=self.professor,
+                event_type='upcoming',
+            ).exists()
+        )
+        self.assertIn('Created 3 notification(s).', out.getvalue())
+
+
+class DocumentNotificationApiTest(DocumentApiBaseTest):
+    def setUp(self):
+        super().setUp()
+        CaseAssignment.objects.create(case=self.case, user=self.advisor)
+        CaseAssignment.objects.create(case=self.case, user=self.professor)
+        today = timezone.now().date()
+        self.document = upload_document(
+            case=self.case,
+            user=self.student,
+            file=self._file('notification.pdf', content=b'notification content'),
+            name='Notification Doc',
+            description='Notification trigger doc',
+            expiration_date=today + timedelta(days=1),
+        )
+
+        from documents.services import verify_document_expirations
+
+        verify_document_expirations(today=today, alert_days=3)
+
+    def test_authenticated_user_can_list_own_notifications(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertSetEqual(
+            set(response.data[0].keys()),
+            {
+                'id',
+                'document_id',
+                'document_name',
+                'case_id',
+                'case_description',
+                'event_type',
+                'priority',
+                'message',
+                'created_at',
+                'expiration_date',
+                'days_until_expiration',
+            },
+        )
+        self.assertEqual(response.data[0]['document_id'], self.document.id)
+        self.assertEqual(response.data[0]['priority'], 'high')
+        self.assertEqual(response.data[0]['event_type'], 'upcoming_urgent')
+        self.assertEqual(response.data[0]['case_id'], self.case.id)
+
+    def test_user_only_sees_their_own_notifications(self):
+        self.client.force_authenticate(self.other_student)
+
+        response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_assigned_advisor_can_list_their_own_notifications(self):
+        self.client.force_authenticate(self.advisor)
+
+        response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['document_id'], self.document.id)
+
+    def test_assigned_professor_can_list_their_own_notifications(self):
+        self.client.force_authenticate(self.professor)
+
+        response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['document_id'], self.document.id)
+
+    def test_notifications_endpoint_requires_authentication(self):
+        response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class DocumentExpirationTriggerApiTest(DocumentApiBaseTest):
+    def setUp(self):
+        super().setUp()
+        CaseAssignment.objects.create(case=self.case, user=self.advisor)
+        CaseAssignment.objects.create(case=self.case, user=self.professor)
+        self.today = timezone.now().date()
+        self.document = upload_document(
+            case=self.case,
+            user=self.student,
+            file=self._file('trigger.pdf', content=b'trigger content'),
+            name='Trigger Doc',
+            description='Trigger verification doc',
+            expiration_date=self.today + timedelta(days=1),
+        )
+
+    def test_admin_can_trigger_document_expiration_verification(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_notifications'], 3)
+        self.assertEqual(response.data['processed_date'], str(self.today))
+
+    def test_advisor_can_trigger_document_expiration_verification(self):
+        self.client.force_authenticate(self.advisor)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_notifications'], 3)
+
+    def test_professor_can_trigger_document_expiration_verification(self):
+        self.client.force_authenticate(self.professor)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_notifications'], 3)
+
+    def test_trigger_uses_default_values_when_payload_is_empty(self):
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_notifications'], 3)
+        self.assertIsNotNone(response.data['processed_date'])
+
+    def test_student_cannot_trigger_document_expiration_verification(self):
+        self.client.force_authenticate(self.student)
+
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_trigger_endpoint_requires_authentication(self):
+        response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class DocumentExpirationEndToEndApiTest(DocumentApiBaseTest):
+    def setUp(self):
+        super().setUp()
+        CaseAssignment.objects.create(case=self.case, user=self.advisor)
+        CaseAssignment.objects.create(case=self.case, user=self.professor)
+        self.today = timezone.now().date()
+        self.document = upload_document(
+            case=self.case,
+            user=self.student,
+            file=self._file('e2e.pdf', content=b'e2e content'),
+            name='End To End Doc',
+            description='E2E verification doc',
+            expiration_date=self.today + timedelta(days=1),
+        )
+
+    def test_trigger_then_list_returns_created_notification(self):
+        self.client.force_authenticate(self.admin)
+
+        trigger_response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(trigger_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(trigger_response.data['created_notifications'], 3)
+
+        self.client.force_authenticate(self.student)
+        list_response = self.client.get('/documents/notifications/')
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_response.data), 1)
+        self.assertEqual(list_response.data[0]['document_id'], self.document.id)
+        self.assertEqual(list_response.data[0]['event_type'], 'upcoming_urgent')
+        self.assertEqual(list_response.data[0]['priority'], 'high')
+
+        self.client.force_authenticate(self.advisor)
+        advisor_list_response = self.client.get('/documents/notifications/')
+        self.assertEqual(advisor_list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(advisor_list_response.data), 1)
+        self.assertEqual(advisor_list_response.data[0]['document_id'], self.document.id)
+
+        self.client.force_authenticate(self.professor)
+        professor_list_response = self.client.get('/documents/notifications/')
+        self.assertEqual(professor_list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(professor_list_response.data), 1)
+        self.assertEqual(professor_list_response.data[0]['document_id'], self.document.id)
+
+    def test_running_trigger_twice_does_not_duplicate_notifications(self):
+        self.client.force_authenticate(self.admin)
+
+        first_response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+        second_response = self.client.post(
+            '/documents/notifications/check/',
+            {
+                'today': str(self.today),
+                'alert_days': 3,
+            },
+            format='json',
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_response.data['created_notifications'], 3)
+        self.assertEqual(second_response.data['created_notifications'], 0)
 

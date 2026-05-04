@@ -1,3 +1,5 @@
+import { buildApiUrl } from './apiClient'
+
 const STATUS_MAP = {
   active: 'ACTIVE',
   pending_authorization: 'PENDING',
@@ -13,14 +15,29 @@ function formatDate(isoString) {
 }
 
 function mapCase(raw) {
+  const assignedUsersList = Array.isArray(raw.assigned_users)
+    ? raw.assigned_users.map((u) => u.name)
+    : []
+
   return {
     id: raw.id,
     status: STATUS_MAP[raw.status] ?? raw.status.toUpperCase(),
     category: raw.category,
     createdAt: formatDate(raw.created_at),
     updatedAt: formatDate(raw.updated_at),
-    assignedUsers: raw.assigned_users.map((u) => u.name).join(', '),
+    beneficiaryId: raw.beneficiary,
+    beneficiaryName: raw.beneficiary_name ?? '',
+    assignedUsersList,
+    assignedUsers: assignedUsersList.join(', '),
     description: raw.description ?? raw.details ?? '',
+    pendingCancellation: raw.pending_cancellation_request,
+  }
+}
+
+function mapBeneficiaryCase(raw) {
+  return {
+    id: raw.id,
+    status: STATUS_MAP[raw.status] ?? raw.status.toUpperCase(),
   }
 }
 
@@ -29,16 +46,15 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createCase({ description, categoryId, subclinicId, beneficiaryId, professorId }) {
+export async function createCase({ description, categoryId, subclinicId, beneficiaryId }) {
   const body = {
     description,
     category_id: categoryId,
     subclinic_id: subclinicId,
     beneficiary_id: beneficiaryId,
   }
-  if (professorId != null) body.professor_id = professorId
 
-  const response = await fetch('/cases/', {
+  const response = await fetch(buildApiUrl('/cases/'), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -58,7 +74,7 @@ export async function createCase({ description, categoryId, subclinicId, benefic
 }
 
 export async function approveCase(caseId) {
-  const response = await fetch(`/cases/${caseId}/approve/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/approve/`), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -76,7 +92,7 @@ export async function approveCase(caseId) {
 }
 
 export async function rejectCase(caseId) {
-  const response = await fetch(`/cases/${caseId}/reject-assignment/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/reject-assignment/`), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -92,7 +108,7 @@ export async function rejectCase(caseId) {
 }
 
 export async function getCases() {
-  const response = await fetch('/cases/', {
+  const response = await fetch(buildApiUrl('/cases/'), {
     method: 'GET',
     credentials: 'include',
   })
@@ -103,4 +119,81 @@ export async function getCases() {
 
   const data = await response.json()
   return data.map(mapCase)
+}
+
+export async function getBeneficiaryCases() {
+  const response = await fetch(buildApiUrl('/cases/beneficiary/'), {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw new Error('No fue posible cargar el estado del caso.')
+  }
+
+  const data = await response.json()
+  const cases = Array.isArray(data) ? data : data.cases ?? []
+
+  return {
+    cases: cases.map(mapBeneficiaryCase),
+    detail: data.detail ?? '',
+  }
+}
+
+export async function trackBeneficiaryCases(identificationNumber) {
+  const response = await fetch(buildApiUrl('/cases/track/'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ identification_number: identificationNumber }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.detail ?? 'No fue posible consultar el estado del caso.')
+  }
+
+  return {
+    cases: Array.isArray(data.cases) ? data.cases.map(mapBeneficiaryCase) : [],
+    detail: data.detail ?? '',
+  }
+}
+
+export async function requestCancellation(caseId, reason) {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/request-cancellation/`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify({ reason }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible solicitar la reasignación.')
+  }
+
+  return await response.json()
+}
+
+export async function reviewCancellation(requestId, action) {
+  const response = await fetch(buildApiUrl(`/cases/cancellation-requests/${requestId}/review/`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify({ action }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible procesar la solicitud.')
+  }
+
+  return await response.json()
 }
