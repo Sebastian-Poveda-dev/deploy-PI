@@ -11,6 +11,7 @@ from .forms import CaseCreateForm
 from .models import Case
 from .serializers import (
 	BeneficiaryCaseSerializer,
+	CaseCancellationRequestSerializer,
 	CaseCreateSerializer,
 	CaseLogCreateSerializer,
 	CaseLogSerializer,
@@ -20,10 +21,12 @@ from .serializers import (
 )
 from .services import (
 	approve_case,
+	approve_cancellation_request,
 	create_case,
 	create_case_log,
 	get_case_logs,
 	reject_case_assignment,
+	reject_cancellation_request,
 	update_case,
 )
 
@@ -246,3 +249,72 @@ class CaseLogListCreateAPIView(APIView):
 			CaseLogSerializer(log, context={'request': request}).data,
 			status=status.HTTP_201_CREATED,
 		)
+
+
+class CreateCancellationRequestAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def post(self, request, pk):
+		case = get_object_or_404(Case, pk=pk)
+		
+		is_assigned_student = case.users.filter(pk=request.user.pk, groups__name='student').exists()
+		if not is_assigned_student:
+			return Response({'detail': 'Only the assigned student can request cancellation.'}, status=status.HTTP_403_FORBIDDEN)
+		
+		serializer = CaseCancellationRequestSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		
+		if case.cancellation_requests.filter(status='pending').exists():
+			return Response({'detail': 'A pending cancellation request already exists for this case.'}, status=status.HTTP_400_BAD_REQUEST)
+			
+		from .models import CaseCancellationRequest
+		cancellation_request = CaseCancellationRequest.objects.create(
+			case=case,
+			requested_by=request.user,
+			reason=serializer.validated_data['reason']
+		)
+		
+		return Response(CaseCancellationRequestSerializer(cancellation_request).data, status=status.HTTP_201_CREATED)
+
+
+class ReviewCancellationRequestAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def post(self, request, pk):
+		from .models import CaseCancellationRequest
+		cancellation_request = get_object_or_404(CaseCancellationRequest, pk=pk)
+		
+		action = request.data.get('action')
+		
+		try:
+			if action == 'approve':
+				result = approve_cancellation_request(cancellation_request, request.user)
+			elif action == 'reject':
+				result = reject_cancellation_request(cancellation_request, request.user)
+			else:
+				return Response({'detail': 'Invalid action.'}, status=status.HTTP_400_BAD_REQUEST)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		except ValueError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+			
+		return Response(CaseCancellationRequestSerializer(result).data, status=status.HTTP_200_OK)
+
+
+class ListCancellationRequestsAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		from .models import CaseCancellationRequest
+		role = request.user.groups.values_list('name', flat=True).first()
+		
+		if role in PRIVILEGED_ROLES:
+			queryset = CaseCancellationRequest.objects.all()
+		elif role == 'professor':
+			queryset = CaseCancellationRequest.objects.filter(case__users=request.user)
+		elif role == 'student':
+			queryset = CaseCancellationRequest.objects.filter(requested_by=request.user)
+		else:
+			queryset = CaseCancellationRequest.objects.none()
+			
+		return Response(CaseCancellationRequestSerializer(queryset, many=True).data, status=status.HTTP_200_OK)

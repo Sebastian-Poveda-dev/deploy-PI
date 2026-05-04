@@ -1,8 +1,15 @@
-from django.db import transaction
+import logging
+from datetime import date
+
+from django.conf import settings
+from django.core.cache import cache
 from django.http import FileResponse
 
 from cases.models import CaseLog
-from documents.models import Document
+from documents.expiration_engine import DocumentExpirationVerificationService
+from documents.models import Document, DocumentExpirationNotification
+
+logger = logging.getLogger(__name__)
 
 DOCUMENT_PRIVILEGED_ROLES = {'admin', 'advisor'}
 DOCUMENT_FORBIDDEN_ROLES = {'beneficiary'}
@@ -10,17 +17,17 @@ DOCUMENT_FORBIDDEN_ROLES = {'beneficiary'}
 # Keep backwards-compatible aliases used by upload_document
 UPLOAD_PRIVILEGED_ROLES = DOCUMENT_PRIVILEGED_ROLES
 UPLOAD_FORBIDDEN_ROLES = DOCUMENT_FORBIDDEN_ROLES
+AUTO_CHECK_CACHE_KEY = 'documents:auto-expiration-check-lock'
 
 
-@transaction.atomic
 def upload_document(case, user, file, name, description, expiration_date=None):
     """
     Upload a document associated with a case on behalf of a user.
 
     Access rules:
-      admin / advisor → always allowed
-      assigned user (non-beneficiary) → allowed
-      beneficiary / unassigned non-privileged → PermissionError
+      admin / advisor -> always allowed
+      assigned user (non-beneficiary) -> allowed
+      beneficiary / unassigned non-privileged -> PermissionError
     """
     role = user.groups.values_list('name', flat=True).first()
 
@@ -56,9 +63,9 @@ def get_case_documents(case, user):
     Return all documents associated with a case.
 
     Access rules:
-      admin / advisor → always allowed
-      assigned user (non-beneficiary) → allowed
-      beneficiary / unassigned non-privileged → PermissionError
+      admin / advisor -> always allowed
+      assigned user (non-beneficiary) -> allowed
+      beneficiary / unassigned non-privileged -> PermissionError
     """
     role = user.groups.values_list('name', flat=True).first()
 
@@ -81,9 +88,9 @@ def download_document(document_id, user):
     Raises Document.DoesNotExist if no document matches document_id.
 
     Access rules:
-      admin / advisor → always allowed
-      assigned user (non-beneficiary) → allowed
-      beneficiary / unassigned non-privileged → PermissionError
+      admin / advisor -> always allowed
+      assigned user (non-beneficiary) -> allowed
+      beneficiary / unassigned non-privileged -> PermissionError
     """
     document = Document.objects.get(pk=document_id)
 
@@ -106,3 +113,43 @@ def download_document(document_id, user):
 
     filename = document.file.name.split('/')[-1]
     return FileResponse(document.file.open('rb'), as_attachment=True, filename=filename)
+
+
+def verify_document_expirations(*, today=None, alert_days=None):
+    """
+    Verify documents with expiration dates and create one notification per event.
+    """
+    today = today or date.today()
+    alert_days = (
+        settings.DOCUMENT_EXPIRATION_ALERT_DAYS
+        if alert_days is None
+        else alert_days
+    )
+
+    documents = Document.objects.filter(expiration_date__isnull=False).select_related('case')
+    service = DocumentExpirationVerificationService()
+    return service.verify(documents=documents, today=today, alert_days=alert_days)
+
+
+def run_automatic_document_expiration_check():
+    interval_seconds = getattr(
+        settings,
+        'DOCUMENT_EXPIRATION_AUTO_CHECK_INTERVAL_SECONDS',
+        300,
+    )
+
+    acquired = cache.add(AUTO_CHECK_CACHE_KEY, True, timeout=interval_seconds)
+    if not acquired:
+        return []
+
+    try:
+        return verify_document_expirations()
+    except Exception:
+        logger.exception('Automatic document expiration check failed.')
+        return []
+
+
+def get_user_document_notifications(user):
+    return DocumentExpirationNotification.objects.filter(
+        recipient=user,
+    ).select_related('document', 'document__case').order_by('-created_at', '-id')

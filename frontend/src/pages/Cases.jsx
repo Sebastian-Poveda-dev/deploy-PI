@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import BeneficiaryCaseStatusModal from '../components/BeneficiaryCaseStatusModal'
+import { useLocation, useNavigate } from 'react-router-dom'
+import DashboardLayout from '../layouts/DashboardLayout'
+import CasesTable from '../components/CasesTable'
+import CaseModal from '../components/CaseModal'
+import CaseLogsModal from '../components/CaseLogsModal'
 import CaseDocumentsModal from '../components/CaseDocumentsModal'
 import CaseLogsModal from '../components/CaseLogsModal'
 import CaseModal from '../components/CaseModal'
@@ -11,6 +16,8 @@ import { getCurrentUser } from '../services/userService'
 import StatusBadge from '../components/StatusBadge'
 
 function Cases() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [cases, setCases] = useState([])
   const [beneficiaryMessage, setBeneficiaryMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -176,7 +183,33 @@ function Cases() {
     loadCasesPage()
   }, [])
 
+
   function renderStaffContent() {
+  useEffect(() => {
+    const openCaseId = location.state?.openCaseId
+    const shouldOpenDocuments = location.state?.openDocuments
+
+    if (!openCaseId || loading || !cases.length) {
+      return
+    }
+
+    const targetCase = cases.find((caseItem) => caseItem.id === openCaseId)
+    if (!targetCase) {
+      navigate(location.pathname, { replace: true, state: null })
+      return
+    }
+
+    if (shouldOpenDocuments) {
+      openCaseDocuments(targetCase.id)
+    } else {
+      openCaseDetails(targetCase)
+    }
+
+    navigate(location.pathname, { replace: true, state: null })
+  }, [cases, loading, location.pathname, location.state, navigate])
+
+  function renderContent() {
+
     if (loading) {
       return (
         <div className="flex min-h-64 items-center justify-center">

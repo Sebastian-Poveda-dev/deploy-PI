@@ -28,6 +28,7 @@ function mapCase(raw) {
     assignedUsersList,
     assignedUsers: assignedUsersList.join(', '),
     description: raw.description ?? raw.details ?? '',
+    pendingCancellation: raw.pending_cancellation_request,
   }
 }
 
@@ -118,6 +119,7 @@ export async function getCases() {
   return data.map(mapCase)
 }
 
+<<<<<<< HEAD
 export async function getBeneficiaryCases() {
   const response = await fetch('/cases/beneficiary/', {
     method: 'GET',
@@ -155,4 +157,41 @@ export async function trackBeneficiaryCases(identificationNumber) {
     cases: Array.isArray(data.cases) ? data.cases.map(mapBeneficiaryCase) : [],
     detail: data.detail ?? '',
   }
+
+export async function requestCancellation(caseId, reason) {
+  const response = await fetch(`/cases/${caseId}/request-cancellation/`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify({ reason }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible solicitar la reasignación.')
+  }
+
+  return await response.json()
+}
+
+export async function reviewCancellation(requestId, action) {
+  const response = await fetch(`/cases/cancellation-requests/${requestId}/review/`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify({ action }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible procesar la solicitud.')
+  }
+
+  return await response.json()
 }
