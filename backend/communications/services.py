@@ -7,14 +7,20 @@ from .models import Conversation, ConversationParticipant, Message
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
+ALLOWED_CHAT_ROLES = {'admin', 'advisor', 'professor', 'student'}
+
 
 def get_user_role(user):
     return user.groups.values_list('name', flat=True).first()
 
 
-def ensure_active_user(user):
+def ensure_chat_user(user):
     if not user or not user.is_authenticated or not user.is_active:
         raise PermissionError('Only authenticated active users can use chat.')
+
+    role = get_user_role(user)
+    if role not in ALLOWED_CHAT_ROLES:
+        raise PermissionError('User role is not allowed to use chat.')
 
 
 def conversation_queryset():
@@ -37,7 +43,7 @@ def user_is_participant(user, conversation):
 
 @transaction.atomic
 def create_conversation(creator, participant_ids, title=''):
-    ensure_active_user(creator)
+    ensure_chat_user(creator)
 
     unique_participant_ids = set(participant_ids or [])
     if not unique_participant_ids:
@@ -49,6 +55,10 @@ def create_conversation(creator, participant_ids, title=''):
     found_ids = {user.id for user in participants}
     if found_ids != unique_participant_ids:
         raise ValueError('All participants must be active users.')
+
+    for participant in participants:
+        if get_user_role(participant) not in ALLOWED_CHAT_ROLES:
+            raise ValueError('All participants must have an allowed role.')
 
     conversation = Conversation.objects.create(
         creator=creator,
@@ -68,12 +78,12 @@ def create_conversation(creator, participant_ids, title=''):
 
 
 def list_conversations_for_user(user):
-    ensure_active_user(user)
+    ensure_chat_user(user)
     return conversation_queryset().filter(participants=user).distinct()
 
 
 def get_conversation_for_participant(user, conversation_id):
-    ensure_active_user(user)
+    ensure_chat_user(user)
     conversation = conversation_queryset().get(pk=conversation_id)
     if not user_is_participant(user, conversation):
         raise PermissionError('Only conversation participants can access this conversation.')
@@ -101,10 +111,12 @@ def create_message(user, conversation_id, content):
 
 
 def list_chat_users(requesting_user):
-    ensure_active_user(requesting_user)
+    ensure_chat_user(requesting_user)
     return (
         User.objects.filter(is_active=True)
+        .filter(groups__name__in=ALLOWED_CHAT_ROLES)
         .exclude(pk=requesting_user.pk)
         .prefetch_related('groups')
         .order_by('first_name', 'last_name', 'username', 'id')
+        .distinct()
     )
