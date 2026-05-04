@@ -579,7 +579,7 @@ function Chats() {
           <div className="flex min-h-0 flex-col">
             {selectedConversation ? (
               <>
-                <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 xl:flex-row xl:items-center">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="truncate text-lg font-semibold text-slate-800">
@@ -599,15 +599,6 @@ function Chats() {
                       Participantes: {selectedParticipants.map(userName).join(', ')}
                     </p>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => loadMessages(selectedConversation.id)}
-                    disabled={loadingMessages}
-                    className="self-start rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 xl:self-auto"
-                  >
-                    Actualizar
-                  </button>
                 </div>
 
                 {messageError && (
