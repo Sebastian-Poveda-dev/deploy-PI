@@ -7,6 +7,7 @@ class BeneficiaryRegisterForm(UserCreationForm):
     first_name = forms.CharField(max_length=150, required=True)
     last_name = forms.CharField(max_length=150, required=True)
     email = forms.EmailField(required=True)
+    identification_number = forms.CharField(max_length=30, required=True)
     residence_address = forms.CharField(max_length=255, required=True)
     phone_number = forms.CharField(max_length=20, required=True)
 
@@ -17,6 +18,7 @@ class BeneficiaryRegisterForm(UserCreationForm):
             'first_name',
             'last_name',
             'email',
+            'identification_number',
             'residence_address',
             'phone_number',
             'password1',
@@ -28,6 +30,7 @@ class BeneficiaryRegisterForm(UserCreationForm):
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
         user.email = self.cleaned_data['email']
+        user.identification_number = self.cleaned_data['identification_number']
         user.residence_address = self.cleaned_data['residence_address']
         user.phone_number = self.cleaned_data['phone_number']
 

@@ -798,6 +798,40 @@ class CaseListApiTest(APITestCase):
         self.assertIn(self.student.username, usernames)
 
 
+class PublicBeneficiaryCaseTrackingApiTest(APITestCase):
+    """API tests for public beneficiary case tracking by identification number."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='public_tracking_subclinic')
+        self.category, _ = Category.objects.get_or_create(name='public_tracking_category')
+
+        self.student = User.objects.create_user(username='student_public_tracking', password='pass')
+        assign_role(self.student, 'student')
+
+        self.professor = User.objects.create_user(username='professor_public_tracking', password='pass')
+        assign_role(self.professor, 'professor')
+
+        self.admin = User.objects.create_user(username='admin_public_tracking', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.beneficiary = User.objects.create_user(
+            username='beneficiary_public_tracking',
+            password='pass',
+            identification_number='111222333',
+        )
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.other_beneficiary = User.objects.create_user(
+            username='other_beneficiary_public_tracking',
+            password='pass',
+            identification_number='999888777',
+        )
+        assign_role(self.other_beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case visible through public tracking',
+
 class CaseCancellationRequestTest(TestCase):
     """Tests for case cancellation request creation and retrieval."""
 
@@ -823,10 +857,44 @@ class CaseCancellationRequestTest(TestCase):
         self.case = create_case(
             self.student,
             'Case for cancellation',
+        self.other_case = create_case(
+            self.admin,
+            'Case for another beneficiary',
             self.category,
             self.subclinic,
-            beneficiary=self.beneficiary,
+            beneficiary=self.other_beneficiary,
         )
+
+    def test_public_tracking_returns_only_cases_for_identification_number(self):
+        response = self.client.post('/cases/track/', {'identification_number': '111222333'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['cases'], [{'status': 'pending_authorization'}])
+
+    def test_public_tracking_uses_pending_status_for_case_without_updates(self):
+        response = self.client.post('/cases/track/', {'identification_number': '111222333'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['cases'][0]['status'], 'pending_authorization')
+
+    def test_public_tracking_returns_empty_message_when_no_cases_exist(self):
+        response = self.client.post('/cases/track/', {'identification_number': '000111222'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['detail'], 'No tiene casos registrados')
+        self.assertEqual(response.data['cases'], [])
+
+    def test_public_tracking_requires_identification_number(self):
+        response = self.client.post('/cases/track/', {'identification_number': ''}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['detail'], 'La cedula es requerida.')
+
+    def test_public_tracking_does_not_expose_internal_case_fields(self):
+        response = self.client.post('/cases/track/', {'identification_number': '111222333'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(set(response.data['cases'][0].keys()), {'status'})
 
     def test_student_can_create_cancellation_request(self):
         from cases.models import CaseCancellationRequest

@@ -30,7 +30,8 @@ def login_view(request):
         return JsonResponse({'authenticated': False}, status=401)
 
     login(request, user)
-    return JsonResponse({'authenticated': True}, status=200)
+    role = user.groups.values_list('name', flat=True).first()
+    return JsonResponse({'authenticated': True, 'role': role or ''}, status=200)
 
 
 @require_POST

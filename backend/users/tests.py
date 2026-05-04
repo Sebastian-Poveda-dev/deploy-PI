@@ -219,6 +219,7 @@ class SelfRegistrationTest(TestCase):
             'first_name': 'Ana',
             'last_name': 'Perez',
             'email': 'ana@example.com',
+            'identification_number': '1234567890',
             'residence_address': '123 Main St',
             'phone_number': '555-1234',
             'password1': 'StrongPass123!',
@@ -235,6 +236,7 @@ class SelfRegistrationTest(TestCase):
         self.assertEqual(user.first_name, 'Ana')
         self.assertEqual(user.last_name, 'Perez')
         self.assertEqual(user.email, 'ana@example.com')
+        self.assertEqual(user.identification_number, '1234567890')
         self.assertEqual(user.residence_address, '123 Main St')
         self.assertEqual(user.phone_number, '555-1234')
 
@@ -259,6 +261,14 @@ class SelfRegistrationTest(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()['registered'], False)
         self.assertIn('email', response.json()['errors'])
+        self.assertFalse(User.objects.filter(username='newuser').exists())
+
+    def test_identification_number_is_required(self):
+        invalid_payload = {**self.valid_payload, 'identification_number': ''}
+        response = self.client.post(self.register_url, data=invalid_payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('identification_number', response.json()['errors'])
         self.assertFalse(User.objects.filter(username='newuser').exists())
 
     def test_password_validation_is_enforced(self):
@@ -600,6 +610,7 @@ class BeneficiaryListEndpointTest(TestCase):
             'first_name': 'Laura',
             'last_name': 'Gomez',
             'email': 'laura@example.com',
+            'identification_number': '123456789',
             'residence_address': 'Street 123',
             'phone_number': '3000000000',
             'password1': 'StrongPass123!',

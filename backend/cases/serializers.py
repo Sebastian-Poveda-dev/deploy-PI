@@ -70,6 +70,22 @@ class CaseSerializer(serializers.ModelSerializer):
         ]
 
 
+class BeneficiaryCaseSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(source='status.name', read_only=True)
+
+    class Meta:
+        model = Case
+        fields = ['id', 'status']
+
+
+class PublicBeneficiaryCaseStatusSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(source='status.name', read_only=True)
+
+    class Meta:
+        model = Case
+        fields = ['status']
+
+
 class CaseCreateSerializer(serializers.Serializer):
     description = serializers.CharField()
     category_id = serializers.PrimaryKeyRelatedField(

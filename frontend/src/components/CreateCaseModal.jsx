@@ -98,23 +98,20 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
       onClick={handleOverlayClick}
     >
       <div className="w-full max-w-xl rounded-lg bg-white shadow-xl animate-scale">
-
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-800">Crear Caso</h2>
           <button
             type="button"
+            aria-label="Cerrar"
             onClick={onClose}
             className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
-            ✕
+            ×
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-5 px-6 py-5">
-
             <Field label="Descripción" error={errors.description}>
               <textarea
                 rows={4}
@@ -173,7 +170,6 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
             )}
           </div>
 
-          {/* Footer */}
           <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
             <button
               type="button"
@@ -192,7 +188,6 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
             </button>
           </div>
         </form>
-
       </div>
     </div>
   )

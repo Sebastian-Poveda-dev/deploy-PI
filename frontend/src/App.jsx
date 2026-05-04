@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './components/Login'
 import BeneficiaryRegister from './components/BeneficiaryRegister'
+import BeneficiaryTracking from './pages/BeneficiaryTracking'
 import Dashboard from './pages/Dashboard'
 import Cases from './pages/Cases'
 import Permissions from './pages/Permissions'
@@ -10,13 +11,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<BeneficiaryTracking />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<BeneficiaryRegister />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard/cases" element={<Cases />} />
         <Route path="/dashboard/chats" element={<Chats />} />
         <Route path="/dashboard/permissions" element={<Permissions />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

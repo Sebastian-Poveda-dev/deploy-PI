@@ -10,12 +10,14 @@ from rest_framework.views import APIView
 from .forms import CaseCreateForm
 from .models import Case
 from .serializers import (
+	BeneficiaryCaseSerializer,
 	CaseCancellationRequestSerializer,
 	CaseCreateSerializer,
 	CaseLogCreateSerializer,
 	CaseLogSerializer,
 	CaseSerializer,
 	CaseUpdateSerializer,
+	PublicBeneficiaryCaseStatusSerializer,
 )
 from .services import (
 	approve_case,
@@ -66,6 +68,12 @@ class CaseListCreateAPIView(APIView):
 
 	def get(self, request):
 		role = request.user.groups.values_list('name', flat=True).first()
+		if role == 'beneficiary':
+			cases = Case.objects.filter(beneficiary=request.user)
+			return Response(
+				BeneficiaryCaseSerializer(cases, many=True).data,
+				status=status.HTTP_200_OK,
+			)
 		if role in PRIVILEGED_ROLES:
 			cases = Case.objects.all()
 		else:
@@ -84,6 +92,65 @@ class CaseListCreateAPIView(APIView):
 			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 		return Response(CaseSerializer(case).data, status=status.HTTP_201_CREATED)
+
+
+class BeneficiaryCaseListAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		role = request.user.groups.values_list('name', flat=True).first()
+		if role != 'beneficiary':
+			return Response(
+				{'detail': 'Only beneficiaries can view beneficiary cases.'},
+				status=status.HTTP_403_FORBIDDEN,
+			)
+
+		cases = Case.objects.filter(beneficiary=request.user)
+		if not cases.exists():
+			return Response(
+				{
+					'detail': 'No tiene casos registrados',
+					'cases': [],
+				},
+				status=status.HTTP_200_OK,
+			)
+
+		return Response(
+			{'cases': BeneficiaryCaseSerializer(cases, many=True).data},
+			status=status.HTTP_200_OK,
+		)
+
+
+class PublicBeneficiaryCaseTrackingAPIView(APIView):
+	permission_classes = []
+	authentication_classes = []
+
+	def post(self, request):
+		identification_number = str(request.data.get('identification_number', '')).strip()
+		if not identification_number:
+			return Response(
+				{'detail': 'La cedula es requerida.'},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		cases = Case.objects.filter(
+			beneficiary__identification_number=identification_number,
+			beneficiary__groups__name='beneficiary',
+		).distinct()
+
+		if not cases.exists():
+			return Response(
+				{
+					'detail': 'No tiene casos registrados',
+					'cases': [],
+				},
+				status=status.HTTP_200_OK,
+			)
+
+		return Response(
+			{'cases': PublicBeneficiaryCaseStatusSerializer(cases, many=True).data},
+			status=status.HTTP_200_OK,
+		)
 
 
 class CaseDetailAPIView(APIView):
