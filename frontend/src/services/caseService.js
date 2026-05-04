@@ -1,3 +1,5 @@
+import { buildApiUrl } from './apiClient'
+
 const STATUS_MAP = {
   active: 'ACTIVE',
   pending_authorization: 'PENDING',
@@ -52,7 +54,7 @@ export async function createCase({ description, categoryId, subclinicId, benefic
     beneficiary_id: beneficiaryId,
   }
 
-  const response = await fetch('/cases/', {
+  const response = await fetch(buildApiUrl('/cases/'), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -72,7 +74,7 @@ export async function createCase({ description, categoryId, subclinicId, benefic
 }
 
 export async function approveCase(caseId) {
-  const response = await fetch(`/cases/${caseId}/approve/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/approve/`), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -90,7 +92,7 @@ export async function approveCase(caseId) {
 }
 
 export async function rejectCase(caseId) {
-  const response = await fetch(`/cases/${caseId}/reject-assignment/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/reject-assignment/`), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -106,7 +108,7 @@ export async function rejectCase(caseId) {
 }
 
 export async function getCases() {
-  const response = await fetch('/cases/', {
+  const response = await fetch(buildApiUrl('/cases/'), {
     method: 'GET',
     credentials: 'include',
   })
@@ -120,7 +122,7 @@ export async function getCases() {
 }
 
 export async function getBeneficiaryCases() {
-  const response = await fetch('/cases/beneficiary/', {
+  const response = await fetch(buildApiUrl('/cases/beneficiary/'), {
     method: 'GET',
     credentials: 'include',
   })
@@ -139,7 +141,7 @@ export async function getBeneficiaryCases() {
 }
 
 export async function trackBeneficiaryCases(identificationNumber) {
-  const response = await fetch('/cases/track/', {
+  const response = await fetch(buildApiUrl('/cases/track/'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -159,7 +161,7 @@ export async function trackBeneficiaryCases(identificationNumber) {
 }
 
 export async function requestCancellation(caseId, reason) {
-  const response = await fetch(`/cases/${caseId}/request-cancellation/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/request-cancellation/`), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -178,7 +180,7 @@ export async function requestCancellation(caseId, reason) {
 }
 
 export async function reviewCancellation(requestId, action) {
-  const response = await fetch(`/cases/cancellation-requests/${requestId}/review/`, {
+  const response = await fetch(buildApiUrl(`/cases/cancellation-requests/${requestId}/review/`), {
     method: 'POST',
     credentials: 'include',
     headers: {

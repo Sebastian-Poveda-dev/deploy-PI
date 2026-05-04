@@ -1,3 +1,5 @@
+import { buildApiUrl } from './apiClient'
+
 function getCsrfToken() {
   const match = document.cookie.match(/csrftoken=([^;]+)/)
   return match ? match[1] : ''
@@ -36,7 +38,7 @@ function mapNotification(raw) {
 }
 
 export async function getDocumentsByCase(caseId) {
-  const response = await fetch(`/cases/${caseId}/documents/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/documents/`), {
     method: 'GET',
     credentials: 'include',
   })
@@ -51,7 +53,7 @@ export async function getDocumentsByCase(caseId) {
 }
 
 export async function uploadDocument(caseId, formData) {
-  const response = await fetch(`/cases/${caseId}/documents/`, {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/documents/`), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -70,7 +72,7 @@ export async function uploadDocument(caseId, formData) {
 }
 
 export async function downloadDocument(documentId, documentName) {
-  const response = await fetch(`/documents/${documentId}/download/`, {
+  const response = await fetch(buildApiUrl(`/documents/${documentId}/download/`), {
     method: 'GET',
     credentials: 'include',
   })
@@ -90,7 +92,7 @@ export async function downloadDocument(documentId, documentName) {
 }
 
 export async function getDocumentNotifications() {
-  const response = await fetch('/documents/notifications/', {
+  const response = await fetch(buildApiUrl('/documents/notifications/'), {
     method: 'GET',
     credentials: 'include',
   })
@@ -105,7 +107,7 @@ export async function getDocumentNotifications() {
 }
 
 export async function triggerDocumentNotificationCheck(payload = {}) {
-  const response = await fetch('/documents/notifications/check/', {
+  const response = await fetch(buildApiUrl('/documents/notifications/check/'), {
     method: 'POST',
     credentials: 'include',
     headers: {

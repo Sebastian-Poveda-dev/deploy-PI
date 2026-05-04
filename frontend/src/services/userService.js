@@ -1,5 +1,7 @@
+import { buildApiUrl } from './apiClient'
+
 export async function getCurrentUser() {
-  const response = await fetch('/users/me/', {
+  const response = await fetch(buildApiUrl('/users/me/'), {
     credentials: 'include',
   })
   if (!response.ok) return null
@@ -9,7 +11,7 @@ export async function getCurrentUser() {
 export async function registerBeneficiary(payload) {
   const body = new URLSearchParams(payload)
 
-  const response = await fetch('/users/register/', {
+  const response = await fetch(buildApiUrl('/users/register/'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -26,7 +28,7 @@ export async function registerBeneficiary(payload) {
 }
 
 export async function getProfessors() {
-  const response = await fetch('/users/professors/', {
+  const response = await fetch(buildApiUrl('/users/professors/'), {
     credentials: 'include',
   })
   if (!response.ok) return []
@@ -35,7 +37,7 @@ export async function getProfessors() {
 
 
 export async function getUsers() {
-  const response = await fetch('/users/', { credentials: 'include' })
+  const response = await fetch(buildApiUrl('/users/'), { credentials: 'include' })
   if (!response.ok) throw new Error('No fue posible cargar los usuarios.')
   return response.json()
 }
@@ -46,7 +48,7 @@ function getCsrfToken() {
 }
 
 export async function createUserAsAdmin({ username, password, role }) {
-  const response = await fetch('/users/', {
+  const response = await fetch(buildApiUrl('/users/'), {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
@@ -58,7 +60,7 @@ export async function createUserAsAdmin({ username, password, role }) {
 }
 
 export async function updateUserAsAdmin(userId, patch) {
-  const response = await fetch(`/users/${userId}/`, {
+  const response = await fetch(buildApiUrl(`/users/${userId}/`), {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
@@ -70,7 +72,7 @@ export async function updateUserAsAdmin(userId, patch) {
 }
 
 export async function getBeneficiaries() {
-  const response = await fetch('/users/beneficiaries/', {
+  const response = await fetch(buildApiUrl('/users/beneficiaries/'), {
     credentials: 'include',
   })
   if (!response.ok) return []

@@ -1,6 +1,7 @@
+import { buildWsUrl } from './apiClient'
+
 function buildSocketUrl(conversationId) {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/ws/communications/conversations/${conversationId}/`
+  return buildWsUrl(`/ws/communications/conversations/${conversationId}/`)
 }
 
 export function createConversationSocket(conversationId, handlers = {}) {

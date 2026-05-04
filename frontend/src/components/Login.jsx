@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import bgImage from '../assets/images/login-bg.png'
 import logo from '../assets/logo/logo-icesi-white.png'
+import { buildApiUrl } from '../services/apiClient'
 
 function InputField({
   id,
@@ -53,7 +54,7 @@ function Login() {
     setSuccessMessage('')
 
     try {
-      const response = await fetch('/users/login/', {
+      const response = await fetch(buildApiUrl('/users/login/'), {
         method: 'POST',
         credentials: 'include',
         headers: {

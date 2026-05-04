@@ -1,3 +1,5 @@
+import { buildApiUrl } from './apiClient'
+
 export function getCsrfToken() {
   const match = document.cookie.match(/csrftoken=([^;]+)/)
   return match ? match[1] : ''
@@ -12,7 +14,7 @@ function messageFrom(data, fallback) {
 }
 
 export async function getChatUsers() {
-  const response = await fetch('/communications/users/', {
+  const response = await fetch(buildApiUrl('/communications/users/'), {
     credentials: 'include',
   })
 
@@ -25,7 +27,7 @@ export async function getChatUsers() {
 }
 
 export async function getConversations() {
-  const response = await fetch('/communications/conversations/', {
+  const response = await fetch(buildApiUrl('/communications/conversations/'), {
     credentials: 'include',
   })
 
@@ -38,7 +40,7 @@ export async function getConversations() {
 }
 
 export async function createConversation({ participantIds, title = '' }) {
-  const response = await fetch('/communications/conversations/', {
+  const response = await fetch(buildApiUrl('/communications/conversations/'), {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -60,7 +62,7 @@ export async function createConversation({ participantIds, title = '' }) {
 }
 
 export async function getMessages(conversationId) {
-  const response = await fetch(`/communications/conversations/${conversationId}/messages/`, {
+  const response = await fetch(buildApiUrl(`/communications/conversations/${conversationId}/messages/`), {
     credentials: 'include',
   })
 
@@ -73,7 +75,7 @@ export async function getMessages(conversationId) {
 }
 
 export async function sendMessage(conversationId, content) {
-  const response = await fetch(`/communications/conversations/${conversationId}/messages/`, {
+  const response = await fetch(buildApiUrl(`/communications/conversations/${conversationId}/messages/`), {
     method: 'POST',
     credentials: 'include',
     headers: {
