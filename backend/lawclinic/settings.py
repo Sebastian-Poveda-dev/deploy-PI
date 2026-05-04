@@ -58,6 +58,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'documents.middleware.DocumentExpirationHeartbeatMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -139,6 +140,10 @@ STATIC_URL = 'static/'
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+DOCUMENT_EXPIRATION_ALERT_DAYS = 3
+DOCUMENT_EXPIRATION_URGENT_ALERT_DAYS = 1
+DOCUMENT_EXPIRATION_AUTO_CHECK_INTERVAL_SECONDS = 300
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

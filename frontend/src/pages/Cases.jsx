@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../layouts/DashboardLayout'
 import CasesTable from '../components/CasesTable'
 import CaseModal from '../components/CaseModal'
@@ -9,6 +10,8 @@ import { getCases } from '../services/caseService'
 import { getCurrentUser } from '../services/userService'
 
 function Cases() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [cases, setCases] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -149,6 +152,29 @@ function Cases() {
       .catch(() => setError('No fue posible cargar los casos. Intenta de nuevo.'))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    const openCaseId = location.state?.openCaseId
+    const shouldOpenDocuments = location.state?.openDocuments
+
+    if (!openCaseId || loading || !cases.length) {
+      return
+    }
+
+    const targetCase = cases.find((caseItem) => caseItem.id === openCaseId)
+    if (!targetCase) {
+      navigate(location.pathname, { replace: true, state: null })
+      return
+    }
+
+    if (shouldOpenDocuments) {
+      openCaseDocuments(targetCase.id)
+    } else {
+      openCaseDetails(targetCase)
+    }
+
+    navigate(location.pathname, { replace: true, state: null })
+  }, [cases, loading, location.pathname, location.state, navigate])
 
   function renderContent() {
     if (loading) {
