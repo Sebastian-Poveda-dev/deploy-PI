@@ -119,7 +119,6 @@ export async function getCases() {
   return data.map(mapCase)
 }
 
-<<<<<<< HEAD
 export async function getBeneficiaryCases() {
   const response = await fetch('/cases/beneficiary/', {
     method: 'GET',
@@ -157,6 +156,7 @@ export async function trackBeneficiaryCases(identificationNumber) {
     cases: Array.isArray(data.cases) ? data.cases.map(mapBeneficiaryCase) : [],
     detail: data.detail ?? '',
   }
+}
 
 export async function requestCancellation(caseId, reason) {
   const response = await fetch(`/cases/${caseId}/request-cancellation/`, {

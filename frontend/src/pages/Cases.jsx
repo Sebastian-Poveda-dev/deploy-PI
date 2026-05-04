@@ -1,19 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import BeneficiaryCaseStatusModal from '../components/BeneficiaryCaseStatusModal'
 import { useLocation, useNavigate } from 'react-router-dom'
-import DashboardLayout from '../layouts/DashboardLayout'
-import CasesTable from '../components/CasesTable'
-import CaseModal from '../components/CaseModal'
-import CaseLogsModal from '../components/CaseLogsModal'
+import BeneficiaryCaseStatusModal from '../components/BeneficiaryCaseStatusModal'
 import CaseDocumentsModal from '../components/CaseDocumentsModal'
 import CaseLogsModal from '../components/CaseLogsModal'
 import CaseModal from '../components/CaseModal'
 import CasesTable from '../components/CasesTable'
 import CreateCaseModal from '../components/CreateCaseModal'
+import StatusBadge from '../components/StatusBadge'
 import DashboardLayout from '../layouts/DashboardLayout'
 import { getBeneficiaryCases, getCases } from '../services/caseService'
 import { getCurrentUser } from '../services/userService'
-import StatusBadge from '../components/StatusBadge'
 
 function Cases() {
   const location = useLocation()
@@ -183,8 +179,6 @@ function Cases() {
     loadCasesPage()
   }, [])
 
-
-  function renderStaffContent() {
   useEffect(() => {
     const openCaseId = location.state?.openCaseId
     const shouldOpenDocuments = location.state?.openDocuments
@@ -208,8 +202,11 @@ function Cases() {
     navigate(location.pathname, { replace: true, state: null })
   }, [cases, loading, location.pathname, location.state, navigate])
 
-  function renderContent() {
+  function renderStaffContent() {
+    return renderContent()
+  }
 
+  function renderContent() {
     if (loading) {
       return (
         <div className="flex min-h-64 items-center justify-center">
