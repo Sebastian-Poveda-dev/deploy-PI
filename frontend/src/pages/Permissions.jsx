@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/DashboardLayout'
 import { getUsers, createUserAsAdmin, updateUserAsAdmin } from '../services/userService'
 
-const ROLES = ['admin', 'advisor', 'professor', 'student', 'beneficiary']
+const STAFF_ROLES = ['admin', 'advisor', 'professor', 'student']
 
 const ROLE_LABELS = {
   admin: 'Admin',
@@ -103,7 +103,11 @@ function CreateUserModal({ isOpen, onClose, onCreated }) {
               <label className="block text-sm font-medium text-slate-700">Rol</label>
               <select value={form.role} onChange={set('role')} disabled={loading} className={inputClass}>
                 <option value="">Selecciona un rol</option>
-                {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                {STAFF_ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {ROLE_LABELS[role]}
+                  </option>
+                ))}
               </select>
               {errors.role && <p className="text-xs text-red-500">{errors.role}</p>}
             </div>
@@ -166,7 +170,11 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-700">Rol</label>
               <select value={role} onChange={(e) => setRole(e.target.value)} disabled={loading} className={inputClass}>
-                {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                {STAFF_ROLES.map((staffRole) => (
+                  <option key={staffRole} value={staffRole}>
+                    {ROLE_LABELS[staffRole]}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="flex items-center gap-3">
@@ -201,17 +209,23 @@ function Permissions() {
 
   useEffect(() => {
     getUsers()
-      .then(setUsers)
+      .then((data) => setUsers(data.filter((user) => user.role !== 'beneficiary')))
       .catch(() => setError('No fue posible cargar los usuarios.'))
       .finally(() => setLoading(false))
   }, [])
 
   function handleCreated(newUser) {
+    if (newUser.role === 'beneficiary') return
     setUsers((prev) => [...prev, newUser].sort((a, b) => a.username.localeCompare(b.username)))
   }
 
   function handleUpdated(updated) {
-    setUsers((prev) => prev.map((u) => u.id === updated.id ? updated : u))
+    setUsers((prev) => {
+      if (updated.role === 'beneficiary') {
+        return prev.filter((user) => user.id !== updated.id)
+      }
+      return prev.map((user) => (user.id === updated.id ? updated : user))
+    })
   }
 
   return (
