@@ -179,7 +179,6 @@ class UserManagementDetailView(APIView):
 
         return Response(_user_to_dict(user))
 
-
 @require_GET
 def beneficiaries_view(request):
     if not request.user.is_authenticated:
