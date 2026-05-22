@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Cases from './pages/Cases'
 import Permissions from './pages/Permissions'
 import Chats from './pages/Chats'
+import Metrics from './pages/Metrics'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/dashboard/cases" element={<Cases />} />
         <Route path="/dashboard/chats" element={<Chats />} />
         <Route path="/dashboard/permissions" element={<Permissions />} />
+        <Route path="/dashboard/metrics" element={<Metrics />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

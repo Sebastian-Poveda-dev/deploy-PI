@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { label: 'Casos', path: '/dashboard/cases' },
   { label: 'Chats', path: '/dashboard/chats' },
   { label: 'Permisos', path: '/dashboard/permissions' },
-  { label: 'Metricas' },
+  { label: 'Metricas', path: '/dashboard/metrics' },
 ]
 
 function Sidebar() {
