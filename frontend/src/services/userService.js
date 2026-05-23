@@ -27,15 +27,6 @@ export async function registerBeneficiary(payload) {
   return data
 }
 
-export async function getProfessors() {
-  const response = await fetch(buildApiUrl('/users/professors/'), {
-    credentials: 'include',
-  })
-  if (!response.ok) return []
-  return response.json()
-}
-
-
 export async function getUsers() {
   const response = await fetch(buildApiUrl('/users/'), { credentials: 'include' })
   if (!response.ok) throw new Error('No fue posible cargar los usuarios.')

@@ -90,7 +90,6 @@ class CommunicationServiceTest(CommunicationTestUsersMixin, TestCase):
     def setUp(self):
         self.creator = self.create_user('svc_creator', 'advisor')
         self.student = self.create_user('svc_student', 'student')
-        self.professor = self.create_user('svc_professor', 'professor')
         self.inactive_user = self.create_user('svc_inactive', 'student', is_active=False)
         self.outsider = self.create_user('svc_outsider', 'student')
 
@@ -99,13 +98,13 @@ class CommunicationServiceTest(CommunicationTestUsersMixin, TestCase):
 
         conversation = services.create_conversation(
             creator=self.creator,
-            participant_ids=[self.student.id, self.professor.id],
+            participant_ids=[self.student.id],
             title='Service chat',
         )
 
         participant_ids = set(conversation.participants.values_list('id', flat=True))
         self.assertEqual(conversation.creator, self.creator)
-        self.assertSetEqual(participant_ids, {self.creator.id, self.student.id, self.professor.id})
+        self.assertSetEqual(participant_ids, {self.creator.id, self.student.id})
 
     def test_service_rejects_conversation_without_other_participants(self):
         from communications import services
@@ -136,7 +135,7 @@ class CommunicationServiceTest(CommunicationTestUsersMixin, TestCase):
             title='Visible chat',
         )
         services.create_conversation(
-            creator=self.professor,
+            creator=self.creator,
             participant_ids=[self.outsider.id],
             title='Hidden chat',
         )
@@ -195,7 +194,6 @@ class CommunicationApiTest(CommunicationTestUsersMixin, APITestCase):
     def setUp(self):
         self.admin = self.create_user('api_admin', 'admin')
         self.advisor = self.create_user('api_advisor', 'advisor')
-        self.professor = self.create_user('api_professor', 'professor')
         self.student = self.create_user('api_student', 'student')
         self.beneficiary = self.create_user('api_beneficiary', 'beneficiary')
         self.other_student = self.create_user('api_other_student', 'student')
@@ -204,7 +202,7 @@ class CommunicationApiTest(CommunicationTestUsersMixin, APITestCase):
     def conversation_payload(self, **overrides):
         payload = {
             'title': 'Internal case team',
-            'participant_ids': [self.student.id, self.professor.id],
+            'participant_ids': [self.student.id],
         }
         payload.update(overrides)
         return payload
@@ -258,7 +256,7 @@ class CommunicationApiTest(CommunicationTestUsersMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['title'], 'Internal case team')
         participant_ids = {participant['id'] for participant in response.data['participants']}
-        self.assertSetEqual(participant_ids, {self.advisor.id, self.student.id, self.professor.id})
+        self.assertSetEqual(participant_ids, {self.advisor.id, self.student.id})
 
     def test_conversation_creation_rejects_inactive_users(self):
         self.client.force_authenticate(self.advisor)
@@ -273,7 +271,7 @@ class CommunicationApiTest(CommunicationTestUsersMixin, APITestCase):
 
     def test_user_can_list_only_participant_conversations(self):
         visible = self.create_conversation(self.advisor, participant_ids=[self.student.id])
-        hidden = self.create_conversation(self.professor, participant_ids=[self.other_student.id])
+        hidden = self.create_conversation(self.admin, participant_ids=[self.other_student.id])
         self.client.force_authenticate(self.student)
 
         response = self.client.get(self.conversations_url)

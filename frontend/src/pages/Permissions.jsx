@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/DashboardLayout'
 import { getUsers, createUserAsAdmin, updateUserAsAdmin } from '../services/userService'
 
-const STAFF_ROLES = ['admin', 'advisor', 'professor', 'student']
+const STAFF_ROLES = ['admin', 'advisor', 'student']
 
 const ROLE_LABELS = {
   admin: 'Admin',
   advisor: 'Asesor',
-  professor: 'Profesor',
   student: 'Estudiante',
   beneficiary: 'Beneficiario',
 }
@@ -15,7 +14,6 @@ const ROLE_LABELS = {
 const ROLE_COLORS = {
   admin: 'bg-purple-100 text-purple-700',
   advisor: 'bg-blue-100 text-blue-700',
-  professor: 'bg-indigo-100 text-indigo-700',
   student: 'bg-green-100 text-green-700',
   beneficiary: 'bg-slate-100 text-slate-600',
 }

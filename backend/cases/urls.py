@@ -4,6 +4,7 @@ from documents.views import CaseDocumentListCreateAPIView
 
 from .views import (
     BeneficiaryCaseListAPIView,
+    CancellationRequestNotificationListAPIView,
     CaseApproveAPIView,
     CaseDetailAPIView,
     CaseLogListCreateAPIView,
@@ -22,6 +23,7 @@ urlpatterns = [
     path('beneficiary/', BeneficiaryCaseListAPIView.as_view(), name='beneficiary-case-list'),
     path('', CaseListCreateAPIView.as_view(), name='case-list-create'),
     path('cancellation-requests/', ListCancellationRequestsAPIView.as_view(), name='cancellation-request-list'),
+    path('cancellation-request-notifications/', CancellationRequestNotificationListAPIView.as_view(), name='cancellation-request-notifications'),
     path('cancellation-requests/<int:pk>/review/', ReviewCancellationRequestAPIView.as_view(), name='cancellation-request-review'),
     path('<int:pk>/', CaseDetailAPIView.as_view(), name='case-detail'),
     path('<int:pk>/approve/', CaseApproveAPIView.as_view(), name='case-approve'),

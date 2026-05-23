@@ -86,12 +86,11 @@ class UpcomingDocumentRule(BaseExpirationRule):
 class ExpirationRecipientResolver:
     def resolve(self, document):
         student_recipients = list(document.case.users.filter(groups__name='student').distinct())
-        professor_recipients = list(document.case.users.filter(groups__name='professor').distinct())
         advisor_recipients = list(User.objects.filter(groups__name='advisor').distinct())
         admin_recipients = list(User.objects.filter(groups__name='admin').distinct())
 
         recipients_by_id = {}
-        for recipient in student_recipients + professor_recipients + advisor_recipients + admin_recipients:
+        for recipient in student_recipients + advisor_recipients + admin_recipients:
             recipients_by_id[recipient.id] = recipient
 
         return list(recipients_by_id.values())

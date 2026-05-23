@@ -6,14 +6,14 @@ class User(AbstractUser):
     identification_number = models.CharField(max_length=30, unique=True, null=True, blank=True)
     residence_address = models.CharField(max_length=255, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
-    favorite_category = models.ForeignKey(
+    registration_date = models.DateTimeField(auto_now_add=True)
+    category = models.ForeignKey(
         'cases.Category',
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='preferred_by_users',
+        related_name='advisors',
     )
-    registration_date = models.DateTimeField(auto_now_add=True)
 
     def assign_role(self, role_name):
         group = Group.objects.get(name=role_name)
@@ -25,9 +25,6 @@ class User(AbstractUser):
 
     def is_advisor(self):
         return self.groups.filter(name='advisor').exists()
-
-    def is_professor(self):
-        return self.groups.filter(name='professor').exists()
 
     def is_student(self):
         return self.groups.filter(name='student').exists()

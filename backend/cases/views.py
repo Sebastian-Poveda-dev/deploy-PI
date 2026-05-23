@@ -11,6 +11,7 @@ from .forms import CaseCreateForm
 from .models import Case
 from .serializers import (
 	BeneficiaryCaseSerializer,
+	CancellationRequestNotificationSerializer,
 	CaseCancellationRequestSerializer,
 	CaseCreateSerializer,
 	CaseLogCreateSerializer,
@@ -24,7 +25,9 @@ from .services import (
 	approve_cancellation_request,
 	create_case,
 	create_case_log,
+	get_cancellation_request_notifications,
 	get_case_logs,
+	notify_advisors_of_cancellation_request,
 	reject_case_assignment,
 	reject_cancellation_request,
 	update_case,
@@ -76,6 +79,10 @@ class CaseListCreateAPIView(APIView):
 			)
 		if role in PRIVILEGED_ROLES:
 			cases = Case.objects.all()
+			if role == 'advisor' and request.query_params.get('sala') == 'true':
+				user_category_id = request.user.category_id
+				if user_category_id:
+					cases = cases.filter(category_id=user_category_id)
 		else:
 			cases = Case.objects.filter(assignments__user=request.user).distinct()
 		return Response(CaseSerializer(cases, many=True).data, status=status.HTTP_200_OK)
@@ -273,7 +280,9 @@ class CreateCancellationRequestAPIView(APIView):
 			requested_by=request.user,
 			reason=serializer.validated_data['reason']
 		)
-		
+
+		notify_advisors_of_cancellation_request(cancellation_request)
+
 		return Response(CaseCancellationRequestSerializer(cancellation_request).data, status=status.HTTP_201_CREATED)
 
 
@@ -307,14 +316,30 @@ class ListCancellationRequestsAPIView(APIView):
 	def get(self, request):
 		from .models import CaseCancellationRequest
 		role = request.user.groups.values_list('name', flat=True).first()
-		
+
 		if role in PRIVILEGED_ROLES:
 			queryset = CaseCancellationRequest.objects.all()
-		elif role == 'professor':
-			queryset = CaseCancellationRequest.objects.filter(case__users=request.user)
 		elif role == 'student':
 			queryset = CaseCancellationRequest.objects.filter(requested_by=request.user)
 		else:
 			queryset = CaseCancellationRequest.objects.none()
-			
+
 		return Response(CaseCancellationRequestSerializer(queryset, many=True).data, status=status.HTTP_200_OK)
+
+
+class CancellationRequestNotificationListAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		role = request.user.groups.values_list('name', flat=True).first()
+		if role != 'advisor':
+			return Response(
+				{'detail': 'Only advisors can view cancellation request notifications.'},
+				status=status.HTTP_403_FORBIDDEN,
+			)
+
+		notifications = get_cancellation_request_notifications(request.user)
+		return Response(
+			CancellationRequestNotificationSerializer(notifications, many=True).data,
+			status=status.HTTP_200_OK,
+		)
