@@ -11,7 +11,7 @@ import { createConversationSocket } from '../services/chatSocketService'
 
 const SOCKET_OPEN = 1
 const CONVERSATION_REFRESH_MS = 15000
-const ALLOWED_CHAT_ROLES = new Set(['admin', 'advisor', 'professor', 'student'])
+const ALLOWED_CHAT_ROLES = new Set(['admin', 'advisor', 'student'])
 
 function formatTime(value) {
   if (!value) return ''

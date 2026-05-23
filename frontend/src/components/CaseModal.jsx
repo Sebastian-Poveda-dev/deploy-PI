@@ -15,7 +15,7 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
   const [progressError, setProgressError] = useState('')
   const [progressSubmitting, setProgressSubmitting] = useState(false)
 
-  const canAddProgress = currentUser && ['admin', 'advisor', 'professor', 'student'].includes(currentUser.role)
+  const canAddProgress = currentUser && ['admin', 'advisor', 'student'].includes(currentUser.role)
 
   useEffect(() => {
     if (!isOpen || !caseData?.id) {

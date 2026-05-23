@@ -109,7 +109,7 @@ def get_opened_vs_closed(months=12):
 def get_cases_per_user():
     User = get_user_model()
     users = (
-        User.objects.filter(groups__name__in=['student', 'professor'], is_active=True)
+        User.objects.filter(groups__name='student', is_active=True)
         .prefetch_related('groups')
         .annotate(
             active_cases=Count(
@@ -123,7 +123,7 @@ def get_cases_per_user():
     )
     result = []
     for user in users:
-        role = next((g.name for g in user.groups.all() if g.name in ('student', 'professor')), None)
+        role = next((g.name for g in user.groups.all() if g.name == 'student'), None)
         result.append({
             'id': user.id,
             'username': user.username,

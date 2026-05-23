@@ -7,7 +7,7 @@ from .models import Conversation, ConversationParticipant, Message
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
-ALLOWED_CHAT_ROLES = {'admin', 'advisor', 'professor', 'student'}
+ALLOWED_CHAT_ROLES = {'admin', 'advisor', 'student'}
 
 
 def get_user_role(user):

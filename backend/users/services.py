@@ -4,7 +4,7 @@ from django.apps import apps
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
-VALID_ROLES = {'admin', 'advisor', 'professor', 'student', 'beneficiary'}
+VALID_ROLES = {'admin', 'advisor', 'student', 'beneficiary'}
 
 
 def assign_role(user, role_name):
@@ -32,7 +32,7 @@ def admin_create_user(
     role,
     residence_address='',
     phone_number='',
-    favorite_category=None,
+    category_id=None,
 ):
     """Create a user with a specific role (for admin-driven creation)."""
     user = User.objects.create_user(
@@ -40,14 +40,11 @@ def admin_create_user(
         password=password,
         residence_address=residence_address,
         phone_number=phone_number,
-        favorite_category=favorite_category,
     )
     assign_role(user, role)
-
-    if role != 'student' and user.favorite_category_id is not None:
-        user.favorite_category = None
-        user.save(update_fields=['favorite_category'])
-
+    if category_id is not None:
+        user.category_id = category_id
+        user.save(update_fields=['category_id'])
     return user
 
 
@@ -77,17 +74,12 @@ def update_user(requesting_user, target_user, data):
             raise ValueError(f"Invalid role '{new_role}'.")
         assign_role(target_user, new_role)
 
-    if 'favorite_category' in data:
-        target_user.favorite_category = data['favorite_category']
-        target_user.save(update_fields=['favorite_category'])
-
-    role_after_update = target_user.groups.values_list('name', flat=True).first()
-    if role_after_update != 'student' and target_user.favorite_category_id is not None:
-        target_user.favorite_category = None
-        target_user.save(update_fields=['favorite_category'])
-
     if 'is_active' in data:
         target_user.is_active = data['is_active']
         target_user.save(update_fields=['is_active'])
+
+    if 'category_id' in data:
+        target_user.category_id = data['category_id']
+        target_user.save(update_fields=['category_id'])
 
     return target_user
