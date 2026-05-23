@@ -8,6 +8,7 @@ from .views import (
     CaseDetailAPIView,
     CaseLogListCreateAPIView,
     CaseListCreateAPIView,
+    CaseProgressStatusListCreateAPIView,
     CaseRejectAssignmentAPIView,
     PublicBeneficiaryCaseTrackingAPIView,
     case_create_form_view,
@@ -27,6 +28,7 @@ urlpatterns = [
     path('<int:pk>/approve/', CaseApproveAPIView.as_view(), name='case-approve'),
     path('<int:pk>/documents/', CaseDocumentListCreateAPIView.as_view(), name='case-documents'),
     path('<int:pk>/logs/', CaseLogListCreateAPIView.as_view(), name='case-logs'),
+    path('<int:pk>/progress-statuses/', CaseProgressStatusListCreateAPIView.as_view(), name='case-progress-statuses'),
     path('<int:pk>/request-cancellation/', CreateCancellationRequestAPIView.as_view(), name='case-request-cancellation'),
     path(
         '<int:pk>/reject-assignment/',

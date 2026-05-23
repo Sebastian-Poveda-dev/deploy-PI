@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import StatusBadge from './StatusBadge'
-import { approveCase, rejectCase, requestCancellation, reviewCancellation } from '../services/caseService'
+import { approveCase, rejectCase, requestCancellation, reviewCancellation, getCaseProgressStatuses, addCaseProgressStatus } from '../services/caseService'
 import { canApproveCase, canRejectCase, canRequestCancellation, canReviewCancellation } from '../utils/permissions'
 
 function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, currentUser, onCaseUpdated }) {
@@ -8,6 +8,44 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState('')
   const [cancellationReason, setCancellationReason] = useState('')
+
+  const [progressStatuses, setProgressStatuses] = useState([])
+  const [progressLoading, setProgressLoading] = useState(false)
+  const [newProgressLabel, setNewProgressLabel] = useState('')
+  const [progressError, setProgressError] = useState('')
+  const [progressSubmitting, setProgressSubmitting] = useState(false)
+
+  const canAddProgress = currentUser && ['admin', 'advisor', 'professor', 'student'].includes(currentUser.role)
+
+  useEffect(() => {
+    if (!isOpen || !caseData?.id) {
+      setProgressStatuses([])
+      setNewProgressLabel('')
+      setProgressError('')
+      return
+    }
+    setProgressLoading(true)
+    getCaseProgressStatuses(caseData.id)
+      .then(setProgressStatuses)
+      .catch(() => setProgressStatuses([]))
+      .finally(() => setProgressLoading(false))
+  }, [isOpen, caseData?.id])
+
+  async function handleAddProgress(e) {
+    e.preventDefault()
+    if (!newProgressLabel.trim()) return
+    setProgressSubmitting(true)
+    setProgressError('')
+    try {
+      const created = await addCaseProgressStatus(caseData.id, newProgressLabel.trim())
+      setProgressStatuses((prev) => [...prev, created])
+      setNewProgressLabel('')
+    } catch (err) {
+      setProgressError(err.message)
+    } finally {
+      setProgressSubmitting(false)
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) {
@@ -142,6 +180,59 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
                 {caseData?.description || 'No description available.'}
               </p>
             </div>
+          </section>
+
+          {/* Progress statuses */}
+          <section>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Progreso del caso</p>
+
+            {progressLoading ? (
+              <p className="mt-2 text-sm text-slate-400">Cargando...</p>
+            ) : progressStatuses.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-400">Sin estados de progreso registrados.</p>
+            ) : (
+              <ol className="mt-3 space-y-2">
+                {progressStatuses.map((ps, index) => (
+                  <li key={ps.id} className="flex items-start gap-3">
+                    <div className="flex flex-col items-center">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5454F2] text-[10px] font-bold text-white">
+                        {index + 1}
+                      </span>
+                      {index < progressStatuses.length - 1 && (
+                        <div className="mt-1 h-full w-px bg-slate-200" style={{ minHeight: '1rem' }} />
+                      )}
+                    </div>
+                    <div className="pb-1">
+                      <p className="text-sm font-medium text-slate-800">{ps.label}</p>
+                      <p className="text-xs text-slate-400">
+                        {ps.created_by_name} · {ps.created_at?.split('T')[0]}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+
+            {canAddProgress && (
+              <form onSubmit={handleAddProgress} className="mt-3 flex gap-2">
+                <input
+                  type="text"
+                  value={newProgressLabel}
+                  onChange={(e) => setNewProgressLabel(e.target.value)}
+                  placeholder="Nuevo estado de progreso..."
+                  maxLength={200}
+                  className="flex-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2]"
+                />
+                <button
+                  type="submit"
+                  disabled={progressSubmitting || !newProgressLabel.trim()}
+                  className="rounded-md bg-[#5454F2] px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7] disabled:opacity-50"
+                >
+                  {progressSubmitting ? '...' : 'Agregar'}
+                </button>
+              </form>
+            )}
+            {progressError && <p className="mt-1 text-xs text-red-500">{progressError}</p>}
           </section>
 
           {caseData?.pendingCancellation && (

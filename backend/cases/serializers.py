@@ -2,7 +2,7 @@ from django.conf import settings
 from django.apps import apps
 from rest_framework import serializers
 
-from .models import Case, CaseLog, Category, Subclinic
+from .models import Case, CaseLog, CaseProgressStatus, Category, Subclinic
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
@@ -146,3 +146,16 @@ class CaseLogSerializer(serializers.ModelSerializer):
 
 class CaseLogCreateSerializer(serializers.Serializer):
     content = serializers.CharField()
+
+
+class CaseProgressStatusSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = CaseProgressStatus
+        fields = ['id', 'label', 'created_by', 'created_by_name', 'created_at']
+        read_only_fields = ['created_by', 'created_at']
+
+
+class CaseProgressStatusCreateSerializer(serializers.Serializer):
+    label = serializers.CharField(max_length=200)

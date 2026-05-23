@@ -829,8 +829,12 @@ class PublicBeneficiaryCaseTrackingApiTest(APITestCase):
         assign_role(self.other_beneficiary, 'beneficiary')
 
         self.case = create_case(
-            self.student,
+            self.admin,
             'Case visible through public tracking',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
 class CaseCancellationRequestTest(TestCase):
     """Tests for case cancellation request creation and retrieval."""
@@ -855,14 +859,11 @@ class CaseCancellationRequestTest(TestCase):
         assign_role(self.beneficiary, 'beneficiary')
 
         self.case = create_case(
-            self.student,
-            'Case for cancellation',
-        self.other_case = create_case(
             self.admin,
-            'Case for another beneficiary',
+            'Case for cancellation',
             self.category,
             self.subclinic,
-            beneficiary=self.other_beneficiary,
+            beneficiary=self.beneficiary,
         )
 
     def test_public_tracking_returns_only_cases_for_identification_number(self):
