@@ -21,6 +21,11 @@ class CaseCreateFormAndTemplateTest(TestCase):
         self.admin = User.objects.create_user(username='admin_form', password='pass')
         assign_role(self.admin, 'admin')
 
+        self.advisor = User.objects.create_user(username='advisor_form', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.advisor.category = self.category
+        self.advisor.save()
+
         self.beneficiary_a = User.objects.create_user(
             username='beneficiary_a',
             password='pass',
@@ -44,9 +49,6 @@ class CaseCreateFormAndTemplateTest(TestCase):
             last_name='Perez',
         )
         assign_role(self.non_beneficiary, 'student')
-
-        self.professor = User.objects.create_user(username='professor_form', password='pass')
-        assign_role(self.professor, 'professor')
 
     def _form_data(self, **overrides):
         data = {
@@ -116,9 +118,8 @@ class CreateCaseTest(TestCase):
 
         self.advisor = User.objects.create_user(username='advisor1', password='pass')
         assign_role(self.advisor, 'advisor')
-
-        self.professor = User.objects.create_user(username='professor1', password='pass')
-        assign_role(self.professor, 'professor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.student = User.objects.create_user(username='student1', password='pass')
         assign_role(self.student, 'student')
@@ -136,10 +137,6 @@ class CreateCaseTest(TestCase):
         case = create_case(self.advisor, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.status.name, 'active')
 
-    def test_professor_creates_case_with_active_status(self):
-        case = create_case(self.professor, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
-        self.assertEqual(case.status.name, 'active')
-
     def test_student_creates_case_with_pending_authorization_status(self):
         case = create_case(
             self.student,
@@ -150,9 +147,8 @@ class CreateCaseTest(TestCase):
         )
         self.assertEqual(case.status.name, 'pending_authorization')
 
-    def test_case_creation_requires_available_students_and_professors(self):
+    def test_case_creation_requires_available_student(self):
         self.student.groups.clear()
-        self.professor.groups.clear()
 
         with self.assertRaises(ValueError):
             create_case(
@@ -183,20 +179,18 @@ class CreateCaseTest(TestCase):
 
     # --- Auto-assignment and log ---
 
-    def test_case_is_automatically_assigned_to_student_and_professor(self):
+    def test_case_is_automatically_assigned_to_student_and_advisor(self):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertEqual(case.users.filter(groups__name='student').count(), 1)
-        self.assertEqual(case.users.filter(groups__name='professor').count(), 1)
+        self.assertEqual(case.users.filter(groups__name='advisor').count(), 1)
+        self.assertEqual(case.users.count(), 2)
 
-    def test_student_with_matching_favorite_category_gets_priority(self):
-        preferred_student = User.objects.create_user(username='preferred_student', password='pass')
-        assign_role(preferred_student, 'student')
-        preferred_student.favorite_category = self.category
-        preferred_student.save(update_fields=['favorite_category'])
+    def test_case_creation_requires_available_advisor(self):
+        self.advisor.category = None
+        self.advisor.save()
 
-        case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
-
-        self.assertTrue(case.users.filter(pk=preferred_student.pk).exists())
+        with self.assertRaises(ValueError):
+            create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
 
     def test_student_with_lower_workload_gets_assigned_first(self):
         available_student = User.objects.create_user(username='available_student', password='pass')
@@ -224,12 +218,8 @@ class CreateCaseTest(TestCase):
     def test_student_creator_is_assigned_as_student(self):
         case = create_case(self.student, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
         self.assertTrue(case.users.filter(pk=self.student.pk).exists())
-        self.assertEqual(case.users.filter(groups__name='professor').count(), 1)
-
-    def test_professor_creator_is_assigned_as_professor(self):
-        case = create_case(self.professor, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
-        self.assertTrue(case.users.filter(pk=self.professor.pk).exists())
         self.assertEqual(case.users.filter(groups__name='student').count(), 1)
+        self.assertEqual(case.users.count(), 2)
 
     def test_case_is_persisted_to_database(self):
         case = create_case(self.admin, 'description', self.category, self.subclinic, beneficiary=self.beneficiary)
@@ -249,9 +239,8 @@ class CaseLogServiceTest(TestCase):
 
         self.advisor = User.objects.create_user(username='advisor_logs', password='pass')
         assign_role(self.advisor, 'advisor')
-
-        self.professor = User.objects.create_user(username='professor_logs', password='pass')
-        assign_role(self.professor, 'professor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.student = User.objects.create_user(username='student_logs', password='pass')
         assign_role(self.student, 'student')
@@ -272,7 +261,7 @@ class CaseLogServiceTest(TestCase):
 
 
     def test_valid_roles_can_create_case_log(self):
-        valid_users = [self.student, self.professor, self.advisor, self.admin]
+        valid_users = [self.student, self.advisor, self.admin]
 
         for index, user in enumerate(valid_users, start=1):
             log = create_case_log(user, self.case, f'Log from {user.username} #{index}')
@@ -294,7 +283,7 @@ class CaseLogServiceTest(TestCase):
         self.assertTrue(self.case.logs.filter(pk=log.pk).exists())
 
     def test_logs_are_returned_in_chronological_order(self):
-        first = create_case_log(self.professor, self.case, 'First feedback')
+        first = create_case_log(self.admin, self.case, 'First feedback')
         second = create_case_log(self.student, self.case, 'Second update')
         third = create_case_log(self.advisor, self.case, 'Third note')
 
@@ -303,11 +292,10 @@ class CaseLogServiceTest(TestCase):
         self.assertEqual([logs[-3].pk, logs[-2].pk, logs[-1].pk], [first.pk, second.pk, third.pk])
 
     def test_privileged_role_can_log_without_being_assigned(self):
-        # advisor and admin are not assigned to the case (only student and professor are)
-        self.assertFalse(self.case.users.filter(pk=self.advisor.pk).exists())
+        # admin is not assigned to the case; advisor is auto-assigned via category
         self.assertFalse(self.case.users.filter(pk=self.admin.pk).exists())
 
-        advisor_log = create_case_log(self.advisor, self.case, 'Advisor note without assignment')
+        advisor_log = create_case_log(self.advisor, self.case, 'Advisor note')
         admin_log = create_case_log(self.admin, self.case, 'Admin note without assignment')
 
         self.assertEqual(advisor_log.case, self.case)
@@ -332,9 +320,8 @@ class UpdateCaseTest(TestCase):
 
         self.advisor = User.objects.create_user(username='advisor_upd', password='pass')
         assign_role(self.advisor, 'advisor')
-
-        self.professor = User.objects.create_user(username='professor_upd', password='pass')
-        assign_role(self.professor, 'professor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.student = User.objects.create_user(username='student_upd', password='pass')
         assign_role(self.student, 'student')
@@ -345,7 +332,7 @@ class UpdateCaseTest(TestCase):
         self.other_student = User.objects.create_user(username='other_student_upd', password='pass')
         assign_role(self.other_student, 'student')
 
-        # case is auto-assigned to one student and one professor
+        # case is auto-assigned to one student
         self.case = create_case(
             self.student,
             'Original description',
@@ -365,8 +352,7 @@ class UpdateCaseTest(TestCase):
         updated = update_case(self.case, self.admin, {'description': 'Updated by admin'})
         self.assertEqual(updated.description, 'Updated by admin')
 
-    def test_advisor_can_update_case_without_being_assigned(self):
-        self.assertFalse(self.case.users.filter(pk=self.advisor.pk).exists())
+    def test_advisor_can_update_case(self):
         updated = update_case(self.case, self.advisor, {'description': 'Updated by advisor'})
         self.assertEqual(updated.description, 'Updated by advisor')
 
@@ -423,12 +409,8 @@ class ApproveCaseTest(TestCase):
 
         self.advisor = User.objects.create_user(username='advisor_appr', password='pass')
         assign_role(self.advisor, 'advisor')
-
-        self.professor = User.objects.create_user(username='professor_appr', password='pass')
-        assign_role(self.professor, 'professor')
-
-        self.other_professor = User.objects.create_user(username='other_prof_appr', password='pass')
-        assign_role(self.other_professor, 'professor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.student = User.objects.create_user(username='student_appr', password='pass')
         assign_role(self.student, 'student')
@@ -455,14 +437,6 @@ class ApproveCaseTest(TestCase):
     def test_advisor_can_approve_case(self):
         approved = approve_case(self.case, self.advisor)
         self.assertEqual(approved.status.name, 'active')
-
-    def test_assigned_professor_can_approve_case(self):
-        approved = approve_case(self.case, self.professor)
-        self.assertEqual(approved.status.name, 'active')
-
-    def test_non_assigned_professor_cannot_approve_case(self):
-        with self.assertRaises(PermissionError):
-            approve_case(self.case, self.other_professor)
 
     def test_student_cannot_approve_case(self):
         with self.assertRaises(PermissionError):
@@ -505,9 +479,8 @@ class RejectCaseAssignmentTest(TestCase):
 
         self.advisor = User.objects.create_user(username='advisor_rej', password='pass')
         assign_role(self.advisor, 'advisor')
-
-        self.professor = User.objects.create_user(username='professor_rej', password='pass')
-        assign_role(self.professor, 'professor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.student = User.objects.create_user(username='student_rej', password='pass')
         assign_role(self.student, 'student')
@@ -530,32 +503,9 @@ class RejectCaseAssignmentTest(TestCase):
 
     # --- Access control ---
 
-    def test_assigned_student_can_reject_assignment(self):
-        reject_case_assignment(self.case, self.student)
-        self.assertFalse(self.case.users.filter(pk=self.student.pk).exists())
-
-    def test_assigned_professor_can_reject_when_another_professor_remains(self):
-        second_professor = User.objects.create_user(username='professor2_rej', password='pass')
-        assign_role(second_professor, 'professor')
-        self.case.users.add(second_professor)
-        reject_case_assignment(self.case, self.professor)
-        self.assertFalse(self.case.users.filter(pk=self.professor.pk).exists())
-
-    def test_professor_cannot_reject_if_leaves_student_without_professor(self):
+    def test_student_cannot_directly_reject_assignment(self):
         with self.assertRaises(PermissionError):
-            reject_case_assignment(self.case, self.professor)
-
-    def test_non_assigned_user_cannot_reject(self):
-        with self.assertRaises(PermissionError):
-            reject_case_assignment(self.case, self.other_student)
-
-    def test_admin_cannot_reject_assignment(self):
-        with self.assertRaises(PermissionError):
-            reject_case_assignment(self.case, self.admin)
-
-    def test_advisor_cannot_reject_assignment(self):
-        with self.assertRaises(PermissionError):
-            reject_case_assignment(self.case, self.advisor)
+            reject_case_assignment(self.case, self.student)
 
     def test_beneficiary_cannot_reject_assignment(self):
         with self.assertRaises(PermissionError):
@@ -563,28 +513,11 @@ class RejectCaseAssignmentTest(TestCase):
 
     # --- Assignment removal ---
 
-    def test_case_assignment_record_is_deleted(self):
+    def test_admin_can_remove_own_assignment(self):
         from cases.models import CaseAssignment
-        reject_case_assignment(self.case, self.student)
-        self.assertFalse(
-            CaseAssignment.objects.filter(case=self.case, user=self.student).exists()
-        )
-
-    # --- Case status unchanged ---
-
-    def test_case_status_is_not_modified(self):
-        original_status = self.case.status
-        reject_case_assignment(self.case, self.student)
-        self.case.refresh_from_db()
-        self.assertEqual(self.case.status, original_status)
-
-    # --- Audit log ---
-
-    def test_case_log_is_created_after_rejection(self):
-        reject_case_assignment(self.case, self.student)
-        self.assertTrue(
-            self.case.logs.filter(content__icontains='rejected the case assignment').exists()
-        )
+        CaseAssignment.objects.create(case=self.case, user=self.admin)
+        reject_case_assignment(self.case, self.admin)
+        self.assertFalse(CaseAssignment.objects.filter(case=self.case, user=self.admin).exists())
 
 
 class CaseApiTest(APITestCase):
@@ -600,9 +533,8 @@ class CaseApiTest(APITestCase):
 
         self.advisor = User.objects.create_user(username='advisor_api', password='pass')
         assign_role(self.advisor, 'advisor')
-
-        self.professor = User.objects.create_user(username='professor_api', password='pass')
-        assign_role(self.professor, 'professor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.student = User.objects.create_user(username='student_api', password='pass')
         assign_role(self.student, 'student')
@@ -710,16 +642,8 @@ class CaseApiTest(APITestCase):
         response = self.client.post(f'/cases/{self.case.id}/approve/', {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_reject_assignment_success_and_unassigns_user(self):
+    def test_student_reject_assignment_returns_403(self):
         self.client.force_authenticate(self.student)
-        response = self.client.post(f'/cases/{self.case.id}/reject-assignment/', {}, format='json')
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['detail'], 'Case assignment rejected.')
-        self.assertFalse(self.case.users.filter(pk=self.student.pk).exists())
-
-    def test_reject_assignment_forbidden_role_returns_403(self):
-        self.client.force_authenticate(self.admin)
         response = self.client.post(f'/cases/{self.case.id}/reject-assignment/', {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -734,8 +658,10 @@ class CaseListApiTest(APITestCase):
         self.admin = User.objects.create_user(username='admin_list_api', password='pass')
         assign_role(self.admin, 'admin')
 
-        self.professor = User.objects.create_user(username='professor_list_api', password='pass')
-        assign_role(self.professor, 'professor')
+        self.advisor = User.objects.create_user(username='advisor_list_api', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.student = User.objects.create_user(username='student_list_api', password='pass')
         assign_role(self.student, 'student')
@@ -808,11 +734,13 @@ class PublicBeneficiaryCaseTrackingApiTest(APITestCase):
         self.student = User.objects.create_user(username='student_public_tracking', password='pass')
         assign_role(self.student, 'student')
 
-        self.professor = User.objects.create_user(username='professor_public_tracking', password='pass')
-        assign_role(self.professor, 'professor')
-
         self.admin = User.objects.create_user(username='admin_public_tracking', password='pass')
         assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_public_tracking', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.beneficiary = User.objects.create_user(
             username='beneficiary_public_tracking',
@@ -831,32 +759,10 @@ class PublicBeneficiaryCaseTrackingApiTest(APITestCase):
         self.case = create_case(
             self.student,
             'Case visible through public tracking',
-
-class CaseCancellationRequestTest(TestCase):
-    """Tests for case cancellation request creation and retrieval."""
-
-    def setUp(self):
-        self.subclinic = Subclinic.objects.create(name='cancellation_sub')
-        self.category, _ = Category.objects.get_or_create(name='laboral')
-
-        self.admin = User.objects.create_user(username='admin_cancel', password='pass')
-        assign_role(self.admin, 'admin')
-
-        self.professor = User.objects.create_user(username='professor_cancel', password='pass')
-        assign_role(self.professor, 'professor')
-
-        self.student = User.objects.create_user(username='student_cancel', password='pass')
-        assign_role(self.student, 'student')
-
-        self.other_student = User.objects.create_user(username='other_student_cancel', password='pass')
-        assign_role(self.other_student, 'student')
-
-        self.beneficiary = User.objects.create_user(username='beneficiary_cancel', password='pass')
-        assign_role(self.beneficiary, 'beneficiary')
-
-        self.case = create_case(
-            self.student,
-            'Case for cancellation',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
         self.other_case = create_case(
             self.admin,
             'Case for another beneficiary',
@@ -895,6 +801,39 @@ class CaseCancellationRequestTest(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(set(response.data['cases'][0].keys()), {'status'})
+
+
+class CaseCancellationRequestTest(TestCase):
+    """Tests for case cancellation request creation and retrieval."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='cancellation_sub')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.admin = User.objects.create_user(username='admin_cancel', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_cancel', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.advisor.category = self.category
+        self.advisor.save()
+
+        self.student = User.objects.create_user(username='student_cancel', password='pass')
+        assign_role(self.student, 'student')
+
+        self.other_student = User.objects.create_user(username='other_student_cancel', password='pass')
+        assign_role(self.other_student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_cancel', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case for cancellation',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
 
     def test_student_can_create_cancellation_request(self):
         from cases.models import CaseCancellationRequest
@@ -991,11 +930,14 @@ class CaseCancellationRequestApprovalTest(TestCase):
         self.admin = User.objects.create_user(username='admin_approve_cancel', password='pass')
         assign_role(self.admin, 'admin')
 
-        self.professor = User.objects.create_user(username='professor_approve_cancel', password='pass')
-        assign_role(self.professor, 'professor')
+        self.advisor = User.objects.create_user(username='advisor_approve_cancel', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
-        self.professor2 = User.objects.create_user(username='professor2_approve_cancel', password='pass')
-        assign_role(self.professor2, 'professor')
+        self.other_advisor = User.objects.create_user(username='other_advisor_approve_cancel', password='pass')
+        assign_role(self.other_advisor, 'advisor')
+        # no category assigned → not auto-assigned to the case
 
         self.student = User.objects.create_user(username='student_approve_cancel', password='pass')
         assign_role(self.student, 'student')
@@ -1013,41 +955,6 @@ class CaseCancellationRequestApprovalTest(TestCase):
             self.subclinic,
             beneficiary=self.beneficiary,
         )
-        # Ensure we have the correct assignment
-        self.assigned_professor = self.case.users.filter(groups__name='professor').first()
-        self.assigned_student = self.student
-
-    def test_professor_can_approve_cancellation_request(self):
-        from cases.models import CaseCancellationRequest
-        from cases.services import approve_cancellation_request
-
-        request = CaseCancellationRequest.objects.create(
-            case=self.case,
-            requested_by=self.assigned_student,
-            reason='Overloaded',
-        )
-
-        approved = approve_cancellation_request(request, self.assigned_professor)
-
-        self.assertEqual(approved.status, CaseCancellationRequest.APPROVED)
-        self.assertEqual(approved.reviewed_by, self.assigned_professor)
-        self.assertIsNotNone(approved.reviewed_at)
-
-    def test_professor_can_reject_cancellation_request(self):
-        from cases.models import CaseCancellationRequest
-        from cases.services import reject_cancellation_request
-
-        request = CaseCancellationRequest.objects.create(
-            case=self.case,
-            requested_by=self.assigned_student,
-            reason='Overloaded',
-        )
-
-        rejected = reject_cancellation_request(request, self.assigned_professor)
-
-        self.assertEqual(rejected.status, CaseCancellationRequest.REJECTED)
-        self.assertEqual(rejected.reviewed_by, self.assigned_professor)
-        self.assertIsNotNone(rejected.reviewed_at)
 
     def test_admin_can_approve_cancellation_request(self):
         from cases.models import CaseCancellationRequest
@@ -1055,25 +962,81 @@ class CaseCancellationRequestApprovalTest(TestCase):
 
         request = CaseCancellationRequest.objects.create(
             case=self.case,
-            requested_by=self.assigned_student,
+            requested_by=self.student,
             reason='Overloaded',
         )
 
         approved = approve_cancellation_request(request, self.admin)
         self.assertEqual(approved.status, CaseCancellationRequest.APPROVED)
+        self.assertEqual(approved.reviewed_by, self.admin)
+        self.assertIsNotNone(approved.reviewed_at)
 
-    def test_only_assigned_professor_or_admin_can_approve(self):
+    def test_assigned_advisor_can_approve_cancellation_request(self):
         from cases.models import CaseCancellationRequest
         from cases.services import approve_cancellation_request
 
         request = CaseCancellationRequest.objects.create(
             case=self.case,
-            requested_by=self.assigned_student,
+            requested_by=self.student,
+            reason='Overloaded',
+        )
+
+        approved = approve_cancellation_request(request, self.advisor)
+        self.assertEqual(approved.status, CaseCancellationRequest.APPROVED)
+
+    def test_assigned_advisor_can_reject_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import reject_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Overloaded',
+        )
+
+        rejected = reject_cancellation_request(request, self.advisor)
+        self.assertEqual(rejected.status, CaseCancellationRequest.REJECTED)
+        self.assertIsNotNone(rejected.reviewed_at)
+
+    def test_non_assigned_advisor_cannot_approve_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import approve_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
             reason='Overloaded',
         )
 
         with self.assertRaises(PermissionError):
-            approve_cancellation_request(request, self.professor2)
+            approve_cancellation_request(request, self.other_advisor)
+
+    def test_non_assigned_advisor_cannot_reject_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import reject_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Overloaded',
+        )
+
+        with self.assertRaises(PermissionError):
+            reject_cancellation_request(request, self.other_advisor)
+
+    def test_admin_can_reject_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        from cases.services import reject_cancellation_request
+
+        request = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Overloaded',
+        )
+
+        rejected = reject_cancellation_request(request, self.admin)
+        self.assertEqual(rejected.status, CaseCancellationRequest.REJECTED)
+        self.assertIsNotNone(rejected.reviewed_at)
 
     def test_student_cannot_approve_cancellation_request(self):
         from cases.models import CaseCancellationRequest
@@ -1081,7 +1044,7 @@ class CaseCancellationRequestApprovalTest(TestCase):
 
         request = CaseCancellationRequest.objects.create(
             case=self.case,
-            requested_by=self.assigned_student,
+            requested_by=self.student,
             reason='Overloaded',
         )
 
@@ -1092,46 +1055,37 @@ class CaseCancellationRequestApprovalTest(TestCase):
         from cases.models import CaseCancellationRequest
         from cases.services import approve_cancellation_request
 
-        # Student is initially assigned
-        self.assertTrue(self.case.users.filter(pk=self.assigned_student.pk).exists())
+        self.assertTrue(self.case.users.filter(pk=self.student.pk).exists())
 
         request = CaseCancellationRequest.objects.create(
             case=self.case,
-            requested_by=self.assigned_student,
+            requested_by=self.student,
             reason='Overloaded',
         )
 
-        approve_cancellation_request(request, self.assigned_professor)
+        approve_cancellation_request(request, self.admin)
 
-        # Student should no longer be assigned
-        self.assertFalse(self.case.users.filter(pk=self.assigned_student.pk).exists())
-
-        # A new student should be assigned
+        self.assertFalse(self.case.users.filter(pk=self.student.pk).exists())
         new_student = self.case.users.filter(groups__name='student').first()
         self.assertIsNotNone(new_student)
-        self.assertNotEqual(new_student.pk, self.assigned_student.pk)
+        self.assertNotEqual(new_student.pk, self.student.pk)
 
     def test_rejection_does_not_trigger_reassignment(self):
         from cases.models import CaseCancellationRequest
         from cases.services import reject_cancellation_request
 
-        original_student = self.assigned_student
-        self.assertTrue(self.case.users.filter(pk=original_student.pk).exists())
+        self.assertTrue(self.case.users.filter(pk=self.student.pk).exists())
 
         request = CaseCancellationRequest.objects.create(
             case=self.case,
-            requested_by=original_student,
+            requested_by=self.student,
             reason='Overloaded',
         )
 
-        reject_cancellation_request(request, self.assigned_professor)
+        reject_cancellation_request(request, self.admin)
 
-        # Original student should still be assigned
-        self.assertTrue(self.case.users.filter(pk=original_student.pk).exists())
-
-        # No new student should be assigned
-        student_count = self.case.users.filter(groups__name='student').count()
-        self.assertEqual(student_count, 1)
+        self.assertTrue(self.case.users.filter(pk=self.student.pk).exists())
+        self.assertEqual(self.case.users.filter(groups__name='student').count(), 1)
 
     def test_approval_creates_case_log(self):
         from cases.models import CaseCancellationRequest
@@ -1139,16 +1093,13 @@ class CaseCancellationRequestApprovalTest(TestCase):
 
         request = CaseCancellationRequest.objects.create(
             case=self.case,
-            requested_by=self.assigned_student,
+            requested_by=self.student,
             reason='Overloaded',
         )
 
-        approve_cancellation_request(request, self.assigned_professor)
+        approve_cancellation_request(request, self.admin)
 
-        self.assertTrue(
-            self.case.logs.filter(content__icontains='cancellation.*approved', icontains=True).exists()
-            or self.case.logs.filter(content__icontains='reassigned').exists()
-        )
+        self.assertTrue(self.case.logs.filter(content__icontains='reassigned').exists())
 
     def test_cannot_approve_non_pending_request(self):
         from cases.models import CaseCancellationRequest
@@ -1156,13 +1107,13 @@ class CaseCancellationRequestApprovalTest(TestCase):
 
         request = CaseCancellationRequest.objects.create(
             case=self.case,
-            requested_by=self.assigned_student,
+            requested_by=self.student,
             reason='Overloaded',
             status=CaseCancellationRequest.REJECTED,
         )
 
         with self.assertRaises(ValueError):
-            approve_cancellation_request(request, self.assigned_professor)
+            approve_cancellation_request(request, self.admin)
 
 
 
@@ -1178,9 +1129,8 @@ class CaseLogApiTest(APITestCase):
 
         self.advisor = User.objects.create_user(username='advisor_logs_api', password='pass')
         assign_role(self.advisor, 'advisor')
-
-        self.professor = User.objects.create_user(username='professor_logs_api', password='pass')
-        assign_role(self.professor, 'professor')
+        self.advisor.category = self.category
+        self.advisor.save()
 
         self.student = User.objects.create_user(username='student_logs_api', password='pass')
         assign_role(self.student, 'student')
@@ -1298,4 +1248,212 @@ class CaseLogApiTest(APITestCase):
         self.assertIn('content', log_item)
         self.assertIn('created_at', log_item)
         self.assertIn('created_by', log_item)
+
+
+class CancellationRequestNotificationTest(TestCase):
+    """Service-level tests for cancellation request advisor notifications."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='notif_sub')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.advisor = User.objects.create_user(username='advisor_notif', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.advisor.category = self.category
+        self.advisor.save()
+
+        self.student = User.objects.create_user(username='student_notif', password='pass')
+        assign_role(self.student, 'student')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_notif', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case for notification test',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+
+    def _make_cancellation_request(self):
+        from cases.models import CaseCancellationRequest
+        return CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Too busy',
+        )
+
+    def test_notification_created_for_assigned_advisor(self):
+        from cases.models import CancellationRequestNotification
+        from cases.services import notify_advisors_of_cancellation_request
+
+        cr = self._make_cancellation_request()
+        notify_advisors_of_cancellation_request(cr)
+
+        self.assertTrue(
+            CancellationRequestNotification.objects.filter(
+                cancellation_request=cr, recipient=self.advisor
+            ).exists()
+        )
+
+    def test_notification_message_contains_student_and_case(self):
+        from cases.models import CancellationRequestNotification
+        from cases.services import notify_advisors_of_cancellation_request
+
+        cr = self._make_cancellation_request()
+        notify_advisors_of_cancellation_request(cr)
+
+        notif = CancellationRequestNotification.objects.get(
+            cancellation_request=cr, recipient=self.advisor
+        )
+        self.assertIn(self.student.username, notif.message)
+        self.assertIn(str(self.case.pk), notif.message)
+
+    def test_notification_is_unread_by_default(self):
+        from cases.models import CancellationRequestNotification
+        from cases.services import notify_advisors_of_cancellation_request
+
+        cr = self._make_cancellation_request()
+        notify_advisors_of_cancellation_request(cr)
+
+        notif = CancellationRequestNotification.objects.get(
+            cancellation_request=cr, recipient=self.advisor
+        )
+        self.assertFalse(notif.is_read)
+
+    def test_duplicate_call_does_not_create_extra_notification(self):
+        from cases.models import CancellationRequestNotification
+        from cases.services import notify_advisors_of_cancellation_request
+
+        cr = self._make_cancellation_request()
+        notify_advisors_of_cancellation_request(cr)
+        notify_advisors_of_cancellation_request(cr)
+
+        count = CancellationRequestNotification.objects.filter(
+            cancellation_request=cr, recipient=self.advisor
+        ).count()
+        self.assertEqual(count, 1)
+
+    def test_unassigned_advisor_does_not_receive_notification(self):
+        from cases.models import CancellationRequestNotification
+        from cases.services import notify_advisors_of_cancellation_request
+
+        other_advisor = User.objects.create_user(username='other_advisor_notif', password='pass')
+        assign_role(other_advisor, 'advisor')
+        # no category — not assigned to the case
+
+        cr = self._make_cancellation_request()
+        notify_advisors_of_cancellation_request(cr)
+
+        self.assertFalse(
+            CancellationRequestNotification.objects.filter(
+                cancellation_request=cr, recipient=other_advisor
+            ).exists()
+        )
+
+
+class CancellationRequestNotificationApiTest(APITestCase):
+    """API tests for the cancellation request notification endpoint."""
+
+    def setUp(self):
+        self.subclinic = Subclinic.objects.create(name='notif_api_sub')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+
+        self.advisor = User.objects.create_user(username='advisor_notif_api', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.advisor.category = self.category
+        self.advisor.save()
+
+        self.student = User.objects.create_user(username='student_notif_api', password='pass')
+        assign_role(self.student, 'student')
+
+        self.admin = User.objects.create_user(username='admin_notif_api', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.beneficiary = User.objects.create_user(username='beneficiary_notif_api', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Case for notification API test',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+
+    def test_student_creates_cancellation_request_and_advisor_gets_notification(self):
+        from cases.models import CancellationRequestNotification
+
+        self.client.force_authenticate(self.student)
+        response = self.client.post(
+            f'/cases/{self.case.pk}/request-cancellation/',
+            {'reason': 'Too busy'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertTrue(
+            CancellationRequestNotification.objects.filter(recipient=self.advisor).exists()
+        )
+
+    def test_advisor_can_list_own_notifications(self):
+        from cases.models import CancellationRequestNotification, CaseCancellationRequest
+
+        cr = CaseCancellationRequest.objects.create(
+            case=self.case,
+            requested_by=self.student,
+            reason='Busy',
+        )
+        from cases.services import notify_advisors_of_cancellation_request
+        notify_advisors_of_cancellation_request(cr)
+
+        self.client.force_authenticate(self.advisor)
+        response = self.client.get('/cases/cancellation-request-notifications/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['case_id'], self.case.pk)
+
+    def test_non_advisor_cannot_list_notifications(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.get('/cases/cancellation-request-notifications/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_cannot_list_notifications(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get('/cases/cancellation-request-notifications/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_advisor_only_sees_own_notifications(self):
+        from cases.models import CaseCancellationRequest
+
+        other_advisor = User.objects.create_user(username='other_advisor_notif_api', password='pass')
+        assign_role(other_advisor, 'advisor')
+        other_advisor.category = self.category
+        other_advisor.save()
+
+        # Create a second case assigned to other_advisor but not self.advisor
+        other_student = User.objects.create_user(username='other_student_notif_api', password='pass')
+        assign_role(other_student, 'student')
+        other_case = create_case(
+            other_student,
+            'Another case',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+
+        cr = CaseCancellationRequest.objects.create(
+            case=other_case,
+            requested_by=other_student,
+            reason='Overloaded',
+        )
+        from cases.services import notify_advisors_of_cancellation_request
+        notify_advisors_of_cancellation_request(cr)
+
+        self.client.force_authenticate(self.advisor)
+        response = self.client.get('/cases/cancellation-request-notifications/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        notif_case_ids = [n['case_id'] for n in response.data]
+        self.assertNotIn(other_case.pk, notif_case_ids)
 

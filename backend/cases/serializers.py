@@ -2,7 +2,7 @@ from django.conf import settings
 from django.apps import apps
 from rest_framework import serializers
 
-from .models import Case, CaseLog, Category, Subclinic
+from .models import Case, CancellationRequestNotification, CaseLog, Category, Subclinic
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
@@ -146,3 +146,23 @@ class CaseLogSerializer(serializers.ModelSerializer):
 
 class CaseLogCreateSerializer(serializers.Serializer):
     content = serializers.CharField()
+
+
+class CancellationRequestNotificationSerializer(serializers.ModelSerializer):
+    case_id = serializers.IntegerField(source='cancellation_request.case_id', read_only=True)
+    requested_by = serializers.CharField(
+        source='cancellation_request.requested_by.username', read_only=True
+    )
+
+    class Meta:
+        model = CancellationRequestNotification
+        fields = [
+            'id',
+            'cancellation_request',
+            'case_id',
+            'requested_by',
+            'message',
+            'is_read',
+            'created_at',
+        ]
+        read_only_fields = ['cancellation_request', 'case_id', 'requested_by', 'message', 'created_at']

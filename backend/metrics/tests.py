@@ -23,9 +23,6 @@ class MetricsDashboardAccessTest(APITestCase):
         assign_role(self.advisor, 'advisor')
         self.student = User.objects.create_user(username='student_access', password='pass')
         assign_role(self.student, 'student')
-        self.professor = User.objects.create_user(username='prof_access', password='pass')
-        assign_role(self.professor, 'professor')
-
     def test_admin_can_access(self):
         self.client.force_authenticate(self.admin)
         response = self.client.get('/metrics/')
@@ -38,11 +35,6 @@ class MetricsDashboardAccessTest(APITestCase):
 
     def test_student_cannot_access(self):
         self.client.force_authenticate(self.student)
-        response = self.client.get('/metrics/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_professor_cannot_access(self):
-        self.client.force_authenticate(self.professor)
         response = self.client.get('/metrics/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -74,8 +66,6 @@ class MetricsDashboardDataTest(APITestCase):
         assign_role(self.student1, 'student')
         self.student2 = User.objects.create_user(username='student2_data', password='pass')
         assign_role(self.student2, 'student')
-        self.professor = User.objects.create_user(username='prof_data', password='pass')
-        assign_role(self.professor, 'professor')
         self.beneficiary = User.objects.create_user(username='bene_data', password='pass')
         assign_role(self.beneficiary, 'beneficiary')
 
@@ -97,11 +87,11 @@ class MetricsDashboardDataTest(APITestCase):
         self.case_finished_penal = make_case(self.s_finished, self.cat_penal, self.subclinic_b)
         self.case_canceled = make_case(self.s_canceled, self.cat_laboral, self.subclinic_a)
 
-        # student1 → 2 active-status cases, student2 → 0 active (only finished), professor → 0 active
+        # student1 → 2 active-status cases, student2 → 0 active (only finished)
         CaseAssignment.objects.create(case=self.case_active1, user=self.student1)
         CaseAssignment.objects.create(case=self.case_in_progress, user=self.student1)
         CaseAssignment.objects.create(case=self.case_finished_laboral, user=self.student2)
-        CaseAssignment.objects.create(case=self.case_finished_penal, user=self.professor)
+        CaseAssignment.objects.create(case=self.case_finished_penal, user=self.student2)
         # case_active2 and case_canceled have no assignment
 
         today = timezone.now().date()
@@ -204,14 +194,11 @@ class MetricsDashboardDataTest(APITestCase):
         self.assertEqual(per_user.get('student1_data'), 2)
         # student2: only finished_laboral → NOT in ACTIVE_STATUSES → 0
         self.assertEqual(per_user.get('student2_data'), 0)
-        # professor: only finished_penal → 0
-        self.assertEqual(per_user.get('prof_data'), 0)
-
-    def test_cases_per_user_only_student_and_professor_roles(self):
+    def test_cases_per_user_only_student_roles(self):
         response = self.client.get('/metrics/')
         per_user = response.data['cases_per_user']
         roles = {u['role'] for u in per_user}
-        self.assertTrue(roles.issubset({'student', 'professor'}))
+        self.assertTrue(roles.issubset({'student'}))
         admin_entries = [u for u in per_user if u['username'] == 'admin_data']
         self.assertEqual(len(admin_entries), 0)
 

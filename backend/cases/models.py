@@ -162,3 +162,26 @@ class CaseCancellationRequest(models.Model):
 
     def __str__(self):
         return f'Cancellation request for Case #{self.case_id} by {self.requested_by.username}'
+
+
+class CancellationRequestNotification(models.Model):
+    cancellation_request = models.ForeignKey(
+        CaseCancellationRequest,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='cancellation_request_notifications',
+    )
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('cancellation_request', 'recipient')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Notification for {self.recipient.username} — Case #{self.cancellation_request.case_id}'

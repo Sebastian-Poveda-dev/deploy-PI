@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py test cases.tests.CancellationRequestNotificationTest cases.tests.CancellationRequestNotificationApiTest --verbosity=2)",
+      "Bash(python -m pytest cases/tests.py::CancellationRequestNotificationTest cases/tests.py::CancellationRequestNotificationApiTest -v)",
+      "Bash(docker-compose exec *)",
+      "Bash(docker compose *)"
+    ]
+  }
+}

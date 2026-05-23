@@ -17,20 +17,14 @@ SEED_USERS = [
         'role': 'advisor',
         'residence_address': 'Calle 2 # 2-02',
         'phone_number': '3001000002',
-    },
-    {
-        'username': 'professor',
-        'password': 'professor123',
-        'role': 'professor',
-        'residence_address': 'Calle 3 # 3-03',
-        'phone_number': '3001000003',
+        'category': 'laboral',
     },
     {
         'username': 'student',
         'password': 'student123',
         'role': 'student',
-        'residence_address': 'Calle 4 # 4-04',
-        'phone_number': '3001000004',
+        'residence_address': 'Calle 3 # 3-03',
+        'phone_number': '3001000003',
     },
 ]
 
@@ -55,6 +49,8 @@ class Command(BaseCommand):
             deleted, _ = User.objects.filter(username__in=usernames).delete()
             self.stdout.write(self.style.WARNING(f'Deleted {deleted} existing seed user(s).'))
 
+        from cases.models import Category
+
         created = 0
         skipped = 0
 
@@ -64,12 +60,19 @@ class Command(BaseCommand):
                 skipped += 1
                 continue
 
+            category_id = None
+            if data.get('category'):
+                cat = Category.objects.filter(name=data['category']).first()
+                if cat:
+                    category_id = cat.id
+
             admin_create_user(
                 username=data['username'],
                 password=data['password'],
                 role=data['role'],
                 residence_address=data['residence_address'],
                 phone_number=data['phone_number'],
+                category_id=category_id,
             )
             self.stdout.write(self.style.SUCCESS(f"  Created  '{data['username']}' ({data['role']})"))
             created += 1
