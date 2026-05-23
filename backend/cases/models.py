@@ -95,6 +95,27 @@ class CaseAssignment(models.Model):
         return f'{self.user} → Case #{self.case_id}'
 
 
+class CaseProgressStatus(models.Model):
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='progress_statuses',
+    )
+    label = models.CharField(max_length=200)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='created_progress_statuses',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'Progress: {self.label} — Case #{self.case_id}'
+
+
 class CaseLog(models.Model):
     case = models.ForeignKey(
         Case,

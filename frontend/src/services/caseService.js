@@ -197,3 +197,28 @@ export async function reviewCancellation(requestId, action) {
 
   return await response.json()
 }
+
+export async function getCaseProgressStatuses(caseId) {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/progress-statuses/`), {
+    credentials: 'include',
+  })
+  if (!response.ok) throw new Error('No fue posible cargar el progreso del caso.')
+  return response.json()
+}
+
+export async function addCaseProgressStatus(caseId, label) {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/progress-statuses/`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify({ label }),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible agregar el estado.')
+  }
+  return response.json()
+}

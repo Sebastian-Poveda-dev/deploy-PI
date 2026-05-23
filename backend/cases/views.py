@@ -16,17 +16,21 @@ from .serializers import (
 	CaseCreateSerializer,
 	CaseLogCreateSerializer,
 	CaseLogSerializer,
+	CaseProgressStatusCreateSerializer,
+	CaseProgressStatusSerializer,
 	CaseSerializer,
 	CaseUpdateSerializer,
 	PublicBeneficiaryCaseStatusSerializer,
 )
 from .services import (
+	add_case_progress_status,
 	approve_case,
 	approve_cancellation_request,
 	create_case,
 	create_case_log,
 	get_cancellation_request_notifications,
 	get_case_logs,
+	get_case_progress_statuses,
 	notify_advisors_of_cancellation_request,
 	reject_case_assignment,
 	reject_cancellation_request,
@@ -325,6 +329,36 @@ class ListCancellationRequestsAPIView(APIView):
 			queryset = CaseCancellationRequest.objects.none()
 
 		return Response(CaseCancellationRequestSerializer(queryset, many=True).data, status=status.HTTP_200_OK)
+
+
+class CaseProgressStatusListCreateAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request, pk):
+		case = get_object_or_404(Case, pk=pk)
+		try:
+			statuses = get_case_progress_statuses(request.user, case)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		return Response(
+			CaseProgressStatusSerializer(statuses, many=True).data,
+			status=status.HTTP_200_OK,
+		)
+
+	def post(self, request, pk):
+		case = get_object_or_404(Case, pk=pk)
+		serializer = CaseProgressStatusCreateSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		try:
+			progress_status = add_case_progress_status(
+				request.user, case, serializer.validated_data['label']
+			)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		return Response(
+			CaseProgressStatusSerializer(progress_status).data,
+			status=status.HTTP_201_CREATED,
+		)
 
 
 class CancellationRequestNotificationListAPIView(APIView):

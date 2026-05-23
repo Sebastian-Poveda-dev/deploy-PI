@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from cases.forms import CaseCreateForm
-from cases.models import Case, CaseStatus, Category, Subclinic
+from cases.models import Case, CaseAssignment, CaseStatus, Category, Subclinic
 from cases.services import create_case, create_case_log, get_case_logs, update_case, approve_case, reject_case_assignment
 from users.services import assign_role
 
@@ -757,7 +757,7 @@ class PublicBeneficiaryCaseTrackingApiTest(APITestCase):
         assign_role(self.other_beneficiary, 'beneficiary')
 
         self.case = create_case(
-            self.student,
+            self.admin,
             'Case visible through public tracking',
             self.category,
             self.subclinic,
@@ -765,10 +765,10 @@ class PublicBeneficiaryCaseTrackingApiTest(APITestCase):
         )
         self.other_case = create_case(
             self.admin,
-            'Case for another beneficiary',
+            'Case for cancellation',
             self.category,
             self.subclinic,
-            beneficiary=self.other_beneficiary,
+            beneficiary=self.beneficiary,
         )
 
     def test_public_tracking_returns_only_cases_for_identification_number(self):
@@ -1248,6 +1248,139 @@ class CaseLogApiTest(APITestCase):
         self.assertIn('content', log_item)
         self.assertIn('created_at', log_item)
         self.assertIn('created_by', log_item)
+
+
+class CaseProgressStatusAPITest(APITestCase):
+    def setUp(self):
+        self.status_active = CaseStatus.objects.get(name='active')
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+        self.subclinic = Subclinic.objects.create(name='progress_subclinic')
+
+        self.admin = User.objects.create_user(username='admin_progress', password='pass')
+        assign_role(self.admin, 'admin')
+        self.advisor = User.objects.create_user(username='advisor_progress', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.student = User.objects.create_user(username='student_progress', password='pass')
+        assign_role(self.student, 'student')
+        self.other_student = User.objects.create_user(username='other_student_progress', password='pass')
+        assign_role(self.other_student, 'student')
+        self.beneficiary = User.objects.create_user(username='bene_progress', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = Case.objects.create(
+            description='progress test case',
+            created_by=self.admin,
+            status=self.status_active,
+            category=self.category,
+            subclinic=self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+        CaseAssignment.objects.create(case=self.case, user=self.student)
+
+        self.url = f'/cases/{self.case.id}/progress-statuses/'
+
+    # ── Access control — GET ──────────────────────────────────────────────────
+
+    def test_admin_can_list_progress_statuses(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_advisor_can_list_progress_statuses(self):
+        self.client.force_authenticate(self.advisor)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_assigned_student_can_list_progress_statuses(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_unassigned_student_cannot_list_progress_statuses(self):
+        self.client.force_authenticate(self.other_student)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_beneficiary_cannot_list_progress_statuses(self):
+        self.client.force_authenticate(self.beneficiary)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_anonymous_cannot_list_progress_statuses(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    # ── Access control — POST ─────────────────────────────────────────────────
+
+    def test_admin_can_add_progress_status(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(self.url, {'label': 'Documentos recibidos'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_advisor_can_add_progress_status(self):
+        self.client.force_authenticate(self.advisor)
+        response = self.client.post(self.url, {'label': 'En revision'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_assigned_student_can_add_progress_status(self):
+        self.client.force_authenticate(self.student)
+        response = self.client.post(self.url, {'label': 'Contacto inicial realizado'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_unassigned_student_cannot_add_progress_status(self):
+        self.client.force_authenticate(self.other_student)
+        response = self.client.post(self.url, {'label': 'Intento no autorizado'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_beneficiary_cannot_add_progress_status(self):
+        self.client.force_authenticate(self.beneficiary)
+        response = self.client.post(self.url, {'label': 'Intento no autorizado'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    # ── Data correctness ──────────────────────────────────────────────────────
+
+    def test_empty_list_when_no_progress_statuses(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_post_returns_created_entry(self):
+        self.client.force_authenticate(self.advisor)
+        response = self.client.post(self.url, {'label': 'Audiencia programada'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['label'], 'Audiencia programada')
+        self.assertIn('id', response.data)
+        self.assertIn('created_at', response.data)
+        self.assertIn('created_by', response.data)
+        self.assertIn('created_by_name', response.data)
+
+    def test_get_returns_all_entries_in_order(self):
+        self.client.force_authenticate(self.advisor)
+        self.client.post(self.url, {'label': 'Primero'}, format='json')
+        self.client.post(self.url, {'label': 'Segundo'}, format='json')
+        self.client.post(self.url, {'label': 'Tercero'}, format='json')
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        labels = [item['label'] for item in response.data]
+        self.assertEqual(labels, ['Primero', 'Segundo', 'Tercero'])
+
+    def test_created_by_name_matches_creator(self):
+        self.client.force_authenticate(self.student)
+        self.client.post(self.url, {'label': 'Hecho por estudiante'}, format='json')
+        response = self.client.get(self.url)
+        self.assertEqual(response.data[0]['created_by_name'], self.student.username)
+
+    def test_empty_label_is_rejected(self):
+        self.client.force_authenticate(self.advisor)
+        response = self.client.post(self.url, {'label': ''}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_missing_label_is_rejected(self):
+        self.client.force_authenticate(self.advisor)
+        response = self.client.post(self.url, {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class CancellationRequestNotificationTest(TestCase):

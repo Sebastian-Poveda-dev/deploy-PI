@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from .models import Case, CaseAssignment, CancellationRequestNotification, CaseLog, CaseStatus
+from .models import Case, CaseAssignment, CancellationRequestNotification, CaseLog, CaseProgressStatus, CaseStatus
 
 APPROVAL_ALLOWED_ROLES = {'admin', 'advisor'}
 
@@ -368,3 +368,28 @@ def reject_case_assignment(case, user):
         user=user,
         content=f'User {user.username} removed from the case assignment',
     )
+
+
+PROGRESS_STATUS_PRIVILEGED_ROLES = {'admin', 'advisor'}
+PROGRESS_STATUS_ASSIGNED_ROLES = {'student'}
+
+
+def _assert_can_access_progress_statuses(user, case):
+    role = user.groups.values_list('name', flat=True).first()
+    if role in PROGRESS_STATUS_PRIVILEGED_ROLES:
+        return
+    if role in PROGRESS_STATUS_ASSIGNED_ROLES:
+        if case.assignments.filter(user=user).exists():
+            return
+        raise PermissionError('Debes estar asignado al caso para acceder a los estados de progreso.')
+    raise PermissionError('No tienes permiso para acceder a los estados de progreso.')
+
+
+def get_case_progress_statuses(user, case):
+    _assert_can_access_progress_statuses(user, case)
+    return case.progress_statuses.all()
+
+
+def add_case_progress_status(user, case, label):
+    _assert_can_access_progress_statuses(user, case)
+    return CaseProgressStatus.objects.create(case=case, label=label, created_by=user)
