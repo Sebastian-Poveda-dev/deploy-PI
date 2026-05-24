@@ -43,6 +43,13 @@ class PermissionsPage(BasePage):
         self.click(self.button_by_text("Crear Usuario"))
         self.find_visible(self.CREATE_TITLE)
 
+    def create_modal_is_open(self):
+        return bool(self.find_visible(self.CREATE_TITLE))
+
+    def sala_required_error_is_visible(self):
+        text = self.visible_text()
+        return "Selecciona una sala legal" in text or ("sala" in text.lower() and "legal" in text.lower())
+
     def open_edit_modal_for_user(self, username):
         row = self.row_for_user(username)
         button = row.find_element(By.XPATH, ".//button[contains(normalize-space(), 'Editar')]")

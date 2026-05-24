@@ -1,6 +1,7 @@
 from behave import then, when
 
 from pages.permissions_page import PermissionsPage
+from features.steps.test_data_helpers import unique_suffix
 
 
 @when("abre la pagina de permisos")
@@ -36,3 +37,28 @@ def step_user_role_and_sala(context, username, role):
 @then('el usuario "{username}" muestra rol "{role}"')
 def step_user_role(context, username, role):
     assert context.permissions_page.user_has_role(username, role)
+
+
+@when("intenta crear un usuario advisor sin seleccionar sala")
+def step_create_advisor_without_sala(context):
+    suffix = unique_suffix()
+    context.new_permissions_username = f"advisor_sin_sala_{suffix}"
+    context.permissions_page.open_create_modal()
+    context.permissions_page.fill_create_user({
+        "first_name": "Advisor",
+        "last_name": "Sin Sala",
+        "username": context.new_permissions_username,
+        "password": "advisor1234",
+        "role": "Asesor",
+    })
+    context.permissions_page.submit_modal()
+
+
+@then("ve error de validacion por sala legal requerida")
+def step_sala_validation_error(context):
+    assert context.permissions_page.sala_required_error_is_visible()
+
+
+@then("el modal de crear usuario sigue abierto")
+def step_create_user_modal_still_open(context):
+    assert context.permissions_page.create_modal_is_open()
