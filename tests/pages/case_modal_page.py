@@ -16,6 +16,11 @@ class CaseModalPage(BasePage):
     IMMEDIATE_RESOLUTION = (By.XPATH, "//label[contains(normalize-space(), 'Resoluci')]/following-sibling::textarea")
     ATTENDED_BY = (By.XPATH, "//label[normalize-space()='Atendido por']/following-sibling::select")
     CONFIRM_BUTTON = (By.XPATH, "//button[normalize-space()='Confirmar']")
+    BENEFICIARY_SECTION = (By.XPATH, "//section[.//p[normalize-space()='Beneficiario']]")
+    BENEFICIARY_INFO_BUTTON = (
+        By.XPATH,
+        "//section[.//p[normalize-space()='Beneficiario']]//button[contains(normalize-space(), 'informaci')]",
+    )
     BENEFICIARY_EXTRA_LABELS = (
         "Lugar de expedici",
         "Estado civil",
@@ -174,22 +179,39 @@ class CaseModalPage(BasePage):
         return self.find_visible((By.XPATH, "//p[contains(@class, 'text-red-500')]")).text
 
     def toggle_more_info(self):
-        self.click((By.XPATH, "//button[contains(normalize-space(), 'informaci')]"))
+        self.click(self.BENEFICIARY_INFO_BUTTON)
+
+    def beneficiary_section(self):
+        return self.find_visible(self.BENEFICIARY_SECTION)
+
+    def beneficiary_section_text(self):
+        return self.driver.execute_script(
+            "return arguments[0].textContent || '';",
+            self.beneficiary_section(),
+        )
 
     def beneficiary_extra_fields_are_visible(self):
-        text = self.details_text()
-        return all(label in text for label in self.BENEFICIARY_EXTRA_LABELS)
+        text = self.beneficiary_section_text()
+        return all(
+            label in text
+            for label in self.BENEFICIARY_EXTRA_LABELS
+        )
 
     def beneficiary_extra_fields_are_hidden(self):
-        text = self.details_text()
-        return all(label not in text for label in self.BENEFICIARY_EXTRA_LABELS)
+        text = self.beneficiary_section_text()
+        return all(
+            label not in text
+            for label in self.BENEFICIARY_EXTRA_LABELS
+        )
 
     def expand_beneficiary_more_info(self):
-        self.click((By.XPATH, "//button[contains(normalize-space(), 'informaci') and contains(normalize-space(), 'M')]"))
+        if self.beneficiary_extra_fields_are_hidden():
+            self.toggle_more_info()
         self.wait.until(lambda _: self.beneficiary_extra_fields_are_visible())
 
     def collapse_beneficiary_more_info(self):
-        self.click((By.XPATH, "//button[contains(normalize-space(), 'informaci') and contains(normalize-space(), 'Menos')]"))
+        if self.beneficiary_extra_fields_are_visible():
+            self.toggle_more_info()
         self.wait.until(lambda _: self.beneficiary_extra_fields_are_hidden())
 
     def start_edit_beneficiary(self):
