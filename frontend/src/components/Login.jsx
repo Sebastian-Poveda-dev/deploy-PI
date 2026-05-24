@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import bgImage from '../assets/images/login-bg.png'
 import logo from '../assets/logo/logo-icesi-white.png'
-import { buildApiUrl } from '../services/apiClient'
+import { buildApiUrl, initCsrf } from '../services/apiClient'
 
 function InputField({
   id,
@@ -75,6 +75,7 @@ function Login() {
       }
 
       if (response.ok && data?.authenticated) {
+        await initCsrf()
         navigate(data?.role === 'beneficiary' ? '/dashboard/cases' : '/dashboard')
         return
       }
