@@ -44,7 +44,8 @@ class CaseSerializer(serializers.ModelSerializer):
         result = []
         for user in obj.users.prefetch_related('groups').all():
             role = user.groups.values_list('name', flat=True).first() or ''
-            result.append({'id': user.id, 'name': user.username, 'role': role})
+            full_name = f'{user.first_name} {user.last_name}'.strip() or user.username
+            result.append({'id': user.id, 'name': full_name, 'role': role})
         return result
 
     def get_beneficiary_name(self, obj):
