@@ -56,7 +56,14 @@ def list_users(requesting_user):
     return User.objects.prefetch_related('groups').order_by('username')
 
 
-BENEFICIARY_UPDATABLE_FIELDS = {'first_name', 'last_name', 'email', 'identification_number', 'residence_address', 'phone_number'}
+BENEFICIARY_UPDATABLE_FIELDS = {
+    'first_name', 'last_name', 'email', 'identification_number',
+    'document_type', 'expedition_place', 'landline_phone',
+    'residence_address', 'neighborhood', 'city', 'department', 'stratum',
+    'phone_number', 'reception_medium', 'how_they_found_out',
+    'marital_status', 'education_level', 'occupation', 'return_date',
+    'extra_info',
+}
 
 
 def update_beneficiary_info(requesting_user, target_user, data):

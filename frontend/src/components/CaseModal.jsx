@@ -45,8 +45,10 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
   const [beneficiaryLoading, setBeneficiaryLoading] = useState(false)
   const [editingBeneficiary, setEditingBeneficiary] = useState(false)
   const [beneficiaryDraft, setBeneficiaryDraft] = useState({})
+  const [extraFieldsDraft, setExtraFieldsDraft] = useState([])
   const [savingBeneficiary, setSavingBeneficiary] = useState(false)
   const [beneficiaryError, setBeneficiaryError] = useState('')
+  const [showMoreInfo, setShowMoreInfo] = useState(false)
 
   const canAddProgress = currentUser && ['admin', 'advisor', 'student'].includes(currentUser.role)
   const canEditBeneficiary = currentUser && ['admin', 'advisor'].includes(currentUser.role)
@@ -87,9 +89,24 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
       last_name: beneficiary?.last_name ?? '',
       email: beneficiary?.email ?? '',
       identification_number: beneficiary?.identification_number ?? '',
+      document_type: beneficiary?.document_type ?? '',
+      expedition_place: beneficiary?.expedition_place ?? '',
+      landline_phone: beneficiary?.landline_phone ?? '',
       phone_number: beneficiary?.phone_number ?? '',
       residence_address: beneficiary?.residence_address ?? '',
+      neighborhood: beneficiary?.neighborhood ?? '',
+      city: beneficiary?.city ?? '',
+      department: beneficiary?.department ?? '',
+      stratum: beneficiary?.stratum ?? '',
+      reception_medium: beneficiary?.reception_medium ?? '',
+      how_they_found_out: beneficiary?.how_they_found_out ?? '',
+      marital_status: beneficiary?.marital_status ?? '',
+      education_level: beneficiary?.education_level ?? '',
+      occupation: beneficiary?.occupation ?? '',
+      return_date: beneficiary?.return_date ?? '',
     })
+    const extra = beneficiary?.extra_info ?? {}
+    setExtraFieldsDraft(Object.entries(extra).map(([key, value]) => ({ key, value })))
     setBeneficiaryError('')
     setEditingBeneficiary(true)
   }
@@ -99,7 +116,11 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
     setSavingBeneficiary(true)
     setBeneficiaryError('')
     try {
-      const updated = await updateBeneficiary(caseData.beneficiaryId, beneficiaryDraft)
+      const extra_info = {}
+      for (const { key, value } of extraFieldsDraft) {
+        if (key.trim()) extra_info[key.trim()] = value
+      }
+      const updated = await updateBeneficiary(caseData.beneficiaryId, { ...beneficiaryDraft, extra_info })
       setBeneficiary(updated)
       setEditingBeneficiary(false)
     } catch (err) {
@@ -114,7 +135,9 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
       setBeneficiary(null)
       setEditingBeneficiary(false)
       setBeneficiaryDraft({})
+      setExtraFieldsDraft([])
       setBeneficiaryError('')
+      setShowMoreInfo(false)
       return
     }
     setBeneficiaryLoading(true)
@@ -291,26 +314,153 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
             )}
 
             {!beneficiaryLoading && beneficiary && !editingBeneficiary && (
-              <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 rounded-lg border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2">
-                <Field label="Nombre" value={`${beneficiary.first_name} ${beneficiary.last_name}`.trim() || beneficiary.username} />
-                <Field label="Usuario" value={`@${beneficiary.username}`} />
-                <Field label="Cédula" value={beneficiary.identification_number || '—'} />
-                <Field label="Correo" value={beneficiary.email || '—'} />
-                <Field label="Teléfono" value={beneficiary.phone_number || '—'} />
-                <Field label="Dirección" value={beneficiary.residence_address || '—'} />
+              <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-3">
+                {/* Always-visible summary */}
+                <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                  <Field label="Nombre" value={`${beneficiary.first_name} ${beneficiary.last_name}`.trim() || '—'} />
+                  <Field label="Número de identificación" value={`${beneficiary.document_type ? `(${beneficiary.document_type}) ` : ''}${beneficiary.identification_number || '—'}`} />
+                  <Field label="Teléfono" value={beneficiary.phone_number || '—'} />
+                  <Field label="Correo" value={beneficiary.email || '—'} />
+                </div>
+
+                {/* Expandable detail */}
+                <button
+                  type="button"
+                  onClick={() => setShowMoreInfo((v) => !v)}
+                  className="flex items-center gap-1 text-xs font-medium text-[#5454F2] hover:underline"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-3.5 w-3.5 transition-transform ${showMoreInfo ? 'rotate-180' : ''}`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  {showMoreInfo ? 'Menos información' : 'Más información'}
+                </button>
+
+                {showMoreInfo && (
+                  <div className="space-y-3 border-t border-slate-200 pt-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Datos personales</p>
+                      <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                        <Field label="Lugar de expedición" value={beneficiary.expedition_place || '—'} />
+                        <Field label="Estado civil" value={beneficiary.marital_status || '—'} />
+                        <Field label="Escolaridad" value={beneficiary.education_level || '—'} />
+                        <Field label="Ocupación" value={beneficiary.occupation || '—'} />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Ubicación</p>
+                      <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                        <Field label="Teléfono fijo" value={beneficiary.landline_phone || '—'} />
+                        <Field label="Dirección" value={beneficiary.residence_address || '—'} />
+                        <Field label="Barrio" value={beneficiary.neighborhood || '—'} />
+                        <Field label="Ciudad" value={beneficiary.city || '—'} />
+                        <Field label="Departamento" value={beneficiary.department || '—'} />
+                        <Field label="Estrato" value={beneficiary.stratum || '—'} />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Información adicional</p>
+                      <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                        <Field label="Medio de recepción" value={beneficiary.reception_medium || '—'} />
+                        <Field label="Medio por el cual se enteró" value={beneficiary.how_they_found_out || '—'} />
+                        <Field label="Fecha de regreso" value={beneficiary.return_date || '—'} />
+                      </div>
+                    </div>
+                    {Object.keys(beneficiary.extra_info ?? {}).length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Campos adicionales</p>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                          {Object.entries(beneficiary.extra_info).map(([key, value]) => (
+                            <Field key={key} label={key} value={value || '—'} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {!beneficiaryLoading && editingBeneficiary && (
-              <form onSubmit={handleSaveBeneficiary} className="mt-2 space-y-3 rounded-lg border border-indigo-100 bg-indigo-50/40 p-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <EditField label="Nombre" field="first_name" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
-                  <EditField label="Apellido" field="last_name" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
-                  <EditField label="Cédula" field="identification_number" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
-                  <EditField label="Correo" field="email" type="email" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
-                  <EditField label="Teléfono" field="phone_number" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
-                  <EditField label="Dirección" field="residence_address" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+              <form onSubmit={handleSaveBeneficiary} className="mt-2 space-y-4 rounded-lg border border-indigo-100 bg-indigo-50/40 p-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Datos personales</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <EditField label="Nombre" field="first_name" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Apellido" field="last_name" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Número de identificación" field="identification_number" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Lugar de expedición" field="expedition_place" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Estado civil" field="marital_status" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Escolaridad" field="education_level" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Ocupación" field="occupation" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                  </div>
                 </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Contacto y ubicación</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <EditField label="Correo" field="email" type="email" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Teléfono" field="phone_number" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Teléfono fijo" field="landline_phone" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Dirección" field="residence_address" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Barrio" field="neighborhood" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Ciudad" field="city" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Departamento" field="department" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Estrato" field="stratum" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Información adicional</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <EditField label="Medio de recepción" field="reception_medium" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Medio por el cual se enteró" field="how_they_found_out" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                    <EditField label="Fecha de regreso" field="return_date" type="date" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                  </div>
+                </div>
+
+                {/* Custom extra fields */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Campos adicionales</p>
+                  <div className="space-y-2">
+                    {extraFieldsDraft.map((entry, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          placeholder="Nombre del campo"
+                          value={entry.key}
+                          onChange={(e) => setExtraFieldsDraft((prev) => prev.map((f, i) => i === idx ? { ...f, key: e.target.value } : f))}
+                          className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2]"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Valor"
+                          value={entry.value}
+                          onChange={(e) => setExtraFieldsDraft((prev) => prev.map((f, i) => i === idx ? { ...f, value: e.target.value } : f))}
+                          className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setExtraFieldsDraft((prev) => prev.filter((_, i) => i !== idx))}
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition"
+                          title="Eliminar campo"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setExtraFieldsDraft((prev) => [...prev, { key: '', value: '' }])}
+                      className="flex items-center gap-1 text-xs font-medium text-[#5454F2] hover:underline"
+                    >
+                      + Agregar campo
+                    </button>
+                  </div>
+                </div>
+
                 {beneficiaryError && <p className="text-xs text-red-500">{beneficiaryError}</p>}
                 <div className="flex gap-2">
                   <button
