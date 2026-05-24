@@ -70,3 +70,23 @@ export async function getBeneficiaries() {
   return response.json()
 }
 
+export async function getBeneficiary(userId) {
+  const response = await fetch(buildApiUrl(`/users/${userId}/`), {
+    credentials: 'include',
+  })
+  if (!response.ok) throw new Error('No fue posible cargar el beneficiario.')
+  return response.json()
+}
+
+export async function updateBeneficiary(userId, data) {
+  const response = await fetch(buildApiUrl(`/users/${userId}/`), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    body: JSON.stringify(data),
+  })
+  const responseData = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(responseData.detail ?? 'No fue posible actualizar el beneficiario.')
+  return responseData
+}
+

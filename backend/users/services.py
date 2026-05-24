@@ -56,6 +56,30 @@ def list_users(requesting_user):
     return User.objects.prefetch_related('groups').order_by('username')
 
 
+BENEFICIARY_UPDATABLE_FIELDS = {'first_name', 'last_name', 'email', 'identification_number', 'residence_address', 'phone_number'}
+
+
+def update_beneficiary_info(requesting_user, target_user, data):
+    """Update contact/personal info of a beneficiary. Requires admin or advisor role."""
+    role = requesting_user.groups.values_list('name', flat=True).first()
+    if role not in {'admin', 'advisor'}:
+        raise PermissionError('Solo admins y asesores pueden editar información de beneficiarios.')
+
+    if not target_user.groups.filter(name='beneficiary').exists():
+        raise ValueError('Solo se puede actualizar información de usuarios beneficiarios.')
+
+    update_fields = []
+    for field in BENEFICIARY_UPDATABLE_FIELDS:
+        if field in data:
+            setattr(target_user, field, data[field])
+            update_fields.append(field)
+
+    if update_fields:
+        target_user.save(update_fields=update_fields)
+
+    return target_user
+
+
 def update_user(requesting_user, target_user, data):
     """
     Update role and/or is_active on a user. Requires admin role.
