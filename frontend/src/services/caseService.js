@@ -230,6 +230,22 @@ export async function cancelCase(caseId, reason, reasonOther) {
   return mapCase(await response.json())
 }
 
+export async function getCancellationNotifications() {
+  const response = await fetch(buildApiUrl('/cases/cancellation-request-notifications/'), {
+    credentials: 'include',
+  })
+  if (!response.ok) return []
+  return response.json()
+}
+
+export async function markCancellationNotificationRead(id) {
+  await fetch(buildApiUrl(`/cases/cancellation-request-notifications/${id}/read/`), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'X-CSRFToken': getCsrfToken() },
+  })
+}
+
 export async function getSubclinics(categoryId) {
   const url = categoryId
     ? buildApiUrl(`/cases/subclinics/?category_id=${categoryId}`)
