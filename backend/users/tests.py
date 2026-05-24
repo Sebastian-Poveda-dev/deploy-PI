@@ -592,3 +592,149 @@ class BeneficiaryListEndpointTest(TestCase):
         self.assertTrue(any(item['id'] == User.objects.get(username='beneficiary_new').id for item in payload))
 
 
+class ChangeOwnPasswordTest(TestCase):
+    """Tests for the change-own-password endpoint."""
+
+    def setUp(self):
+        self.url = reverse('users:change-password')
+        self.user = User.objects.create_user(username='pw_user', password='OldPass123')
+        assign_role(self.user, 'advisor')
+
+    def _post(self, current_password, new_password):
+        import json
+        return self.client.post(
+            self.url,
+            data=json.dumps({'current_password': current_password, 'new_password': new_password}),
+            content_type='application/json',
+        )
+
+    def test_unauthenticated_request_returns_401(self):
+        response = self._post('OldPass123', 'NewPass456')
+        self.assertEqual(response.status_code, 401)
+
+    def test_correct_current_password_changes_successfully(self):
+        self.client.force_login(self.user)
+        response = self._post('OldPass123', 'NewPass456!')
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('NewPass456!'))
+
+    def test_wrong_current_password_returns_400(self):
+        self.client.force_login(self.user)
+        response = self._post('WrongPass', 'NewPass456!')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.json())
+
+    def test_new_password_too_short_returns_400(self):
+        self.client.force_login(self.user)
+        response = self._post('OldPass123', 'abc')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.json())
+
+    def test_password_not_changed_on_error(self):
+        self.client.force_login(self.user)
+        self._post('WrongPass', 'NewPass456!')
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('OldPass123'))
+
+
+class UsernameChangeTest(APITestCase):
+    """Tests for admin changing another user's username via PATCH /users/<id>/."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin_uname', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.target = User.objects.create_user(username='original_name', password='pass')
+        assign_role(self.target, 'student')
+
+        self.other = User.objects.create_user(username='taken_name', password='pass')
+        assign_role(self.other, 'advisor')
+
+    def test_admin_can_change_username(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(f'/users/{self.target.id}/', {'username': 'new_name'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.username, 'new_name')
+
+    def test_duplicate_username_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(f'/users/{self.target.id}/', {'username': 'taken_name'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.data)
+
+    def test_empty_username_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(f'/users/{self.target.id}/', {'username': '   '}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.data)
+
+    def test_non_admin_cannot_change_username(self):
+        advisor = User.objects.create_user(username='advisor_uname', password='pass')
+        assign_role(advisor, 'advisor')
+        self.client.force_authenticate(advisor)
+        response = self.client.patch(f'/users/{self.target.id}/', {'username': 'new_name'}, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_username_unchanged_when_same_value_provided(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(
+            f'/users/{self.target.id}/', {'username': 'original_name'}, format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.username, 'original_name')
+
+
+class BeneficiariesDetailViewTest(TestCase):
+    """Tests for GET /users/beneficiaries/detail/ with role-based access."""
+
+    def setUp(self):
+        self.url = reverse('users:beneficiaries-detail')
+
+        self.admin = User.objects.create_user(username='admin_bdet', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_bdet', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.student = User.objects.create_user(username='student_bdet', password='pass')
+        assign_role(self.student, 'student')
+
+        self.ben1 = User.objects.create_user(
+            username='ben1_bdet', first_name='Alice', last_name='Smith', password='pass'
+        )
+        assign_role(self.ben1, 'beneficiary')
+
+        self.ben2 = User.objects.create_user(
+            username='ben2_bdet', first_name='Bob', last_name='Jones', password='pass'
+        )
+        assign_role(self.ben2, 'beneficiary')
+
+    def test_unauthenticated_returns_401(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 401)
+
+    def test_admin_sees_all_beneficiaries(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        ids = [b['id'] for b in response.json()]
+        self.assertIn(self.ben1.id, ids)
+        self.assertIn(self.ben2.id, ids)
+
+    def test_response_contains_expected_fields(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        item = response.json()[0]
+        for field in ('id', 'full_name', 'username', 'email', 'phone_number', 'cases'):
+            self.assertIn(field, item)
+
+    def test_beneficiary_role_is_forbidden(self):
+        self.client.force_login(self.ben1)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 403)
+
+
