@@ -15,6 +15,30 @@ class PermissionsPage(BasePage):
         self.find_visible((By.XPATH, "//h1[normalize-space()='Permisos']"))
         return self.table_rows()
 
+    def table_headers(self):
+        self.wait_for_table()
+        return [
+            header.text.strip()
+            for header in self.driver.find_elements(By.CSS_SELECTOR, "thead th")
+        ]
+
+    def has_table_headers(self, expected_headers):
+        headers = self.table_headers()
+        return all(expected in headers for expected in expected_headers)
+
+    def has_users(self, usernames):
+        return all(self.user_exists(username) for username in usernames)
+
+    def user_exists(self, username):
+        return bool(self.row_for_user(username))
+
+    def user_has_role(self, username, role):
+        return self.user_columns(username)["role"] == role
+
+    def user_has_sala(self, username):
+        sala = self.user_columns(username)["sala"]
+        return bool(sala and sala != "—")
+
     def open_create_modal(self):
         self.click(self.button_by_text("Crear Usuario"))
         self.find_visible(self.CREATE_TITLE)
