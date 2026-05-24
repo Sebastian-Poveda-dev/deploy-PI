@@ -88,10 +88,15 @@ def update_beneficiary_info(requesting_user, target_user, data):
     if not target_user.groups.filter(name='beneficiary').exists():
         raise ValueError('Solo se puede actualizar información de usuarios beneficiarios.')
 
+    DATE_FIELDS = {'return_date'}
+
     update_fields = []
     for field in BENEFICIARY_UPDATABLE_FIELDS:
         if field in data:
-            setattr(target_user, field, data[field])
+            value = data[field]
+            if field in DATE_FIELDS and value == '':
+                value = None
+            setattr(target_user, field, value)
             update_fields.append(field)
 
     if update_fields:
