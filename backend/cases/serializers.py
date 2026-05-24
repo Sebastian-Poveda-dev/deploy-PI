@@ -38,6 +38,7 @@ class CaseSerializer(serializers.ModelSerializer):
     beneficiary = serializers.PrimaryKeyRelatedField(read_only=True)
     beneficiary_name = serializers.SerializerMethodField()
     pending_cancellation_request = serializers.SerializerMethodField()
+    attended_by_name = serializers.SerializerMethodField()
 
     def get_assigned_users(self, obj):
         return [{'name': user.username, 'id': user.id} for user in obj.users.all()]
@@ -51,6 +52,9 @@ class CaseSerializer(serializers.ModelSerializer):
         if request:
             return CaseCancellationRequestSerializer(request).data
         return None
+
+    def get_attended_by_name(self, obj):
+        return obj.attended_by.username if obj.attended_by_id else None
 
     class Meta:
         model = Case
@@ -67,6 +71,10 @@ class CaseSerializer(serializers.ModelSerializer):
             'beneficiary_name',
             'assigned_users',
             'pending_cancellation_request',
+            'is_immediate',
+            'immediate_resolution',
+            'attended_by',
+            'attended_by_name',
         ]
 
 
@@ -107,11 +115,28 @@ class CaseCreateSerializer(serializers.Serializer):
         queryset=User.objects.filter(groups__name='beneficiary').distinct(),
         source='beneficiary',
     )
+    is_immediate = serializers.BooleanField(default=False)
+    immediate_resolution = serializers.CharField(required=False, allow_blank=True, default='')
+    attended_by_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.exclude(groups__name='beneficiary').distinct(),
+        source='attended_by',
+        required=False,
+        allow_null=True,
+        default=None,
+    )
 
     def validate_beneficiary(self, beneficiary):
         if not beneficiary.groups.filter(name='beneficiary').exists():
             raise serializers.ValidationError('Selected user must belong to the beneficiary group.')
         return beneficiary
+
+    def validate(self, data):
+        if data.get('is_immediate'):
+            if not data.get('immediate_resolution', '').strip():
+                raise serializers.ValidationError(
+                    {'immediate_resolution': 'La resolución es requerida para casos inmediatos.'}
+                )
+        return data
 
 
 class CaseUpdateSerializer(serializers.Serializer):

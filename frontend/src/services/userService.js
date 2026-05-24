@@ -71,6 +71,12 @@ export async function updateUserAsAdmin(userId, patch) {
   return data
 }
 
+export async function getStaff() {
+  const response = await fetch(buildApiUrl('/users/staff/'), { credentials: 'include' })
+  if (!response.ok) return []
+  return response.json()
+}
+
 export async function getBeneficiaries() {
   const response = await fetch(buildApiUrl('/users/beneficiaries/'), {
     credentials: 'include',

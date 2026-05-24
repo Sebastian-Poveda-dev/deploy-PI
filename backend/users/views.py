@@ -131,6 +131,22 @@ class UserManagementDetailView(APIView):
         return Response(_user_to_dict(user))
 
 @require_GET
+def staff_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Not authenticated'}, status=401)
+
+    users = User.objects.filter(
+        groups__name__in=['advisor', 'student'],
+        is_active=True,
+    ).distinct().order_by('username')
+
+    return JsonResponse(
+        [{'id': u.id, 'username': u.username, 'role': u.groups.values_list('name', flat=True).first()} for u in users],
+        safe=False,
+    )
+
+
+@require_GET
 def beneficiaries_view(request):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Not authenticated'}, status=401)
