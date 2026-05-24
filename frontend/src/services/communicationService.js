@@ -1,9 +1,4 @@
-import { buildApiUrl } from './apiClient'
-
-export function getCsrfToken() {
-  const match = document.cookie.match(/csrftoken=([^;]+)/)
-  return match ? match[1] : ''
-}
+import { buildApiUrl, getCsrfToken } from './apiClient'
 
 async function readJson(response) {
   return response.json().catch(() => ({}))
