@@ -136,3 +136,10 @@ class PermissionsPage(BasePage):
         self.set_active_checkbox(False)
         self.submit_modal()
         self.wait.until(lambda _: self.user_has_status(username, "Inactivo"))
+
+    def change_user_role_to_advisor(self, username):
+        self.open_edit_modal_for_user(username)
+        self.select_role("Asesor")
+        self.select_first_sala()
+        self.submit_modal()
+        self.wait.until(lambda _: self.user_has_role(username, "Asesor"))

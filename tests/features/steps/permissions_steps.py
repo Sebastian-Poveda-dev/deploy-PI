@@ -123,3 +123,13 @@ def step_deactivate_temp_user(context):
 @then("el usuario temporal aparece como inactivo en la tabla")
 def step_temp_user_inactive(context):
     assert context.permissions_page.user_has_status(context.temp_permissions_username, "Inactivo")
+
+
+@when("cambia el rol del usuario temporal a advisor")
+def step_change_temp_user_to_advisor(context):
+    context.permissions_page.change_user_role_to_advisor(context.temp_permissions_username)
+
+
+@then("el usuario temporal muestra rol Asesor en la tabla")
+def step_temp_user_role_advisor(context):
+    assert context.permissions_page.user_has_role(context.temp_permissions_username, "Asesor")

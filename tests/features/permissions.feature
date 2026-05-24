@@ -29,3 +29,10 @@ Feature: Gestion de usuarios y permisos
     And crea un usuario temporal activo
     When desactiva el usuario temporal desde el modal de edicion
     Then el usuario temporal aparece como inactivo en la tabla
+
+  Scenario: Cambiar el rol de un usuario se refleja en la columna Rol
+    Given existe una sesion iniciada como admin
+    When abre la pagina de permisos
+    And crea un usuario temporal activo
+    When cambia el rol del usuario temporal a advisor
+    Then el usuario temporal muestra rol Asesor en la tabla
