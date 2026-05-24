@@ -1,9 +1,4 @@
-import { buildApiUrl } from './apiClient'
-
-function getCsrfToken() {
-  const match = document.cookie.match(/csrftoken=([^;]+)/)
-  return match ? match[1] : ''
-}
+import { buildApiUrl, getCsrfToken } from './apiClient'
 
 function formatDate(isoString) {
   if (!isoString) return null
