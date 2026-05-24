@@ -87,7 +87,7 @@ def reassign_case(case, excluded_user, actor=None):
         CaseLog.objects.create(
             case=case,
             user=log_user,
-            content=f'Case reassigned from {excluded_user.username} to {new_student.username}.'
+            content=f'Caso reasignado de {excluded_user.username} a {new_student.username}.'
         )
 
     return new_student
@@ -121,7 +121,7 @@ def approve_cancellation_request(request, user):
         CaseLog.objects.create(
             case=request.case,
             user=user,
-            content=f'Cancellation request approved by {user.username}. Case reassigned.'
+            content=f'Solicitud de reasignación aprobada por {user.username}. Caso reasignado.'
         )
 
     return request
@@ -152,7 +152,7 @@ def reject_cancellation_request(request, user):
     CaseLog.objects.create(
         case=request.case,
         user=user,
-        content=f'Cancellation request rejected by {user.username}.'
+        content=f'Solicitud de reasignación rechazada por {user.username}.'
     )
 
     return request
@@ -236,9 +236,9 @@ def create_case(
             case=case,
             user=user,
             content=(
-                f'Case created by {user.username}. '
-                f'Assigned student: {assigned_student.username}. '
-                f'Assigned advisor: {assigned_advisor.username}.'
+                f'Caso creado por {user.username}. '
+                f'Estudiante asignado: {assigned_student.username}. '
+                f'Asesor asignado: {assigned_advisor.username}.'
             ),
         )
 
@@ -309,7 +309,7 @@ def update_case(case, user, data):
     CaseLog.objects.create(
         case=case,
         user=user,
-        content=f'Case updated by {user.username}',
+        content=f'Caso actualizado por {user.username}.',
     )
 
     return case
@@ -342,7 +342,7 @@ def approve_case(case, user):
     CaseLog.objects.create(
         case=case,
         user=user,
-        content=f'Case approved by {user.username}',
+        content=f'Caso aprobado por {user.username}.',
     )
 
     return case
@@ -490,7 +490,7 @@ def reject_case_assignment(case, user):
     CaseLog.objects.create(
         case=case,
         user=user,
-        content=f'User {user.username} removed from the case assignment',
+        content=f'El usuario {user.username} fue removido de la asignación del caso.',
     )
 
 
