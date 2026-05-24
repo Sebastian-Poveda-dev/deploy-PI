@@ -15,10 +15,7 @@ export function canRequestCancellation(user, caseData) {
   if (!user || !caseData) return false
   if (user.role !== 'student') return false
   if (caseData.pendingCancellation) return false
-  const assigned = caseData.assignedUsers
-    ? caseData.assignedUsers.split(',').map((u) => u.trim()).filter(Boolean)
-    : []
-  return assigned.includes(user.username)
+  return caseData.assignedStudent?.id === user.id
 }
 
 /**
