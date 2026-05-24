@@ -45,6 +45,9 @@ class PermissionsPage(BasePage):
     def user_has_sala_text(self, username, sala):
         return self.user_columns(username)["sala"] == sala
 
+    def user_has_status(self, username, status):
+        return self.user_columns(username)["status"] == status
+
     def open_create_modal(self):
         self.click(self.button_by_text("Crear Usuario"))
         self.find_visible(self.CREATE_TITLE)
@@ -127,3 +130,9 @@ class PermissionsPage(BasePage):
         checkbox = self.find_visible((By.ID, "is_active"))
         if checkbox.is_selected() != active:
             checkbox.click()
+
+    def deactivate_user(self, username):
+        self.open_edit_modal_for_user(username)
+        self.set_active_checkbox(False)
+        self.submit_modal()
+        self.wait.until(lambda _: self.user_has_status(username, "Inactivo"))

@@ -22,3 +22,10 @@ Feature: Gestion de usuarios y permisos
     Then el usuario advisor creado aparece en la tabla
     And el usuario advisor creado muestra rol Asesor
     And el usuario advisor creado muestra la sala asignada
+
+  Scenario: Desactivar un usuario lo marca como inactivo en la tabla
+    Given existe una sesion iniciada como admin
+    When abre la pagina de permisos
+    And crea un usuario temporal activo
+    When desactiva el usuario temporal desde el modal de edicion
+    Then el usuario temporal aparece como inactivo en la tabla

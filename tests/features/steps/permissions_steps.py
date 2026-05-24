@@ -97,3 +97,29 @@ def step_created_advisor_sala(context):
         context.created_advisor_username,
         context.created_advisor_sala,
     )
+
+
+@when("crea un usuario temporal activo")
+def step_create_active_temp_user(context):
+    suffix = unique_suffix()
+    context.temp_permissions_username = f"student_selenium_{suffix}"
+    context.permissions_page.open_create_modal()
+    context.permissions_page.fill_create_user({
+        "first_name": "Student",
+        "last_name": "Temporal",
+        "username": context.temp_permissions_username,
+        "password": "student1234",
+        "role": "Estudiante",
+    })
+    context.permissions_page.submit_modal()
+    context.permissions_page.wait_for_user(context.temp_permissions_username)
+
+
+@when("desactiva el usuario temporal desde el modal de edicion")
+def step_deactivate_temp_user(context):
+    context.permissions_page.deactivate_user(context.temp_permissions_username)
+
+
+@then("el usuario temporal aparece como inactivo en la tabla")
+def step_temp_user_inactive(context):
+    assert context.permissions_page.user_has_status(context.temp_permissions_username, "Inactivo")
