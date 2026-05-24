@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .forms import BeneficiaryRegisterForm
-from .services import admin_create_user, list_users, update_beneficiary_info, update_user
+from .services import admin_create_user, change_own_password, list_users, update_beneficiary_info, update_user
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
@@ -73,6 +73,28 @@ def me_view(request):
             'role': role or '',
         }
     )
+
+
+@require_POST
+@csrf_exempt
+def change_password_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Not authenticated'}, status=401)
+    try:
+        import json as _json
+        body = _json.loads(request.body)
+    except Exception:
+        return JsonResponse({'detail': 'Invalid JSON.'}, status=400)
+
+    current_password = body.get('current_password', '')
+    new_password = body.get('new_password', '')
+
+    try:
+        change_own_password(request.user, current_password, new_password)
+    except ValueError as exc:
+        return JsonResponse({'detail': str(exc)}, status=400)
+
+    return JsonResponse({'detail': 'Contraseña actualizada correctamente.'}, status=200)
 
 
 def _user_to_dict(user):
