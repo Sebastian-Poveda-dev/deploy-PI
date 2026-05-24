@@ -132,6 +132,15 @@ class CaseModalPage(BasePage):
         self.select_cancellation_reason(reason_text)
         self.confirm_action()
 
+    def try_cancel_case_with_other_without_text(self):
+        self.click_action("Cerrar Caso")
+        self.select_cancellation_reason("Otro")
+        self.confirm_action()
+
+    def cancellation_other_required_error_is_visible(self):
+        text = self.action_error_text()
+        return "describe" in text.lower() and "cancelaci" in text.lower()
+
     def fill_other_cancellation_reason(self, reason):
         self.fill((By.XPATH, "//textarea[contains(@placeholder, 'cancelaci')]"), reason)
 

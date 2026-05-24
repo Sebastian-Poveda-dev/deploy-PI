@@ -41,3 +41,12 @@ Feature: Gestion de casos desde el modal
     And abre el caso activo para cerrar
     When cierra el caso con la razon "Desistimiento expreso del usuario"
     Then el caso cerrado muestra estado cancelado
+
+  Scenario: Cerrar un caso con razon Otro requiere texto adicional
+    Given existe un caso activo para cerrar
+    And existe una sesion iniciada como admin
+    When abre la pagina de casos
+    And abre el caso activo para cerrar
+    When intenta cerrar el caso con la razon Otro sin texto adicional
+    Then ve un error que exige describir la razon de cancelacion
+    And el caso no cambia a estado cancelado

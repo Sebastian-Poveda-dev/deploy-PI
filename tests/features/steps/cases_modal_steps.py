@@ -181,3 +181,18 @@ def step_cancel_case_with_reason(context, reason):
 def step_cancelled_case_shows_cancelled_status(context):
     context.case_modal.wait_for_status({"CANCELLED", "Cancelado"})
     assert context.case_modal.status_matches({"CANCELLED", "Cancelado"})
+
+
+@when("intenta cerrar el caso con la razon Otro sin texto adicional")
+def step_try_cancel_case_with_other_without_text(context):
+    context.case_modal.try_cancel_case_with_other_without_text()
+
+
+@then("ve un error que exige describir la razon de cancelacion")
+def step_other_reason_requires_text_error(context):
+    assert context.case_modal.cancellation_other_required_error_is_visible()
+
+
+@then("el caso no cambia a estado cancelado")
+def step_case_is_not_cancelled(context):
+    assert not context.case_modal.status_matches({"CANCELLED", "Cancelado"})
