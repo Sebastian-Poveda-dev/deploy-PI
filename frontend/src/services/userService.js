@@ -101,6 +101,18 @@ export async function getBeneficiary(userId) {
   return response.json()
 }
 
+export async function changeOwnPassword({ currentPassword, newPassword }) {
+  const response = await fetch(buildApiUrl('/users/me/change-password/'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.detail ?? 'No fue posible cambiar la contraseña.')
+  return data
+}
+
 export async function updateBeneficiary(userId, data) {
   const response = await fetch(buildApiUrl(`/users/${userId}/`), {
     method: 'PATCH',

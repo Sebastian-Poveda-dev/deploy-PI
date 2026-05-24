@@ -87,6 +87,15 @@ def update_beneficiary_info(requesting_user, target_user, data):
     return target_user
 
 
+def change_own_password(user, current_password, new_password):
+    if not user.check_password(current_password):
+        raise ValueError('La contraseña actual es incorrecta.')
+    if not new_password or len(new_password) < 8:
+        raise ValueError('La nueva contraseña debe tener al menos 8 caracteres.')
+    user.set_password(new_password)
+    user.save(update_fields=['password'])
+
+
 def update_user(requesting_user, target_user, data):
     """
     Update role, is_active, category_id, and/or password on a user. Requires admin role.
