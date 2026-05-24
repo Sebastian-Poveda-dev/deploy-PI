@@ -1,3 +1,5 @@
+import json
+
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import authenticate, login
@@ -44,6 +46,17 @@ def register_view(request):
         )
 
     user = form.save()
+
+    extra_info_raw = request.POST.get('extra_info', '').strip()
+    if extra_info_raw:
+        try:
+            extra_info = json.loads(extra_info_raw)
+            if isinstance(extra_info, dict):
+                user.extra_info = extra_info
+                user.save(update_fields=['extra_info'])
+        except json.JSONDecodeError:
+            pass
+
     beneficiary_group = Group.objects.get(name='beneficiary')
     user.groups.add(beneficiary_group)
     return JsonResponse({'registered': True}, status=201)
@@ -81,8 +94,22 @@ def _full_user_to_dict(user):
         'last_name': user.last_name,
         'email': user.email,
         'identification_number': user.identification_number or '',
-        'residence_address': user.residence_address,
-        'phone_number': user.phone_number,
+        'document_type': user.document_type or '',
+        'expedition_place': user.expedition_place or '',
+        'landline_phone': user.landline_phone or '',
+        'residence_address': user.residence_address or '',
+        'neighborhood': user.neighborhood or '',
+        'city': user.city or '',
+        'department': user.department or '',
+        'stratum': user.stratum or '',
+        'phone_number': user.phone_number or '',
+        'reception_medium': user.reception_medium or '',
+        'how_they_found_out': user.how_they_found_out or '',
+        'marital_status': user.marital_status or '',
+        'education_level': user.education_level or '',
+        'occupation': user.occupation or '',
+        'return_date': str(user.return_date) if user.return_date else '',
+        'extra_info': user.extra_info or {},
         'role': user.groups.values_list('name', flat=True).first() or '',
         'is_active': user.is_active,
     }
@@ -130,7 +157,14 @@ class UserManagementListCreateView(APIView):
         return Response(_user_to_dict(user), status=status.HTTP_201_CREATED)
 
 
-BENEFICIARY_CONTACT_FIELDS = {'first_name', 'last_name', 'email', 'identification_number', 'residence_address', 'phone_number'}
+BENEFICIARY_CONTACT_FIELDS = {
+    'first_name', 'last_name', 'email', 'identification_number',
+    'document_type', 'expedition_place', 'landline_phone',
+    'residence_address', 'neighborhood', 'city', 'department', 'stratum',
+    'phone_number', 'reception_medium', 'how_they_found_out',
+    'marital_status', 'education_level', 'occupation', 'return_date',
+    'extra_info',
+}
 
 
 class UserManagementDetailView(APIView):
