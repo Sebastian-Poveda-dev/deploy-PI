@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import ImportantNoticesPanel from '../components/ImportantNoticesPanel'
 import DashboardLayout from '../layouts/DashboardLayout'
 import { getDocumentNotifications } from '../services/documentService'
+import { getCancellationNotifications, markCancellationNotificationRead } from '../services/caseService'
 import { getCurrentUser } from '../services/userService'
 
 function Dashboard() {
@@ -13,6 +14,7 @@ function Dashboard() {
   const [isNoticesOpen, setIsNoticesOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [cancellationNotifs, setCancellationNotifs] = useState([])
   const isBeneficiary = currentUser?.role === 'beneficiary'
 
   useEffect(() => {
@@ -24,18 +26,20 @@ function Dashboard() {
 
       try {
         const user = await getCurrentUser()
-
         if (!isMounted) return
-
         setCurrentUser(user)
 
-        let nextNotifications = []
         if (user?.role !== 'beneficiary') {
-          nextNotifications = await getDocumentNotifications()
+          const [docNotifs, cancelNotifs] = await Promise.all([
+            getDocumentNotifications(),
+            user?.role === 'advisor' || user?.role === 'admin'
+              ? getCancellationNotifications()
+              : Promise.resolve([]),
+          ])
           if (!isMounted) return
+          setNotifications(docNotifs)
+          setCancellationNotifs(cancelNotifs.filter((n) => !n.is_read))
         }
-
-        setNotifications(nextNotifications)
       } catch (requestError) {
         if (!isMounted) return
         setError(
@@ -50,10 +54,13 @@ function Dashboard() {
 
     bootstrap()
 
-    return () => {
-      isMounted = false
-    }
+    return () => { isMounted = false }
   }, [])
+
+  async function handleDismissCancellationNotif(notif) {
+    await markCancellationNotificationRead(notif.id)
+    setCancellationNotifs((prev) => prev.filter((n) => n.id !== notif.id))
+  }
 
   return (
     <DashboardLayout>
@@ -71,6 +78,41 @@ function Dashboard() {
             </p>
           </div>
         </header>
+
+        {cancellationNotifs.length > 0 && (
+          <section className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-600">
+              Solicitudes de reasignación pendientes
+            </p>
+            {cancellationNotifs.map((notif) => (
+              <div
+                key={notif.id}
+                className="flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-amber-900">{notif.message}</p>
+                  <p className="mt-1 text-xs text-amber-700">Caso #{notif.case_id}</p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/dashboard/cases', { state: { openCaseId: notif.case_id } })}
+                    className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600"
+                  >
+                    Ver caso
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDismissCancellationNotif(notif)}
+                    className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
+                  >
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
 
         {isBeneficiary ? (
           <section className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">

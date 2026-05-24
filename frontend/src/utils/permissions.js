@@ -38,3 +38,12 @@ export function canReviewCancellation(user, caseData) {
   if (!caseData.pendingCancellation) return false
   return ['admin', 'advisor'].includes(user.role)
 }
+
+/**
+ * Returns true if an advisor or admin can cancel a case.
+ */
+export function canCancelCase(user, caseData) {
+  if (!user || !caseData) return false
+  if (caseData.status === 'CANCELLED') return false
+  return ['admin', 'advisor'].includes(user.role)
+}

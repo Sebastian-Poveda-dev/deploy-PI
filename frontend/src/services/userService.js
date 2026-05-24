@@ -38,16 +38,25 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createUserAsAdmin({ username, password, role }) {
+export async function createUserAsAdmin({ username, password, role, category_id }) {
+  const body = { username, password, role }
+  if (category_id) body.category_id = category_id
+
   const response = await fetch(buildApiUrl('/users/'), {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-    body: JSON.stringify({ username, password, role }),
+    body: JSON.stringify(body),
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(data.detail ?? 'No fue posible crear el usuario.')
   return data
+}
+
+export async function getCategories() {
+  const response = await fetch(buildApiUrl('/cases/categories/'), { credentials: 'include' })
+  if (!response.ok) return []
+  return response.json()
 }
 
 export async function updateUserAsAdmin(userId, patch) {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import StatusBadge from './StatusBadge'
-import { approveCase, rejectCase, requestCancellation, reviewCancellation, getCaseProgressStatuses, addCaseProgressStatus } from '../services/caseService'
+import { approveCase, rejectCase, requestCancellation, reviewCancellation, cancelCase, getCaseProgressStatuses, addCaseProgressStatus, CANCELLATION_REASONS } from '../services/caseService'
 import { getBeneficiary, updateBeneficiary } from '../services/userService'
-import { canApproveCase, canRejectCase, canRequestCancellation, canReviewCancellation } from '../utils/permissions'
+import { canApproveCase, canRejectCase, canRequestCancellation, canReviewCancellation, canCancelCase } from '../utils/permissions'
 
 function Field({ label, value }) {
   return (
@@ -32,6 +32,8 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
   const [processing, setProcessing] = useState(false)
   const [actionError, setActionError] = useState('')
   const [cancellationReason, setCancellationReason] = useState('')
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelReasonOther, setCancelReasonOther] = useState('')
 
   const [progressStatuses, setProgressStatuses] = useState([])
   const [progressLoading, setProgressLoading] = useState(false)
@@ -128,6 +130,8 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
       setProcessing(false)
       setActionError('')
       setCancellationReason('')
+      setCancelReason('')
+      setCancelReasonOther('')
     }
   }, [isOpen])
 
@@ -170,6 +174,16 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
         await reviewCancellation(caseData.pendingCancellation.id, 'reject')
         setPendingAction(null)
         onCaseUpdated?.(null) // Signal refresh
+      } else if (pendingAction === 'cancel-case') {
+        if (!cancelReason) {
+          throw new Error('Por favor, selecciona una razón de cancelación.')
+        }
+        if (cancelReason === 'OTRO' && !cancelReasonOther.trim()) {
+          throw new Error('Por favor, describe la razón de cancelación.')
+        }
+        const updated = await cancelCase(caseData.id, cancelReason, cancelReasonOther)
+        setPendingAction(null)
+        onCaseUpdated?.(updated)
       }
     } catch (err) {
       setActionError(err.message)
@@ -182,6 +196,7 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
   const showReject = canRejectCase(currentUser, caseData)
   const showRequestCancellation = canRequestCancellation(currentUser, caseData)
   const showReviewCancellation = canReviewCancellation(currentUser, caseData)
+  const showCancelCase = canCancelCase(currentUser, caseData)
 
   const assignedUsersList = caseData?.assignedUsers
     ? caseData.assignedUsers.split(',').map((user) => user.trim()).filter(Boolean)
@@ -404,6 +419,7 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
                   {pendingAction === 'request-cancellation' && 'Solicitar reasignación del caso:'}
                   {pendingAction === 'approve-cancellation' && '¿Estás seguro de aprobar la reasignación? El estudiante actual será removido.'}
                   {pendingAction === 'reject-cancellation' && '¿Estás seguro de rechazar la reasignación?'}
+                  {pendingAction === 'cancel-case' && 'Selecciona la razón de cancelación del caso:'}
                 </p>
 
                 {pendingAction === 'request-cancellation' && (
@@ -414,6 +430,33 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
                     className="mt-2 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     rows={3}
                   />
+                )}
+
+                {pendingAction === 'cancel-case' && (
+                  <div className="mt-3 space-y-2">
+                    {CANCELLATION_REASONS.map((r) => (
+                      <label key={r.value} className="flex cursor-pointer items-start gap-2">
+                        <input
+                          type="radio"
+                          name="cancelReason"
+                          value={r.value}
+                          checked={cancelReason === r.value}
+                          onChange={(e) => { setCancelReason(e.target.value); setCancelReasonOther('') }}
+                          className="mt-0.5 accent-red-600"
+                        />
+                        <span className="text-sm text-slate-700">{r.label}</span>
+                      </label>
+                    ))}
+                    {cancelReason === 'OTRO' && (
+                      <textarea
+                        value={cancelReasonOther}
+                        onChange={(e) => setCancelReasonOther(e.target.value)}
+                        placeholder="Describe la razón de cancelación..."
+                        className="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                        rows={3}
+                      />
+                    )}
+                  </div>
                 )}
 
                 {actionError && (
@@ -430,7 +473,7 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setPendingAction(null); setActionError(''); setCancellationReason('') }}
+                    onClick={() => { setPendingAction(null); setActionError(''); setCancellationReason(''); setCancelReason(''); setCancelReasonOther('') }}
                     disabled={processing}
                     className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60"
                   >
@@ -487,6 +530,15 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
                       Rechazar Reasignación
                     </button>
                   </>
+                )}
+                {showCancelCase && !pendingAction && (
+                  <button
+                    type="button"
+                    onClick={() => { setCancelReason(''); setCancelReasonOther(''); setPendingAction('cancel-case') }}
+                    className="inline-flex items-center justify-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-800"
+                  >
+                    Cerrar Caso
+                  </button>
                 )}
               </div>
               <div className="flex gap-3">

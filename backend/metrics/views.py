@@ -7,11 +7,15 @@ from . import services
 ALLOWED_ROLES = {'admin', 'advisor'}
 
 
+def _check_permission(request):
+    return request.user.groups.filter(name__in=ALLOWED_ROLES).exists()
+
+
 class MetricsDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not request.user.groups.filter(name__in=ALLOWED_ROLES).exists():
+        if not _check_permission(request):
             return Response({'detail': 'Permission denied.'}, status=403)
 
         return Response({
@@ -26,3 +30,17 @@ class MetricsDashboardAPIView(APIView):
             'cancellation_rate': services.get_cancellation_rate(),
             'document_expiration': services.get_document_expiration(),
         })
+
+
+class StudentCaseSearchAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _check_permission(request):
+            return Response({'detail': 'Permission denied.'}, status=403)
+
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response([])
+
+        return Response(services.search_user_cases(query))

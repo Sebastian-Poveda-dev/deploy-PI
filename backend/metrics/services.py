@@ -153,6 +153,56 @@ def get_cancellation_rate():
     }
 
 
+SEARCHABLE_ROLES = ['student', 'advisor']
+
+
+def search_user_cases(query):
+    User = get_user_model()
+    qs = (
+        User.objects.filter(groups__name__in=SEARCHABLE_ROLES, is_active=True)
+        .filter(
+            Q(username__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+        )
+        .annotate(
+            active_cases=Count(
+                'case_assignments',
+                filter=Q(case_assignments__case__status__name__in=ACTIVE_STATUSES),
+                distinct=True,
+            ),
+            total_cases=Count('case_assignments', distinct=True),
+            role=F('groups__name'),
+        )
+        .filter(groups__name__in=SEARCHABLE_ROLES)
+        .distinct()
+        .order_by('first_name', 'last_name', 'username')
+    )
+
+    result = []
+    for user in qs:
+        role = user.groups.filter(name__in=SEARCHABLE_ROLES).values_list('name', flat=True).first()
+        by_status = list(
+            CaseAssignment.objects.filter(user=user)
+            .values('case__status__name')
+            .annotate(count=Count('id'))
+            .order_by('case__status__name')
+        )
+        result.append({
+            'id': user.id,
+            'username': user.username,
+            'full_name': f'{user.first_name} {user.last_name}'.strip() or user.username,
+            'role': role,
+            'active_cases': user.active_cases,
+            'total_cases': user.total_cases,
+            'by_status': [
+                {'status': item['case__status__name'], 'count': item['count']}
+                for item in by_status
+            ],
+        })
+    return result
+
+
 def get_document_expiration():
     today = timezone.now().date()
     threshold = today + timedelta(days=7)
