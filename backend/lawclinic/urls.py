@@ -17,10 +17,20 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.urls import include, path
+from django.views.decorators.http import require_GET
+
+
+@require_GET
+def csrf_token_view(request):
+    return JsonResponse({'csrfToken': get_token(request)})
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('csrf/', csrf_token_view),
     path('users/', include('users.urls')),
     path('cases/', include('cases.urls')),
     path('documents/', include('documents.urls')),

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { initCsrf } from './services/apiClient'
 import Login from './components/Login'
 import BeneficiaryRegister from './components/BeneficiaryRegister'
 import BeneficiaryTracking from './pages/BeneficiaryTracking'
@@ -41,6 +42,10 @@ function SessionExpiryHandler() {
 }
 
 function App() {
+  useEffect(() => {
+    initCsrf()
+  }, [])
+
   return (
     <BrowserRouter>
       <SessionExpiryHandler />

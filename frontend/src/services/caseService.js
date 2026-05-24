@@ -1,4 +1,4 @@
-import { buildApiUrl } from './apiClient'
+import { buildApiUrl, getCsrfToken } from './apiClient'
 
 const STATUS_MAP = {
   active: 'ACTIVE',
@@ -43,11 +43,6 @@ function mapBeneficiaryCase(raw) {
     status: STATUS_MAP[raw.status] ?? raw.status.toUpperCase(),
     progressStatuses: Array.isArray(raw.progress_statuses) ? raw.progress_statuses : [],
   }
-}
-
-function getCsrfToken() {
-  const match = document.cookie.match(/csrftoken=([^;]+)/)
-  return match ? match[1] : ''
 }
 
 export async function createCase({ description, categoryId, subclinicId, beneficiaryId, isImmediate, immediateResolution, attendedById }) {
