@@ -31,7 +31,8 @@ class CasesPage(BasePage):
 
     def open_first_case(self):
         row = self.wait_for_table()[0]
-        row.click()
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
+        self.driver.execute_script("arguments[0].click();", row)
 
     def filter_by_beneficiary(self, beneficiary):
         self.click(self.FILTERS_BUTTON)

@@ -36,6 +36,7 @@ class RegisterPage(BasePage):
         self.click(self.button_by_text("+ Agregar campo"))
         keys = self.driver.find_elements(*self.EXTRA_FIELD_KEY)
         values = self.driver.find_elements(*self.EXTRA_FIELD_VALUE)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", keys[-1])
         keys[-1].send_keys(key)
         values[-1].send_keys(value)
 

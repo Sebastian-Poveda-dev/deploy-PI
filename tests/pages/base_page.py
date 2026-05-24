@@ -1,7 +1,7 @@
 import os
 import unicodedata
 
-from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
+from selenium.common.exceptions import ElementClickInterceptedException, StaleElementReferenceException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
@@ -39,10 +39,16 @@ class BasePage:
         return self.wait.until(EC.element_to_be_clickable(locator))
 
     def click(self, locator):
-        self.find_clickable(locator).click()
+        element = self.find_clickable(locator)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        try:
+            element.click()
+        except ElementClickInterceptedException:
+            self.driver.execute_script("arguments[0].click();", element)
 
     def fill(self, locator, value):
         field = self.find_visible(locator)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", field)
         field.clear()
         field.send_keys(value)
 

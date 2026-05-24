@@ -15,6 +15,7 @@ env/
 *.sqlite3
 media/
 staticfiles/
+*.log
 
 # Node
 node_modules/
@@ -30,3 +31,7 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Selenium
+tests/.chrome-*/
+tests/.selenium-cache/

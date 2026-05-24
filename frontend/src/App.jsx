@@ -11,7 +11,7 @@ import Chats from './pages/Chats'
 import Metrics from './pages/Metrics'
 import Beneficiaries from './pages/Beneficiaries'
 
-const PUBLIC_URL_PATTERNS = ['/users/me/', '/users/login/', '/users/register/', '/cases/track/']
+const PUBLIC_URL_PATTERNS = ['/users/login/', '/users/register/', '/cases/track/']
 
 function SessionExpiryHandler() {
   const navigate = useNavigate()
