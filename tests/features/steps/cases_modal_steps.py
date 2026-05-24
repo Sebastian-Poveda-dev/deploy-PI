@@ -6,12 +6,17 @@ from pages.dashboard_page import DashboardPage
 from pages.case_modal_page import CaseModalPage
 from pages.cases_page import CasesPage
 from pages.login_page import LoginPage
-from features.steps.test_data_helpers import ensure_pending_case_for_advisor
+from features.steps.test_data_helpers import create_assigned_case_for_advisor, ensure_pending_case_for_advisor
 
 
 @given('existe un caso pendiente asignado al advisor "{advisor_username}"')
 def step_pending_case_for_advisor(context, advisor_username):
     context.pending_advisor_case = ensure_pending_case_for_advisor(advisor_username)
+
+
+@given('existe un caso asignado al advisor "{advisor_username}"')
+def step_assigned_case_for_advisor(context, advisor_username):
+    context.assigned_advisor_case = create_assigned_case_for_advisor(advisor_username)
 
 
 @given('existe una sesion iniciada como advisor "{advisor_username}"')
@@ -87,3 +92,25 @@ def step_approve_pending_case(context):
 def step_approved_case_shows_active_status(context):
     context.case_modal.wait_for_status({"ACTIVE", "Activo"})
     assert context.case_modal.status_matches({"ACTIVE", "Activo"})
+
+
+@when("abre el caso asignado al advisor")
+def step_open_assigned_advisor_case(context):
+    context.cases_page = getattr(context, "cases_page", CasesPage(context.driver))
+    context.cases_page.open_case_by_id(context.assigned_advisor_case["id"])
+    context.case_modal = CaseModalPage(context.driver)
+    context.case_modal.wait_for_details(context.assigned_advisor_case["id"])
+
+
+@when("rechaza su asignacion desde el modal")
+def step_reject_advisor_assignment(context):
+    context.case_modal.reject_case()
+
+
+@then("el advisor ya no aparece como usuario asignado del caso")
+def step_advisor_assignment_removed(context):
+    advisor_marker = context.assigned_advisor_case["advisor_last_name"] or context.assigned_advisor_case["advisor"]
+    assert context.cases_page.wait_for_case_assignment_excludes(
+        context.assigned_advisor_case["id"],
+        advisor_marker,
+    )

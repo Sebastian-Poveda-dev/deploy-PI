@@ -44,6 +44,21 @@ class CasesPage(BasePage):
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
         self.driver.execute_script("arguments[0].click();", row)
 
+    def assignment_text_for_case(self, case_id):
+        row = self.find_visible((By.XPATH, f"//tbody/tr[td[1][normalize-space()='#{case_id}']]"))
+        cells = row.find_elements(By.TAG_NAME, "td")
+        return cells[6].text.strip()
+
+    def wait_for_case_assignment_excludes(self, case_id, text):
+        def assignment_removed(_):
+            rows = self.driver.find_elements(By.XPATH, f"//tbody/tr[td[1][normalize-space()='#{case_id}']]")
+            if not rows:
+                return True
+            cells = rows[0].find_elements(By.TAG_NAME, "td")
+            return text not in cells[6].text
+
+        return self.wait.until(assignment_removed)
+
     def filter_by_beneficiary(self, beneficiary):
         self.click(self.FILTERS_BUTTON)
         self.fill(self.FILTER_BENEFICIARY, beneficiary)

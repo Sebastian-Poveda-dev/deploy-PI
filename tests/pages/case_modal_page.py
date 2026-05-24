@@ -103,6 +103,10 @@ class CaseModalPage(BasePage):
         self.click_action("Aprobar Caso")
         self.confirm_action()
 
+    def reject_case(self):
+        self.click_action("Rechazar Caso")
+        self.confirm_action()
+
     def fill_reassignment_reason(self, reason):
         self.fill((By.XPATH, "//textarea[contains(@placeholder, 'motivo')]"), reason)
 

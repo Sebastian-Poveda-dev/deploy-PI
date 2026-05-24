@@ -17,3 +17,11 @@ Feature: Gestion de casos desde el modal
     Then el caso pendiente muestra estado pendiente
     When aprueba el caso pendiente desde el modal
     Then el caso aprobado muestra estado activo
+
+  Scenario: Un advisor puede rechazar su asignacion
+    Given existe un caso asignado al advisor "a.torres"
+    And existe una sesion iniciada como advisor "a.torres"
+    When abre la pagina de casos
+    And abre el caso asignado al advisor
+    When rechaza su asignacion desde el modal
+    Then el advisor ya no aparece como usuario asignado del caso

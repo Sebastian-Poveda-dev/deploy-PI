@@ -101,3 +101,68 @@ print(json.dumps({{
 }}, ensure_ascii=False))
 """
     return run_django_shell_json(code)
+
+
+def create_assigned_case_for_advisor(advisor_username):
+    suffix = unique_suffix()
+    code = f"""
+import json
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from cases.models import Case, CaseAssignment, CaseLog, CaseStatus, Category, Subclinic
+
+User = get_user_model()
+advisor = User.objects.get(username={advisor_username!r})
+active_status = CaseStatus.objects.get(name='active')
+
+beneficiary_group = Group.objects.get(name='beneficiary')
+beneficiary = User.objects.filter(groups=beneficiary_group).order_by('id').first()
+if beneficiary is None:
+    beneficiary = User.objects.create_user(
+        username='beneficiario_selenium_rechazo',
+        password='ben1234',
+        first_name='Beneficiario',
+        last_name='Rechazo',
+        identification_number='990000002',
+        phone_number='3000000002',
+        residence_address='Direccion Selenium',
+    )
+    beneficiary.groups.add(beneficiary_group)
+
+category = advisor.category or Category.objects.order_by('id').first()
+if category is None:
+    category = Category.objects.create(name='Civil')
+subclinic = Subclinic.objects.filter(category=category).order_by('id').first()
+if subclinic is None:
+    subclinic = Subclinic.objects.create(name='Proceso', category=category)
+
+creator = User.objects.filter(groups__name='admin').order_by('id').first() or advisor
+case = Case.objects.create(
+    description='Caso asignado Selenium para rechazo {suffix}',
+    created_by=creator,
+    category=category,
+    subclinic=subclinic,
+    status=active_status,
+    beneficiary=beneficiary,
+)
+CaseAssignment.objects.get_or_create(case=case, user=advisor)
+
+student = User.objects.filter(groups__name='student', is_active=True).order_by('id').first()
+if student is not None:
+    CaseAssignment.objects.get_or_create(case=case, user=student)
+
+CaseLog.objects.create(
+    case=case,
+    user=creator,
+    content=f'Caso preparado para rechazo de asignacion por {{advisor.username}}.',
+)
+
+print(json.dumps({{
+    'id': case.id,
+    'description': case.description,
+    'advisor': advisor.username,
+    'advisor_last_name': advisor.last_name,
+    'status': case.status.name,
+}}, ensure_ascii=False))
+"""
+    return run_django_shell_json(code)
