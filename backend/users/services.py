@@ -89,7 +89,7 @@ def update_beneficiary_info(requesting_user, target_user, data):
 
 def update_user(requesting_user, target_user, data):
     """
-    Update role and/or is_active on a user. Requires admin role.
+    Update role, is_active, category_id, and/or password on a user. Requires admin role.
     Admins cannot modify their own account to prevent lockout.
     """
     role = requesting_user.groups.values_list('name', flat=True).first()
@@ -112,5 +112,12 @@ def update_user(requesting_user, target_user, data):
     if 'category_id' in data:
         target_user.category_id = data['category_id']
         target_user.save(update_fields=['category_id'])
+
+    if 'password' in data:
+        new_password = data['password']
+        if not new_password or len(new_password) < 8:
+            raise ValueError('La contraseña debe tener al menos 8 caracteres.')
+        target_user.set_password(new_password)
+        target_user.save(update_fields=['password'])
 
     return target_user

@@ -7,6 +7,7 @@ import Cases from './pages/Cases'
 import Permissions from './pages/Permissions'
 import Chats from './pages/Chats'
 import Metrics from './pages/Metrics'
+import Beneficiaries from './pages/Beneficiaries'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/dashboard/chats" element={<Chats />} />
         <Route path="/dashboard/permissions" element={<Permissions />} />
         <Route path="/dashboard/metrics" element={<Metrics />} />
+        <Route path="/dashboard/beneficiaries" element={<Beneficiaries />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

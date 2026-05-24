@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import StatusBadge from './StatusBadge'
-import { approveCase, rejectCase, requestCancellation, reviewCancellation, cancelCase, getCaseProgressStatuses, addCaseProgressStatus, CANCELLATION_REASONS } from '../services/caseService'
-import { getBeneficiary, updateBeneficiary } from '../services/userService'
+import { approveCase, rejectCase, requestCancellation, reviewCancellation, cancelCase, getCaseProgressStatuses, addCaseProgressStatus, reassignCase, CANCELLATION_REASONS } from '../services/caseService'
+import { getBeneficiary, updateBeneficiary, getStaff } from '../services/userService'
 import { canApproveCase, canRejectCase, canRequestCancellation, canReviewCancellation, canCancelCase } from '../utils/permissions'
 
 function Field({ label, value }) {
@@ -50,8 +50,16 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
   const [beneficiaryError, setBeneficiaryError] = useState('')
   const [showMoreInfo, setShowMoreInfo] = useState(false)
 
+  const [reassigning, setReassigning] = useState(false)
+  const [staffList, setStaffList] = useState([])
+  const [reassignStudentId, setReassignStudentId] = useState('')
+  const [reassignAdvisorId, setReassignAdvisorId] = useState('')
+  const [reassignError, setReassignError] = useState('')
+  const [reassignSaving, setReassignSaving] = useState(false)
+
   const canAddProgress = currentUser && ['admin', 'advisor', 'student'].includes(currentUser.role)
   const canEditBeneficiary = currentUser && ['admin', 'advisor'].includes(currentUser.role)
+  const canReassign = currentUser?.role === 'admin'
 
   useEffect(() => {
     if (!isOpen || !caseData?.id) {
@@ -146,6 +154,42 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
       .catch(() => setBeneficiary(null))
       .finally(() => setBeneficiaryLoading(false))
   }, [isOpen, caseData?.beneficiaryId])
+
+  useEffect(() => {
+    if (!isOpen || !canReassign) {
+      setReassigning(false)
+      setReassignStudentId('')
+      setReassignAdvisorId('')
+      setReassignError('')
+      return
+    }
+    getStaff().then(setStaffList).catch(() => setStaffList([]))
+  }, [isOpen, canReassign])
+
+  function openReassign() {
+    setReassignStudentId(caseData?.assignedStudent?.id ? String(caseData.assignedStudent.id) : '')
+    setReassignAdvisorId(caseData?.assignedAdvisor?.id ? String(caseData.assignedAdvisor.id) : '')
+    setReassignError('')
+    setReassigning(true)
+  }
+
+  async function handleReassign(e) {
+    e.preventDefault()
+    setReassignSaving(true)
+    setReassignError('')
+    try {
+      const updated = await reassignCase(caseData.id, {
+        newStudentId: reassignStudentId || null,
+        newAdvisorId: reassignAdvisorId || null,
+      })
+      setReassigning(false)
+      onCaseUpdated?.(updated)
+    } catch (err) {
+      setReassignError(err.message)
+    } finally {
+      setReassignSaving(false)
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) {
@@ -285,6 +329,76 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
               <p className="mt-2 text-sm text-slate-500">Sin usuarios asignados.</p>
             )}
           </section>
+
+          {/* Manual reassignment — admin only */}
+          {canReassign && (
+            <section>
+              {!reassigning ? (
+                <button
+                  type="button"
+                  onClick={openReassign}
+                  className="flex items-center gap-1.5 text-sm font-medium text-[#5454F2] hover:text-[#4343D8]"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M8 5a1 1 0 100 2h5.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L13.586 5H8zM12 15a1 1 0 100-2H6.414l1.293-1.293a1 1 0 10-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L6.414 15H12z" />
+                  </svg>
+                  Reasignar caso
+                </button>
+              ) : (
+                <form onSubmit={handleReassign} className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reasignación manual</p>
+                    <button
+                      type="button"
+                      onClick={() => setReassigning(false)}
+                      disabled={reassignSaving}
+                      className="text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Estudiante</label>
+                      <select
+                        value={reassignStudentId}
+                        onChange={(e) => setReassignStudentId(e.target.value)}
+                        disabled={reassignSaving}
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2] disabled:opacity-60"
+                      >
+                        <option value="">Sin cambio</option>
+                        {staffList.filter((u) => u.role === 'student').map((u) => (
+                          <option key={u.id} value={u.id}>{u.username}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Asesor</label>
+                      <select
+                        value={reassignAdvisorId}
+                        onChange={(e) => setReassignAdvisorId(e.target.value)}
+                        disabled={reassignSaving}
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2] disabled:opacity-60"
+                      >
+                        <option value="">Sin cambio</option>
+                        {staffList.filter((u) => u.role === 'advisor').map((u) => (
+                          <option key={u.id} value={u.id}>{u.username}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {reassignError && <p className="text-xs text-red-500">{reassignError}</p>}
+                  <button
+                    type="submit"
+                    disabled={reassignSaving || (!reassignStudentId && !reassignAdvisorId)}
+                    className="rounded-md bg-[#5454F2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#4747d7] disabled:opacity-50"
+                  >
+                    {reassignSaving ? 'Guardando...' : 'Guardar reasignación'}
+                  </button>
+                </form>
+              )}
+            </section>
+          )}
 
           {/* Beneficiary */}
           <section>

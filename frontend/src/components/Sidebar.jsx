@@ -6,6 +6,7 @@ import { getCurrentUser } from '../services/userService'
 const NAV_ITEMS = [
   { label: 'Inicio', path: '/dashboard' },
   { label: 'Casos', path: '/dashboard/cases' },
+  { label: 'Beneficiarios', path: '/dashboard/beneficiaries', roles: ['admin', 'advisor', 'student'] },
   { label: 'Chats', path: '/dashboard/chats' },
   { label: 'Permisos', path: '/dashboard/permissions' },
   { label: 'Metricas', path: '/dashboard/metrics' },
@@ -25,7 +26,7 @@ function Sidebar() {
       return NAV_ITEMS.filter((item) => ['/dashboard', '/dashboard/cases'].includes(item.path))
     }
 
-    return NAV_ITEMS
+    return NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(currentUser?.role))
   }, [currentUser])
 
   function isActive(path) {

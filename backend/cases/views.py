@@ -32,6 +32,7 @@ from .services import (
 	get_cancellation_request_notifications,
 	get_case_logs,
 	get_case_progress_statuses,
+	manual_reassign_case,
 	notify_advisors_of_cancellation_request,
 	reject_case_assignment,
 	reject_cancellation_request,
@@ -403,6 +404,40 @@ class CaseProgressStatusListCreateAPIView(APIView):
 			CaseProgressStatusSerializer(progress_status).data,
 			status=status.HTTP_201_CREATED,
 		)
+
+
+class CaseManualReassignAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def post(self, request, pk):
+		role = request.user.groups.values_list('name', flat=True).first()
+		if role != 'admin':
+			return Response({'detail': 'Only admins can manually reassign cases.'}, status=status.HTTP_403_FORBIDDEN)
+
+		case = get_object_or_404(Case, pk=pk)
+		new_student_id = request.data.get('new_student_id') or None
+		new_advisor_id = request.data.get('new_advisor_id') or None
+
+		if new_student_id is not None:
+			try:
+				new_student_id = int(new_student_id)
+			except (TypeError, ValueError):
+				return Response({'detail': 'new_student_id must be an integer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+		if new_advisor_id is not None:
+			try:
+				new_advisor_id = int(new_advisor_id)
+			except (TypeError, ValueError):
+				return Response({'detail': 'new_advisor_id must be an integer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+		try:
+			updated_case = manual_reassign_case(request.user, case, new_student_id, new_advisor_id)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		except ValueError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+		return Response(CaseSerializer(updated_case).data, status=status.HTTP_200_OK)
 
 
 class CancellationRequestNotificationListAPIView(APIView):

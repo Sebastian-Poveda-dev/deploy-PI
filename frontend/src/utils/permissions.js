@@ -23,11 +23,11 @@ export function canRequestCancellation(user, caseData) {
 
 /**
  * Returns true if the current user can reject (remove) their own case assignment.
- * Only admins and advisors; students must use the cancellation request flow.
+ * Only advisors; admins are never assigned to cases, students must use the cancellation request flow.
  */
 export function canRejectCase(user, caseData) {
   if (!user || !caseData) return false
-  return ['admin', 'advisor'].includes(user.role)
+  return user.role === 'advisor'
 }
 
 /**

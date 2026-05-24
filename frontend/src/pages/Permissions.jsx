@@ -159,6 +159,8 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
   const [role, setRole] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [isActive, setIsActive] = useState(true)
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
   const [apiError, setApiError] = useState('')
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState([])
@@ -168,6 +170,8 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
       setRole(user.role)
       setCategoryId(user.category_id ?? '')
       setIsActive(user.is_active)
+      setChangingPassword(false)
+      setNewPassword('')
       setApiError('')
     }
   }, [user])
@@ -188,6 +192,7 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
       if (isActive !== user.is_active) patch.is_active = isActive
       const currentCatId = user.category_id ?? ''
       if (String(categoryId) !== String(currentCatId)) patch.category_id = categoryId || null
+      if (newPassword.trim()) patch.password = newPassword.trim()
 
       if (Object.keys(patch).length === 0) { onClose(); return }
 
@@ -244,6 +249,45 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
               />
               <label htmlFor="is_active" className="text-sm font-medium text-slate-700">Usuario activo</label>
             </div>
+
+            {!changingPassword ? (
+              <button
+                type="button"
+                onClick={() => setChangingPassword(true)}
+                disabled={loading}
+                className="flex items-center gap-1.5 text-sm font-medium text-[#5454F2] hover:text-[#4343D8] disabled:opacity-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+                Cambiar contraseña
+              </button>
+            ) : (
+              <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-700">Nueva contraseña</label>
+                  <button
+                    type="button"
+                    onClick={() => { setChangingPassword(false); setNewPassword('') }}
+                    disabled={loading}
+                    className="text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={loading}
+                  className={inputClass}
+                  placeholder="Mínimo 8 caracteres"
+                  autoComplete="new-password"
+                  autoFocus
+                />
+              </div>
+            )}
+
             {apiError && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{apiError}</p>}
           </div>
           <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">

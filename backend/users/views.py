@@ -229,3 +229,55 @@ def beneficiaries_view(request):
             }
         )
     return JsonResponse(data, safe=False)
+
+
+@require_GET
+def beneficiaries_detail_view(request):
+    """
+    Returns beneficiaries with their contact info and cases.
+    Admin: all beneficiaries.
+    Advisor / student: only beneficiaries whose cases they are assigned to.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Not authenticated'}, status=401)
+
+    from cases.models import Case
+
+    role = request.user.groups.values_list('name', flat=True).first()
+
+    if role == 'admin':
+        beneficiaries = User.objects.filter(groups__name='beneficiary').order_by('first_name', 'last_name')
+    elif role in {'advisor', 'student'}:
+        assigned_case_ids = request.user.case_assignments.values_list('case_id', flat=True)
+        beneficiary_ids = Case.objects.filter(pk__in=assigned_case_ids).values_list('beneficiary_id', flat=True).distinct()
+        beneficiaries = User.objects.filter(pk__in=beneficiary_ids).order_by('first_name', 'last_name')
+    else:
+        return JsonResponse({'error': 'Not authorized'}, status=403)
+
+    data = []
+    for b in beneficiaries:
+        cases = Case.objects.filter(beneficiary=b).select_related('status', 'category', 'subclinic')
+        if role in {'advisor', 'student'}:
+            assigned_case_ids_set = set(request.user.case_assignments.values_list('case_id', flat=True))
+            cases = cases.filter(pk__in=assigned_case_ids_set)
+
+        full_name = f'{b.first_name} {b.last_name}'.strip() or b.username
+        data.append({
+            'id': b.id,
+            'full_name': full_name,
+            'username': b.username,
+            'email': b.email or '',
+            'identification_number': b.identification_number or '',
+            'phone_number': b.phone_number or '',
+            'residence_address': b.residence_address or '',
+            'cases': [
+                {
+                    'id': c.id,
+                    'status': c.status.name,
+                    'category': c.category.name if c.category_id else '',
+                    'subclinic': c.subclinic.name if c.subclinic_id else '',
+                }
+                for c in cases
+            ],
+        })
+    return JsonResponse(data, safe=False)
