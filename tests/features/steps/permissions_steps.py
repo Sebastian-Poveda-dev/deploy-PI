@@ -62,3 +62,38 @@ def step_sala_validation_error(context):
 @then("el modal de crear usuario sigue abierto")
 def step_create_user_modal_still_open(context):
     assert context.permissions_page.create_modal_is_open()
+
+
+@when("crea un usuario advisor con sala asignada")
+def step_create_advisor_with_sala(context):
+    suffix = unique_suffix()
+    context.created_advisor_username = f"advisor_selenium_{suffix}"
+    context.permissions_page.open_create_modal()
+    context.permissions_page.fill_create_user({
+        "first_name": "Advisor",
+        "last_name": "Con Sala",
+        "username": context.created_advisor_username,
+        "password": "advisor1234",
+        "role": "Asesor",
+    })
+    context.created_advisor_sala = context.permissions_page.select_first_sala()
+    context.permissions_page.submit_modal()
+    context.permissions_page.wait_for_user(context.created_advisor_username)
+
+
+@then("el usuario advisor creado aparece en la tabla")
+def step_created_advisor_visible(context):
+    assert context.permissions_page.user_exists(context.created_advisor_username)
+
+
+@then("el usuario advisor creado muestra rol Asesor")
+def step_created_advisor_role(context):
+    assert context.permissions_page.user_has_role(context.created_advisor_username, "Asesor")
+
+
+@then("el usuario advisor creado muestra la sala asignada")
+def step_created_advisor_sala(context):
+    assert context.permissions_page.user_has_sala_text(
+        context.created_advisor_username,
+        context.created_advisor_sala,
+    )

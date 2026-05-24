@@ -32,12 +32,18 @@ class PermissionsPage(BasePage):
     def user_exists(self, username):
         return bool(self.row_for_user(username))
 
+    def wait_for_user(self, username):
+        return self.wait.until(lambda _: self.row_for_user(username))
+
     def user_has_role(self, username, role):
         return self.user_columns(username)["role"] == role
 
     def user_has_sala(self, username):
         sala = self.user_columns(username)["sala"]
         return bool(sala and sala != "—")
+
+    def user_has_sala_text(self, username, sala):
+        return self.user_columns(username)["sala"] == sala
 
     def open_create_modal(self):
         self.click(self.button_by_text("Crear Usuario"))
