@@ -123,6 +123,16 @@ class PermissionsPage(BasePage):
             (By.XPATH, "//label[normalize-space()='Sala Legal']/following-sibling::select")
         )
 
+    def select_different_sala(self, current_sala):
+        select = Select(self.find_visible((By.XPATH, "//label[normalize-space()='Sala Legal']/following-sibling::select")))
+        for option in select.options:
+            value = option.get_attribute("value")
+            label = option.text.strip()
+            if value and label != current_sala:
+                select.select_by_visible_text(option.text)
+                return label
+        raise AssertionError("No hay otra sala disponible para seleccionar")
+
     def submit_modal(self):
         self.click((By.XPATH, "//form//button[normalize-space()='Crear' or normalize-space()='Guardar']"))
 
@@ -143,3 +153,10 @@ class PermissionsPage(BasePage):
         self.select_first_sala()
         self.submit_modal()
         self.wait.until(lambda _: self.user_has_role(username, "Asesor"))
+
+    def change_advisor_sala_to_different(self, username, current_sala):
+        self.open_edit_modal_for_user(username)
+        new_sala = self.select_different_sala(current_sala)
+        self.submit_modal()
+        self.wait.until(lambda _: self.user_has_sala_text(username, new_sala))
+        return new_sala

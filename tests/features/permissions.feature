@@ -36,3 +36,10 @@ Feature: Gestion de usuarios y permisos
     And crea un usuario temporal activo
     When cambia el rol del usuario temporal a advisor
     Then el usuario temporal muestra rol Asesor en la tabla
+
+  Scenario: Editar la sala de un advisor se actualiza en la columna Sala
+    Given existe una sesion iniciada como admin
+    When abre la pagina de permisos
+    And crea un advisor temporal con sala inicial
+    When cambia la sala del advisor temporal
+    Then el advisor temporal muestra la nueva sala en la tabla

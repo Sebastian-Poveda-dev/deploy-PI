@@ -133,3 +133,36 @@ def step_change_temp_user_to_advisor(context):
 @then("el usuario temporal muestra rol Asesor en la tabla")
 def step_temp_user_role_advisor(context):
     assert context.permissions_page.user_has_role(context.temp_permissions_username, "Asesor")
+
+
+@when("crea un advisor temporal con sala inicial")
+def step_create_temp_advisor_with_initial_sala(context):
+    suffix = unique_suffix()
+    context.temp_advisor_username = f"advisor_sala_{suffix}"
+    context.permissions_page.open_create_modal()
+    context.permissions_page.fill_create_user({
+        "first_name": "Advisor",
+        "last_name": "Sala Temporal",
+        "username": context.temp_advisor_username,
+        "password": "advisor1234",
+        "role": "Asesor",
+    })
+    context.initial_advisor_sala = context.permissions_page.select_first_sala()
+    context.permissions_page.submit_modal()
+    context.permissions_page.wait_for_user(context.temp_advisor_username)
+
+
+@when("cambia la sala del advisor temporal")
+def step_change_temp_advisor_sala(context):
+    context.updated_advisor_sala = context.permissions_page.change_advisor_sala_to_different(
+        context.temp_advisor_username,
+        context.initial_advisor_sala,
+    )
+
+
+@then("el advisor temporal muestra la nueva sala en la tabla")
+def step_temp_advisor_new_sala_visible(context):
+    assert context.permissions_page.user_has_sala_text(
+        context.temp_advisor_username,
+        context.updated_advisor_sala,
+    )
