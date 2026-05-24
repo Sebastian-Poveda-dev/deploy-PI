@@ -39,9 +39,24 @@ class CasesPage(BasePage):
         self.fill(self.FILTER_BENEFICIARY, beneficiary)
         self.click(self.APPLY_FILTERS)
 
+    def filter_by_assigned_user(self, username):
+        self.click(self.FILTERS_BUTTON)
+        self.fill((By.XPATH, "//label[contains(normalize-space(), 'Persona Asignada')]/following-sibling::input"), username)
+        self.click(self.APPLY_FILTERS)
+
     def visible_row_texts(self):
         rows = self.driver.find_elements(By.CSS_SELECTOR, "tbody tr")
         return [row.text for row in rows]
 
     def open_create_modal(self):
         self.click(self.button_by_text("Crear Caso"))
+
+    def open_case_by_status(self, status_text):
+        row = self.find_visible((By.XPATH, f"//tbody/tr[td[contains(normalize-space(), '{status_text}')]]"))
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
+        self.driver.execute_script("arguments[0].click();", row)
+
+    def open_case_by_assigned_user(self, username):
+        row = self.find_visible((By.XPATH, f"//tbody/tr[td[contains(normalize-space(), '{username}')]]"))
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
+        self.driver.execute_script("arguments[0].click();", row)
