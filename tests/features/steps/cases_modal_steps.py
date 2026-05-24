@@ -7,6 +7,7 @@ from pages.case_modal_page import CaseModalPage
 from pages.cases_page import CasesPage
 from pages.login_page import LoginPage
 from features.steps.test_data_helpers import (
+    create_active_case_for_cancellation,
     create_assigned_case_for_advisor,
     create_assigned_case_for_student,
     ensure_pending_case_for_advisor,
@@ -26,6 +27,11 @@ def step_assigned_case_for_advisor(context, advisor_username):
 @given('existe un caso asignado al student "{student_username}" sin solicitud pendiente')
 def step_assigned_case_for_student(context, student_username):
     context.assigned_student_case = create_assigned_case_for_student(student_username)
+
+
+@given("existe un caso activo para cerrar")
+def step_active_case_for_cancellation(context):
+    context.cancellable_case = create_active_case_for_cancellation()
 
 
 @given('existe una sesion iniciada como advisor "{advisor_username}"')
@@ -156,3 +162,22 @@ def step_case_shows_pending_reassignment(context):
     context.case_modal = CaseModalPage(context.driver)
     context.case_modal.wait_for_details(context.assigned_student_case["id"])
     assert context.case_modal.pending_reassignment_is_visible(context.reassignment_reason)
+
+
+@when("abre el caso activo para cerrar")
+def step_open_cancellable_case(context):
+    context.cases_page = getattr(context, "cases_page", CasesPage(context.driver))
+    context.cases_page.open_case_by_id(context.cancellable_case["id"])
+    context.case_modal = CaseModalPage(context.driver)
+    context.case_modal.wait_for_details(context.cancellable_case["id"])
+
+
+@when('cierra el caso con la razon "{reason}"')
+def step_cancel_case_with_reason(context, reason):
+    context.case_modal.cancel_case_with_reason(reason)
+
+
+@then("el caso cerrado muestra estado cancelado")
+def step_cancelled_case_shows_cancelled_status(context):
+    context.case_modal.wait_for_status({"CANCELLED", "Cancelado"})
+    assert context.case_modal.status_matches({"CANCELLED", "Cancelado"})

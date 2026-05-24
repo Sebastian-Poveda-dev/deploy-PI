@@ -33,3 +33,11 @@ Feature: Gestion de casos desde el modal
     And abre el caso asignado al student
     When solicita reasignacion con motivo desde el modal
     Then el caso muestra una solicitud de reasignacion pendiente
+
+  Scenario: Un advisor o admin puede cerrar un caso seleccionando una razon de cancelacion
+    Given existe un caso activo para cerrar
+    And existe una sesion iniciada como admin
+    When abre la pagina de casos
+    And abre el caso activo para cerrar
+    When cierra el caso con la razon "Desistimiento expreso del usuario"
+    Then el caso cerrado muestra estado cancelado

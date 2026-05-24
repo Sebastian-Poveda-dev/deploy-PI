@@ -127,6 +127,11 @@ class CaseModalPage(BasePage):
         option = self.find_visible((By.XPATH, f"//label[.//span[contains(normalize-space(), '{reason_text}')]]//input[@type='radio']"))
         option.click()
 
+    def cancel_case_with_reason(self, reason_text):
+        self.click_action("Cerrar Caso")
+        self.select_cancellation_reason(reason_text)
+        self.confirm_action()
+
     def fill_other_cancellation_reason(self, reason):
         self.fill((By.XPATH, "//textarea[contains(@placeholder, 'cancelaci')]"), reason)
 
