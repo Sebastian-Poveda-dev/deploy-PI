@@ -10,7 +10,8 @@ class CaseModalPage(BasePage):
     SALA = (By.XPATH, "//label[normalize-space()='Sala']/following-sibling::select")
     PROCESO = (By.XPATH, "//label[normalize-space()='Proceso']/following-sibling::select")
     BENEFICIARY = (By.XPATH, "//label[normalize-space()='Beneficiario']/following-sibling::select")
-    CREATE_BUTTON = (By.XPATH, "//form//button[normalize-space()='Crear Caso']")
+    CREATE_FORM = (By.XPATH, "//h2[normalize-space()='Crear Caso']/ancestor::div[contains(@class, 'max-w-xl')]//form")
+    CREATE_BUTTON = (By.XPATH, "//h2[normalize-space()='Crear Caso']/ancestor::div[contains(@class, 'max-w-xl')]//form//button[@type='submit']")
     IMMEDIATE_CHECKBOX = (By.XPATH, "//p[contains(normalize-space(), 'Resoluci') and contains(normalize-space(), 'inmediata')]/ancestor::label//input[@type='checkbox']")
     IMMEDIATE_RESOLUTION = (By.XPATH, "//label[contains(normalize-space(), 'Resoluci')]/following-sibling::textarea")
     ATTENDED_BY = (By.XPATH, "//label[normalize-space()='Atendido por']/following-sibling::select")
@@ -63,11 +64,30 @@ class CaseModalPage(BasePage):
         self.wait_for_process_enabled()
         self.select_first_process()
         self.select_first_beneficiary()
-        self.click(self.CREATE_BUTTON)
+        self.submit_create_form()
         self.wait.until(EC.invisibility_of_element_located((By.XPATH, "//h2[normalize-space()='Crear Caso']")))
 
     def submit_empty_case(self):
-        self.click(self.CREATE_BUTTON)
+        self.submit_create_form()
+
+    def submit_create_form(self):
+        form = self.find(self.CREATE_FORM)
+        button = self.find(self.CREATE_BUTTON)
+        self.wait.until(lambda _: button.is_enabled())
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+        self.driver.execute_script(
+            """
+            const form = arguments[0];
+            const button = arguments[1];
+            if (form.requestSubmit) {
+              form.requestSubmit(button);
+            } else {
+              button.click();
+            }
+            """,
+            form,
+            button,
+        )
 
     def validation_text(self):
         return self.visible_text()
@@ -99,7 +119,7 @@ class CaseModalPage(BasePage):
         self.select_first_process()
         self.select_first_beneficiary()
         self.fill_immediate_resolution(resolution)
-        self.click(self.CREATE_BUTTON)
+        self.submit_create_form()
         self.wait.until(EC.invisibility_of_element_located((By.XPATH, "//h2[normalize-space()='Crear Caso']")))
 
     def click_action(self, text):

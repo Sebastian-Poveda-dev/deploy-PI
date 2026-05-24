@@ -1,7 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 
-from pages.base_page import BasePage
+from pages.base_page import BasePage, strip_accents
 
 
 class PermissionsPage(BasePage):
@@ -23,8 +23,8 @@ class PermissionsPage(BasePage):
         ]
 
     def has_table_headers(self, expected_headers):
-        headers = self.table_headers()
-        return all(expected in headers for expected in expected_headers)
+        headers = [strip_accents(header) for header in self.table_headers()]
+        return all(strip_accents(expected) in headers for expected in expected_headers)
 
     def has_users(self, usernames):
         return all(self.user_exists(username) for username in usernames)
