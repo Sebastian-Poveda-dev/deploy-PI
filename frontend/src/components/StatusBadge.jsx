@@ -6,8 +6,16 @@ const STATUS_STYLES = {
   INACTIVE: 'bg-slate-400 text-white',
 }
 
+const STATUS_LABELS = {
+  ACTIVE: 'Activo',
+  IN_PROGRESS: 'En progreso',
+  PENDING: 'Pendiente',
+  CANCELLED: 'Cancelado',
+  INACTIVE: 'Inactivo',
+}
+
 function formatStatusLabel(status) {
-  return status
+  return STATUS_LABELS[status] ?? status
     .toLowerCase()
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
