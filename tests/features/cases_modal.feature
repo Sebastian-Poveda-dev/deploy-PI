@@ -61,3 +61,11 @@ Feature: Gestion de casos desde el modal
     Then los campos extra del beneficiario aparecen
     When colapsa la informacion del beneficiario
     Then los campos extra del beneficiario estan ocultos
+
+  Scenario: Un advisor o admin puede editar los datos del beneficiario desde el modal
+    Given existe un caso activo para cerrar
+    And existe una sesion iniciada como admin
+    When abre la pagina de casos
+    And abre el caso activo para cerrar
+    When edita el telefono del beneficiario desde el modal
+    Then el telefono editado del beneficiario se ve en el modal

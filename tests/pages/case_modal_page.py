@@ -178,6 +178,15 @@ class CaseModalPage(BasePage):
     def fill_beneficiary_edit_field(self, label, value):
         self.fill((By.XPATH, f"//label[normalize-space()='{label}']/following-sibling::input"), value)
 
+    def edit_beneficiary_phone(self, phone):
+        self.start_edit_beneficiary()
+        self.fill_beneficiary_edit_field("Teléfono", phone)
+        self.save_beneficiary()
+        self.wait.until(lambda _: self.beneficiary_value_is_visible(phone))
+
+    def beneficiary_value_is_visible(self, value):
+        return value in self.details_text()
+
     def add_beneficiary_extra_field(self, key, value):
         self.click(self.button_by_text("+ Agregar campo"))
         keys = self.driver.find_elements(By.XPATH, "//input[@placeholder='Nombre del campo']")

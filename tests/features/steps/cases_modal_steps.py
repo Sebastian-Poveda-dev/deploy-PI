@@ -216,3 +216,14 @@ def step_beneficiary_extra_fields_visible(context):
 @when("colapsa la informacion del beneficiario")
 def step_collapse_beneficiary_more_info(context):
     context.case_modal.collapse_beneficiary_more_info()
+
+
+@when("edita el telefono del beneficiario desde el modal")
+def step_edit_beneficiary_phone(context):
+    context.updated_beneficiary_phone = f"300{str(int(time.time()))[-7:]}"
+    context.case_modal.edit_beneficiary_phone(context.updated_beneficiary_phone)
+
+
+@then("el telefono editado del beneficiario se ve en el modal")
+def step_beneficiary_phone_visible(context):
+    assert context.case_modal.beneficiary_value_is_visible(context.updated_beneficiary_phone)
