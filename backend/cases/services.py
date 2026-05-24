@@ -390,6 +390,58 @@ def cancel_case(case, user, reason, reason_other=None):
     return case
 
 
+def manual_reassign_case(admin_user, case, new_student_id=None, new_advisor_id=None):
+    """
+    Manually reassign the student and/or advisor on a case. Admin only.
+    Providing None for either ID leaves that assignment untouched.
+    """
+    User = get_user_model()
+
+    role = admin_user.groups.values_list('name', flat=True).first()
+    if role != 'admin':
+        raise PermissionError('Only admins can manually reassign cases.')
+
+    if new_student_id is None and new_advisor_id is None:
+        raise ValueError('At least one of new_student_id or new_advisor_id must be provided.')
+
+    with transaction.atomic():
+        log_parts = []
+
+        if new_student_id is not None:
+            new_student = User.objects.filter(pk=new_student_id, groups__name='student', is_active=True).first()
+            if new_student is None:
+                raise ValueError('El estudiante seleccionado no existe o no está activo.')
+            current_student_ids = list(
+                case.assignments.filter(user__groups__name='student').values_list('user_id', flat=True)
+            )
+            case.assignments.filter(user__groups__name='student').delete()
+            CaseAssignment.objects.create(case=case, user=new_student)
+            old_names = list(User.objects.filter(pk__in=current_student_ids).values_list('username', flat=True))
+            old_label = ', '.join(old_names) if old_names else 'ninguno'
+            log_parts.append(f'Estudiante reasignado de {old_label} a {new_student.username}')
+
+        if new_advisor_id is not None:
+            new_advisor = User.objects.filter(pk=new_advisor_id, groups__name='advisor', is_active=True).first()
+            if new_advisor is None:
+                raise ValueError('El asesor seleccionado no existe o no está activo.')
+            current_advisor_ids = list(
+                case.assignments.filter(user__groups__name='advisor').values_list('user_id', flat=True)
+            )
+            case.assignments.filter(user__groups__name='advisor').delete()
+            CaseAssignment.objects.create(case=case, user=new_advisor)
+            old_names = list(User.objects.filter(pk__in=current_advisor_ids).values_list('username', flat=True))
+            old_label = ', '.join(old_names) if old_names else 'ninguno'
+            log_parts.append(f'Asesor reasignado de {old_label} a {new_advisor.username}')
+
+        CaseLog.objects.create(
+            case=case,
+            user=admin_user,
+            content=f'Reasignación manual por {admin_user.username}. {". ".join(log_parts)}.',
+        )
+
+    return case
+
+
 def notify_advisors_of_cancellation_request(cancellation_request):
     """
     Create a notification for each advisor assigned to the case associated

@@ -15,9 +15,10 @@ function formatDate(isoString) {
 }
 
 function mapCase(raw) {
-  const assignedUsersList = Array.isArray(raw.assigned_users)
-    ? raw.assigned_users.map((u) => u.name)
-    : []
+  const assignedUsersRaw = Array.isArray(raw.assigned_users) ? raw.assigned_users : []
+  const assignedUsersList = assignedUsersRaw.map((u) => u.name)
+  const assignedStudent = assignedUsersRaw.find((u) => u.role === 'student') ?? null
+  const assignedAdvisor = assignedUsersRaw.find((u) => u.role === 'advisor') ?? null
 
   return {
     id: raw.id,
@@ -29,6 +30,8 @@ function mapCase(raw) {
     beneficiaryName: raw.beneficiary_name ?? '',
     assignedUsersList,
     assignedUsers: assignedUsersList.join(', '),
+    assignedStudent,
+    assignedAdvisor,
     description: raw.description ?? raw.details ?? '',
     pendingCancellation: raw.pending_cancellation_request,
   }
@@ -258,6 +261,24 @@ export async function getSubclinics(categoryId) {
   const response = await fetch(url, { credentials: 'include' })
   if (!response.ok) return []
   return response.json()
+}
+
+export async function reassignCase(caseId, { newStudentId, newAdvisorId }) {
+  const body = {}
+  if (newStudentId) body.new_student_id = newStudentId
+  if (newAdvisorId) body.new_advisor_id = newAdvisorId
+
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/reassign/`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible reasignar el caso.')
+  }
+  return mapCase(await response.json())
 }
 
 export async function getCaseProgressStatuses(caseId) {

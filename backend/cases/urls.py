@@ -11,6 +11,7 @@ from .views import (
     CaseDetailAPIView,
     CaseLogListCreateAPIView,
     CaseListCreateAPIView,
+    CaseManualReassignAPIView,
     CaseProgressStatusListCreateAPIView,
     CaseRejectAssignmentAPIView,
     CategoryListAPIView,
@@ -45,4 +46,5 @@ urlpatterns = [
         CaseRejectAssignmentAPIView.as_view(),
         name='case-reject-assignment',
     ),
+    path('<int:pk>/reassign/', CaseManualReassignAPIView.as_view(), name='case-manual-reassign'),
 ]

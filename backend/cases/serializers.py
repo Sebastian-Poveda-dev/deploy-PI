@@ -41,7 +41,11 @@ class CaseSerializer(serializers.ModelSerializer):
     attended_by_name = serializers.SerializerMethodField()
 
     def get_assigned_users(self, obj):
-        return [{'name': user.username, 'id': user.id} for user in obj.users.all()]
+        result = []
+        for user in obj.users.prefetch_related('groups').all():
+            role = user.groups.values_list('name', flat=True).first() or ''
+            result.append({'id': user.id, 'name': user.username, 'role': role})
+        return result
 
     def get_beneficiary_name(self, obj):
         full_name = f'{obj.beneficiary.first_name} {obj.beneficiary.last_name}'.strip()
