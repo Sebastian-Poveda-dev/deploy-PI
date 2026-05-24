@@ -65,11 +65,26 @@ class CaseModalPage(BasePage):
             checkbox.click()
         self.find_visible(self.IMMEDIATE_RESOLUTION)
 
+    def immediate_resolution_fields_are_visible(self):
+        self.find_visible(self.IMMEDIATE_RESOLUTION)
+        self.find_visible(self.ATTENDED_BY)
+        return True
+
     def fill_immediate_resolution(self, resolution):
         self.fill(self.IMMEDIATE_RESOLUTION, resolution)
 
     def select_first_attended_by(self):
         return self.select_first_real_option(self.ATTENDED_BY)
+
+    def create_immediate_case(self, description, resolution):
+        self.fill(self.DESCRIPTION, description)
+        self.select_first_sala()
+        self.wait_for_process_enabled()
+        self.select_first_process()
+        self.select_first_beneficiary()
+        self.fill_immediate_resolution(resolution)
+        self.click(self.CREATE_BUTTON)
+        self.wait.until(EC.invisibility_of_element_located((By.XPATH, "//h2[normalize-space()='Crear Caso']")))
 
     def click_action(self, text):
         self.click(self.button_by_text(text))

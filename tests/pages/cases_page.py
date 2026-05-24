@@ -29,6 +29,10 @@ class CasesPage(BasePage):
             "assigned": cells[6].text.strip(),
         }
 
+    def wait_for_new_first_case(self, previous_count):
+        self.wait.until(lambda _: len(self.table_rows()) > previous_count)
+        return self.first_case_snapshot()
+
     def open_first_case(self):
         row = self.wait_for_table()[0]
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
