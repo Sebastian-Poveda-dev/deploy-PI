@@ -775,13 +775,18 @@ class PublicBeneficiaryCaseTrackingApiTest(APITestCase):
         response = self.client.post('/cases/track/', {'identification_number': '111222333'}, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['cases'], [{'status': 'pending_authorization'}])
+        # Both self.case and self.other_case belong to this beneficiary
+        self.assertEqual(len(response.data['cases']), 2)
+        # Cases for a different beneficiary must not appear
+        response_other = self.client.post('/cases/track/', {'identification_number': '999888777'}, format='json')
+        self.assertEqual(response_other.data['cases'], [])
 
-    def test_public_tracking_uses_pending_status_for_case_without_updates(self):
+    def test_public_tracking_uses_active_status_for_admin_created_case(self):
         response = self.client.post('/cases/track/', {'identification_number': '111222333'}, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['cases'][0]['status'], 'pending_authorization')
+        # Admin-created cases start with 'active' status
+        self.assertEqual(response.data['cases'][0]['status'], 'active')
 
     def test_public_tracking_returns_empty_message_when_no_cases_exist(self):
         response = self.client.post('/cases/track/', {'identification_number': '000111222'}, format='json')
@@ -800,7 +805,7 @@ class PublicBeneficiaryCaseTrackingApiTest(APITestCase):
         response = self.client.post('/cases/track/', {'identification_number': '111222333'}, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(set(response.data['cases'][0].keys()), {'status'})
+        self.assertEqual(set(response.data['cases'][0].keys()), {'status', 'progress_statuses'})
 
 
 class CaseCancellationRequestTest(TestCase):
