@@ -1,4 +1,4 @@
-import { buildApiUrl } from './apiClient'
+import { buildApiUrl, getCsrfToken } from './apiClient'
 
 export async function getCurrentUser() {
   const response = await fetch(buildApiUrl('/users/me/'), {
@@ -33,10 +33,6 @@ export async function getUsers() {
   return response.json()
 }
 
-function getCsrfToken() {
-  const match = document.cookie.match(/csrftoken=([^;]+)/)
-  return match ? match[1] : ''
-}
 
 export async function createUserAsAdmin({ username, password, role, category_id, first_name, last_name, email, phone_number, identification_number }) {
   const body = { username, password, role }
