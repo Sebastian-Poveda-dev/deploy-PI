@@ -15,9 +15,10 @@ function formatDate(isoString) {
 }
 
 function mapCase(raw) {
-  const assignedUsersList = Array.isArray(raw.assigned_users)
-    ? raw.assigned_users.map((u) => u.name)
-    : []
+  const assignedUsersRaw = Array.isArray(raw.assigned_users) ? raw.assigned_users : []
+  const assignedUsersList = assignedUsersRaw.map((u) => u.name)
+  const assignedStudent = assignedUsersRaw.find((u) => u.role === 'student') ?? null
+  const assignedAdvisor = assignedUsersRaw.find((u) => u.role === 'advisor') ?? null
 
   return {
     id: raw.id,
@@ -29,6 +30,8 @@ function mapCase(raw) {
     beneficiaryName: raw.beneficiary_name ?? '',
     assignedUsersList,
     assignedUsers: assignedUsersList.join(', '),
+    assignedStudent,
+    assignedAdvisor,
     description: raw.description ?? raw.details ?? '',
     pendingCancellation: raw.pending_cancellation_request,
   }
@@ -38,6 +41,7 @@ function mapBeneficiaryCase(raw) {
   return {
     id: raw.id,
     status: STATUS_MAP[raw.status] ?? raw.status.toUpperCase(),
+    progressStatuses: Array.isArray(raw.progress_statuses) ? raw.progress_statuses : [],
   }
 }
 
@@ -46,12 +50,17 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createCase({ description, categoryId, subclinicId, beneficiaryId }) {
+export async function createCase({ description, categoryId, subclinicId, beneficiaryId, isImmediate, immediateResolution, attendedById }) {
   const body = {
     description,
     category_id: categoryId,
     subclinic_id: subclinicId,
     beneficiary_id: beneficiaryId,
+    is_immediate: isImmediate ?? false,
+  }
+  if (isImmediate) {
+    body.immediate_resolution = immediateResolution ?? ''
+    if (attendedById) body.attended_by_id = attendedById
   }
 
   const response = await fetch(buildApiUrl('/cases/'), {
@@ -196,4 +205,103 @@ export async function reviewCancellation(requestId, action) {
   }
 
   return await response.json()
+}
+
+export const CANCELLATION_REASONS = [
+  { value: 'DESISTIMIENTO_TACITO', label: 'Desistimiento tácito del usuario' },
+  { value: 'DESISTIMIENTO_EXPRESO', label: 'Desistimiento expreso del usuario' },
+  { value: 'FINALIZADO_GANADO', label: 'Caso finalizado jurídicamente (ganado)' },
+  { value: 'FINALIZADO_PERDIDO', label: 'Caso finalizado jurídicamente (perdido)' },
+  { value: 'INFRINGIO_TERMINOS', label: 'Infringió los términos del consultorio jurídico' },
+  { value: 'OTRO', label: 'Otro' },
+]
+
+export async function cancelCase(caseId, reason, reasonOther) {
+  const body = { reason }
+  if (reason === 'OTRO' && reasonOther) body.reason_other = reasonOther
+
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/cancel/`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible cancelar el caso.')
+  }
+
+  return mapCase(await response.json())
+}
+
+export async function getCancellationNotifications() {
+  const response = await fetch(buildApiUrl('/cases/cancellation-request-notifications/'), {
+    credentials: 'include',
+  })
+  if (!response.ok) return []
+  return response.json()
+}
+
+export async function markCancellationNotificationRead(id) {
+  await fetch(buildApiUrl(`/cases/cancellation-request-notifications/${id}/read/`), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'X-CSRFToken': getCsrfToken() },
+  })
+}
+
+export async function getSubclinics(categoryId) {
+  const url = categoryId
+    ? buildApiUrl(`/cases/subclinics/?category_id=${categoryId}`)
+    : buildApiUrl('/cases/subclinics/')
+  const response = await fetch(url, { credentials: 'include' })
+  if (!response.ok) return []
+  return response.json()
+}
+
+export async function reassignCase(caseId, { newStudentId, newAdvisorId }) {
+  const body = {}
+  if (newStudentId) body.new_student_id = newStudentId
+  if (newAdvisorId) body.new_advisor_id = newAdvisorId
+
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/reassign/`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible reasignar el caso.')
+  }
+  return mapCase(await response.json())
+}
+
+export async function getCaseProgressStatuses(caseId) {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/progress-statuses/`), {
+    credentials: 'include',
+  })
+  if (!response.ok) throw new Error('No fue posible cargar el progreso del caso.')
+  return response.json()
+}
+
+export async function addCaseProgressStatus(caseId, label) {
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/progress-statuses/`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify({ label }),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible agregar el estado.')
+  }
+  return response.json()
 }

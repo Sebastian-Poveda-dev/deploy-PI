@@ -1,33 +1,11 @@
 /**
  * Returns true if the current user can approve the given case.
- * Requires status PENDING and role admin / advisor / professor.
+ * Requires status PENDING and role admin / advisor.
  */
 export function canApproveCase(user, caseData) {
   if (!user || !caseData) return false
   if (caseData.status !== 'PENDING') return false
-  if (['admin', 'advisor'].includes(user.role)) return true
-  if (user.role === 'professor') {
-    const assigned = caseData.assignedUsers
-      ? caseData.assignedUsers.split(',').map((u) => u.trim()).filter(Boolean)
-      : []
-    return assigned.includes(user.username)
-  }
-  return false
-}
-
-/**
- * Returns true if the current user can reject their assignment on the case.
- * Now only for professors who want to leave a case (if allowed).
- */
-export function canRejectCase(user, caseData) {
-  if (!user || !caseData) return false
-  const assigned = caseData.assignedUsers
-    ? caseData.assignedUsers.split(',').map((u) => u.trim()).filter(Boolean)
-    : []
-  return (
-    assigned.includes(user.username) &&
-    user.role === 'professor'
-  )
+  return ['admin', 'advisor'].includes(user.role)
 }
 
 /**
@@ -36,11 +14,20 @@ export function canRejectCase(user, caseData) {
 export function canRequestCancellation(user, caseData) {
   if (!user || !caseData) return false
   if (user.role !== 'student') return false
-  if (caseData.pendingCancellation) return false // Already has a pending request
+  if (caseData.pendingCancellation) return false
   const assigned = caseData.assignedUsers
     ? caseData.assignedUsers.split(',').map((u) => u.trim()).filter(Boolean)
     : []
   return assigned.includes(user.username)
+}
+
+/**
+ * Returns true if the current user can reject (remove) their own case assignment.
+ * Only advisors; admins are never assigned to cases, students must use the cancellation request flow.
+ */
+export function canRejectCase(user, caseData) {
+  if (!user || !caseData) return false
+  return user.role === 'advisor'
 }
 
 /**
@@ -49,12 +36,14 @@ export function canRequestCancellation(user, caseData) {
 export function canReviewCancellation(user, caseData) {
   if (!user || !caseData) return false
   if (!caseData.pendingCancellation) return false
-  if (['admin', 'advisor'].includes(user.role)) return true
-  if (user.role === 'professor') {
-    const assigned = caseData.assignedUsers
-      ? caseData.assignedUsers.split(',').map((u) => u.trim()).filter(Boolean)
-      : []
-    return assigned.includes(user.username)
-  }
-  return false
+  return ['admin', 'advisor'].includes(user.role)
+}
+
+/**
+ * Returns true if an advisor or admin can cancel a case.
+ */
+export function canCancelCase(user, caseData) {
+  if (!user || !caseData) return false
+  if (caseData.status === 'CANCELLED') return false
+  return ['admin', 'advisor'].includes(user.role)
 }

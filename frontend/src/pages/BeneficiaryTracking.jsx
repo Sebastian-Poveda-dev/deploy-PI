@@ -5,6 +5,39 @@ import logo from '../assets/logo/logo-icesi-white.png'
 import StatusBadge from '../components/StatusBadge'
 import { trackBeneficiaryCases } from '../services/caseService'
 
+function formatDate(isoString) {
+  if (!isoString) return ''
+  const [date, time] = isoString.split('T')
+  const [y, m, d] = date.split('-')
+  return `${d}/${m}/${y}${time ? ' ' + time.slice(0, 5) : ''}`
+}
+
+function ProgressTimeline({ items }) {
+  if (!items.length) {
+    return (
+      <p className="mt-3 text-sm italic text-slate-400">
+        Aún no hay actualizaciones de progreso para este caso.
+      </p>
+    )
+  }
+
+  return (
+    <ol className="relative mt-4 ml-3 border-l-2 border-[#5454F2]/25 space-y-5">
+      {items.map((item, i) => (
+        <li key={i} className="ml-5">
+          <span className="absolute -left-[11px] flex h-5 w-5 items-center justify-center rounded-full bg-[#5454F2] ring-4 ring-white text-white text-[10px] font-bold">
+            {i + 1}
+          </span>
+          <p className="text-sm font-medium text-slate-800 leading-snug">{item.label}</p>
+          {item.created_at && (
+            <time className="text-xs text-slate-400">{formatDate(item.created_at)}</time>
+          )}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function BeneficiaryTracking() {
   const [identificationNumber, setIdentificationNumber] = useState('')
   const [cases, setCases] = useState([])
@@ -51,14 +84,24 @@ function BeneficiaryTracking() {
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {cases.map((caseItem, index) => (
-          <article key={`${caseItem.status}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Caso {index + 1}
-            </p>
-            <div className="mt-3">
+          <article
+            key={`${caseItem.status}-${index}`}
+            className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Caso {index + 1}
+              </p>
               <StatusBadge status={caseItem.status} />
+            </div>
+
+            <div className="mt-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#5454F2]">
+                Progreso del caso
+              </p>
+              <ProgressTimeline items={caseItem.progressStatuses} />
             </div>
           </article>
         ))}
@@ -81,7 +124,7 @@ function BeneficiaryTracking() {
             Consulta el estado de tu caso
           </h1>
           <p className="mb-6 text-center text-sm text-[#667085]">
-            Ingresa tu cédula para conocer el estado actual de los casos asociados a tu identidad.
+            Ingresa tu cédula para conocer el progreso de los casos asociados a tu identidad.
           </p>
 
           <form className="space-y-5" onSubmit={handleSubmit}>

@@ -77,7 +77,7 @@ class DefaultGroupsTest(TestCase):
     """Tests that the default roles are created via data migration."""
 
     def test_all_default_groups_exist(self):
-        expected = ['admin', 'advisor', 'professor', 'student', 'beneficiary']
+        expected = ['admin', 'advisor', 'student', 'beneficiary']
         for name in expected:
             self.assertTrue(
                 Group.objects.filter(name=name).exists(),
@@ -85,9 +85,12 @@ class DefaultGroupsTest(TestCase):
             )
 
     def test_default_group_count(self):
-        expected = ['admin', 'advisor', 'professor', 'student', 'beneficiary']
+        expected = ['admin', 'advisor', 'student', 'beneficiary']
         existing = Group.objects.filter(name__in=expected).count()
         self.assertEqual(existing, len(expected))
+
+    def test_professor_group_does_not_exist(self):
+        self.assertFalse(Group.objects.filter(name='professor').exists())
 
 
 class LoginAuthenticationTest(TestCase):
@@ -178,7 +181,6 @@ class RoleAssignmentMethodTest(TestCase):
     def test_helper_methods_return_false_with_no_role(self):
         self.assertFalse(self.user.is_admin())
         self.assertFalse(self.user.is_advisor())
-        self.assertFalse(self.user.is_professor())
         self.assertFalse(self.user.is_student())
         self.assertFalse(self.user.is_beneficiary())
 
@@ -189,10 +191,6 @@ class RoleAssignmentMethodTest(TestCase):
     def test_is_advisor_returns_true(self):
         self.user.assign_role('advisor')
         self.assertTrue(self.user.is_advisor())
-
-    def test_is_professor_returns_true(self):
-        self.user.assign_role('professor')
-        self.assertTrue(self.user.is_professor())
 
     def test_is_student_returns_true(self):
         self.user.assign_role('student')
@@ -206,7 +204,6 @@ class RoleAssignmentMethodTest(TestCase):
         self.user.assign_role('student')
         self.assertFalse(self.user.is_admin())
         self.assertFalse(self.user.is_advisor())
-        self.assertFalse(self.user.is_professor())
         self.assertFalse(self.user.is_beneficiary())
         
 class SelfRegistrationTest(TestCase):
@@ -295,8 +292,8 @@ class AdminUserCreationTest(TestCase):
         self.assertTrue(User.objects.filter(username='student1').exists())
 
     def test_created_user_has_correct_role(self):
-        user = admin_create_user('professor1', 'pass1234', 'professor')
-        self.assertTrue(user.groups.filter(name='professor').exists())
+        user = admin_create_user('advisor1_role', 'pass1234', 'advisor')
+        self.assertTrue(user.groups.filter(name='advisor').exists())
 
     def test_created_user_has_only_one_role(self):
         user = admin_create_user('advisor1', 'pass1234', 'advisor')
@@ -344,14 +341,14 @@ class AdminUserManagementServiceTest(TestCase):
         self.assertTrue(self.student.groups.filter(name='advisor').exists())
 
     def test_update_user_role_removes_previous_role(self):
-        update_user(self.admin, self.student, {'role': 'professor'})
+        update_user(self.admin, self.student, {'role': 'advisor'})
         self.assertFalse(self.student.groups.filter(name='student').exists())
-        self.assertTrue(self.student.groups.filter(name='professor').exists())
+        self.assertTrue(self.student.groups.filter(name='advisor').exists())
         self.assertEqual(self.student.groups.count(), 1)
 
     def test_non_admin_cannot_update_user(self):
         with self.assertRaises(PermissionError):
-            update_user(self.advisor, self.student, {'role': 'professor'})
+            update_user(self.advisor, self.student, {'role': 'advisor'})
 
     def test_admin_cannot_modify_own_account(self):
         with self.assertRaises(PermissionError):
@@ -431,12 +428,12 @@ class AdminUserManagementApiTest(APITestCase):
     def test_admin_can_create_user(self):
         self.client.force_authenticate(self.admin)
         response = self.client.post('/users/', {
-            'username': 'newprofessor_mgmt',
+            'username': 'newadvisor_mgmt',
             'password': 'pass1234',
-            'role': 'professor',
+            'role': 'advisor',
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(User.objects.filter(username='newprofessor_mgmt').exists())
+        self.assertTrue(User.objects.filter(username='newadvisor_mgmt').exists())
 
     def test_create_user_requires_authentication(self):
         response = self.client.post('/users/', {
@@ -514,7 +511,7 @@ class AdminUserManagementApiTest(APITestCase):
     def test_non_admin_cannot_update_user(self):
         self.client.force_authenticate(self.advisor)
         response = self.client.patch(f'/users/{self.student.id}/', {
-            'role': 'professor',
+            'role': 'advisor',
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -559,42 +556,6 @@ class AdminUserManagementApiTest(APITestCase):
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_create_non_student_with_favorite_category_returns_400(self):
-        self.client.force_authenticate(self.admin)
-        response = self.client.post('/users/', {
-            'username': 'newprofessor_cat',
-            'password': 'pass1234',
-            'role': 'professor',
-            'favorite_category_id': self.category.id,
-        }, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_create_student_with_favorite_category_succeeds(self):
-        self.client.force_authenticate(self.admin)
-        response = self.client.post('/users/', {
-            'username': 'newstudent_cat',
-            'password': 'pass1234',
-            'role': 'student',
-            'favorite_category_id': self.category.id,
-        }, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-    def test_update_non_student_with_favorite_category_returns_400(self):
-        self.client.force_authenticate(self.admin)
-        professor = User.objects.create_user(username='professor_cat_upd', password='pass')
-        assign_role(professor, 'professor')
-        response = self.client.patch(f'/users/{professor.id}/', {
-            'favorite_category_id': self.category.id,
-        }, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_update_student_with_favorite_category_succeeds(self):
-        self.client.force_authenticate(self.admin)
-        response = self.client.patch(f'/users/{self.student.id}/', {
-            'favorite_category_id': self.category.id,
-        }, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
 class BeneficiaryListEndpointTest(TestCase):
     """Tests for the beneficiaries endpoint used by case creation form/modal."""
 
@@ -629,5 +590,151 @@ class BeneficiaryListEndpointTest(TestCase):
 
         self.assertTrue(any(item['full_name'] == 'Laura Gomez' for item in payload))
         self.assertTrue(any(item['id'] == User.objects.get(username='beneficiary_new').id for item in payload))
+
+
+class ChangeOwnPasswordTest(TestCase):
+    """Tests for the change-own-password endpoint."""
+
+    def setUp(self):
+        self.url = reverse('users:change-password')
+        self.user = User.objects.create_user(username='pw_user', password='OldPass123')
+        assign_role(self.user, 'advisor')
+
+    def _post(self, current_password, new_password):
+        import json
+        return self.client.post(
+            self.url,
+            data=json.dumps({'current_password': current_password, 'new_password': new_password}),
+            content_type='application/json',
+        )
+
+    def test_unauthenticated_request_returns_401(self):
+        response = self._post('OldPass123', 'NewPass456')
+        self.assertEqual(response.status_code, 401)
+
+    def test_correct_current_password_changes_successfully(self):
+        self.client.force_login(self.user)
+        response = self._post('OldPass123', 'NewPass456!')
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('NewPass456!'))
+
+    def test_wrong_current_password_returns_400(self):
+        self.client.force_login(self.user)
+        response = self._post('WrongPass', 'NewPass456!')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.json())
+
+    def test_new_password_too_short_returns_400(self):
+        self.client.force_login(self.user)
+        response = self._post('OldPass123', 'abc')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.json())
+
+    def test_password_not_changed_on_error(self):
+        self.client.force_login(self.user)
+        self._post('WrongPass', 'NewPass456!')
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('OldPass123'))
+
+
+class UsernameChangeTest(APITestCase):
+    """Tests for admin changing another user's username via PATCH /users/<id>/."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin_uname', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.target = User.objects.create_user(username='original_name', password='pass')
+        assign_role(self.target, 'student')
+
+        self.other = User.objects.create_user(username='taken_name', password='pass')
+        assign_role(self.other, 'advisor')
+
+    def test_admin_can_change_username(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(f'/users/{self.target.id}/', {'username': 'new_name'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.username, 'new_name')
+
+    def test_duplicate_username_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(f'/users/{self.target.id}/', {'username': 'taken_name'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.data)
+
+    def test_empty_username_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(f'/users/{self.target.id}/', {'username': '   '}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.data)
+
+    def test_non_admin_cannot_change_username(self):
+        advisor = User.objects.create_user(username='advisor_uname', password='pass')
+        assign_role(advisor, 'advisor')
+        self.client.force_authenticate(advisor)
+        response = self.client.patch(f'/users/{self.target.id}/', {'username': 'new_name'}, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_username_unchanged_when_same_value_provided(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(
+            f'/users/{self.target.id}/', {'username': 'original_name'}, format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.username, 'original_name')
+
+
+class BeneficiariesDetailViewTest(TestCase):
+    """Tests for GET /users/beneficiaries/detail/ with role-based access."""
+
+    def setUp(self):
+        self.url = reverse('users:beneficiaries-detail')
+
+        self.admin = User.objects.create_user(username='admin_bdet', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_bdet', password='pass')
+        assign_role(self.advisor, 'advisor')
+
+        self.student = User.objects.create_user(username='student_bdet', password='pass')
+        assign_role(self.student, 'student')
+
+        self.ben1 = User.objects.create_user(
+            username='ben1_bdet', first_name='Alice', last_name='Smith', password='pass'
+        )
+        assign_role(self.ben1, 'beneficiary')
+
+        self.ben2 = User.objects.create_user(
+            username='ben2_bdet', first_name='Bob', last_name='Jones', password='pass'
+        )
+        assign_role(self.ben2, 'beneficiary')
+
+    def test_unauthenticated_returns_401(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 401)
+
+    def test_admin_sees_all_beneficiaries(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        ids = [b['id'] for b in response.json()]
+        self.assertIn(self.ben1.id, ids)
+        self.assertIn(self.ben2.id, ids)
+
+    def test_response_contains_expected_fields(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        item = response.json()[0]
+        for field in ('id', 'full_name', 'username', 'email', 'phone_number', 'cases'):
+            self.assertIn(field, item)
+
+    def test_beneficiary_role_is_forbidden(self):
+        self.client.force_login(self.ben1)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 403)
 
 

@@ -4,7 +4,17 @@ from django.db import models
 
 
 class Subclinic(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
+    category = models.ForeignKey(
+        'Category',
+        on_delete=models.CASCADE,
+        related_name='subclinics',
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        unique_together = ('name', 'category')
 
     def __str__(self):
         return self.name
@@ -31,6 +41,22 @@ class CaseStatus(models.Model):
 
 
 class Case(models.Model):
+    CANCELLATION_REASON_TACITO = 'DESISTIMIENTO_TACITO'
+    CANCELLATION_REASON_EXPRESO = 'DESISTIMIENTO_EXPRESO'
+    CANCELLATION_REASON_GANADO = 'FINALIZADO_GANADO'
+    CANCELLATION_REASON_PERDIDO = 'FINALIZADO_PERDIDO'
+    CANCELLATION_REASON_TERMINOS = 'INFRINGIO_TERMINOS'
+    CANCELLATION_REASON_OTRO = 'OTRO'
+
+    CANCELLATION_REASON_CHOICES = [
+        (CANCELLATION_REASON_TACITO, 'DESISTIMIENTO TÁCITO DEL USUARIO'),
+        (CANCELLATION_REASON_EXPRESO, 'DESISTIMIENTO EXPRESO DEL USUARIO'),
+        (CANCELLATION_REASON_GANADO, 'CASO FINALIZADO JURÍDICAMENTE (GANADO)'),
+        (CANCELLATION_REASON_PERDIDO, 'CASO FINALIZADO JURÍDICAMENTE (PERDIDO)'),
+        (CANCELLATION_REASON_TERMINOS, 'INFRINGIÓ LOS TÉRMINOS DEL CONSULTORIO JURÍDICO'),
+        (CANCELLATION_REASON_OTRO, 'OTRO'),
+    ]
+
     description = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -59,6 +85,22 @@ class Case(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='beneficiary_cases',
+    )
+    cancellation_reason = models.CharField(
+        max_length=30,
+        choices=CANCELLATION_REASON_CHOICES,
+        null=True,
+        blank=True,
+    )
+    cancellation_reason_other = models.TextField(null=True, blank=True)
+    is_immediate = models.BooleanField(default=False)
+    immediate_resolution = models.TextField(null=True, blank=True)
+    attended_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='attended_cases',
     )
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
@@ -93,6 +135,27 @@ class CaseAssignment(models.Model):
 
     def __str__(self):
         return f'{self.user} → Case #{self.case_id}'
+
+
+class CaseProgressStatus(models.Model):
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='progress_statuses',
+    )
+    label = models.CharField(max_length=200)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='created_progress_statuses',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'Progress: {self.label} — Case #{self.case_id}'
 
 
 class CaseLog(models.Model):
@@ -162,3 +225,26 @@ class CaseCancellationRequest(models.Model):
 
     def __str__(self):
         return f'Cancellation request for Case #{self.case_id} by {self.requested_by.username}'
+
+
+class CancellationRequestNotification(models.Model):
+    cancellation_request = models.ForeignKey(
+        CaseCancellationRequest,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='cancellation_request_notifications',
+    )
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('cancellation_request', 'recipient')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Notification for {self.recipient.username} — Case #{self.cancellation_request.case_id}'

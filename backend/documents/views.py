@@ -24,7 +24,7 @@ from .services import (
 )
 
 
-DOCUMENT_EXPIRATION_TRIGGER_ALLOWED_ROLES = {'admin', 'advisor', 'professor'}
+DOCUMENT_EXPIRATION_TRIGGER_ALLOWED_ROLES = {'admin', 'advisor'}
 
 
 class CaseDocumentListCreateAPIView(APIView):
@@ -102,7 +102,7 @@ class DocumentExpirationVerificationAPIView(APIView):
         role = request.user.groups.values_list('name', flat=True).first()
         if role not in DOCUMENT_EXPIRATION_TRIGGER_ALLOWED_ROLES:
             return Response(
-                {'detail': 'Only admins, advisors and professors can trigger expiration verification.'},
+                {'detail': 'Only admins and advisors can trigger expiration verification.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 

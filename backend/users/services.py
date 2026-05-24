@@ -4,7 +4,7 @@ from django.apps import apps
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
-VALID_ROLES = {'admin', 'advisor', 'professor', 'student', 'beneficiary'}
+VALID_ROLES = {'admin', 'advisor', 'student', 'beneficiary'}
 
 
 def assign_role(user, role_name):
@@ -30,24 +30,34 @@ def admin_create_user(
     username,
     password,
     role,
-    residence_address='',
+    first_name='',
+    last_name='',
+    email='',
     phone_number='',
-    favorite_category=None,
+    identification_number=None,
+    residence_address='',
+    category_id=None,
 ):
     """Create a user with a specific role (for admin-driven creation)."""
     user = User.objects.create_user(
         username=username,
         password=password,
-        residence_address=residence_address,
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
         phone_number=phone_number,
-        favorite_category=favorite_category,
+        residence_address=residence_address,
     )
     assign_role(user, role)
-
-    if role != 'student' and user.favorite_category_id is not None:
-        user.favorite_category = None
-        user.save(update_fields=['favorite_category'])
-
+    extra_fields = {}
+    if identification_number:
+        extra_fields['identification_number'] = identification_number
+    if category_id is not None:
+        extra_fields['category_id'] = category_id
+    if extra_fields:
+        for field, value in extra_fields.items():
+            setattr(user, field, value)
+        user.save(update_fields=list(extra_fields.keys()))
     return user
 
 
@@ -59,9 +69,54 @@ def list_users(requesting_user):
     return User.objects.prefetch_related('groups').order_by('username')
 
 
+BENEFICIARY_UPDATABLE_FIELDS = {
+    'first_name', 'last_name', 'email', 'identification_number',
+    'document_type', 'expedition_place', 'landline_phone',
+    'residence_address', 'neighborhood', 'city', 'department', 'stratum',
+    'phone_number', 'reception_medium', 'how_they_found_out',
+    'marital_status', 'education_level', 'occupation', 'return_date',
+    'extra_info',
+}
+
+
+def update_beneficiary_info(requesting_user, target_user, data):
+    """Update contact/personal info of a beneficiary. Requires admin or advisor role."""
+    role = requesting_user.groups.values_list('name', flat=True).first()
+    if role not in {'admin', 'advisor'}:
+        raise PermissionError('Solo admins y asesores pueden editar información de beneficiarios.')
+
+    if not target_user.groups.filter(name='beneficiary').exists():
+        raise ValueError('Solo se puede actualizar información de usuarios beneficiarios.')
+
+    DATE_FIELDS = {'return_date'}
+
+    update_fields = []
+    for field in BENEFICIARY_UPDATABLE_FIELDS:
+        if field in data:
+            value = data[field]
+            if field in DATE_FIELDS and value == '':
+                value = None
+            setattr(target_user, field, value)
+            update_fields.append(field)
+
+    if update_fields:
+        target_user.save(update_fields=update_fields)
+
+    return target_user
+
+
+def change_own_password(user, current_password, new_password):
+    if not user.check_password(current_password):
+        raise ValueError('La contraseña actual es incorrecta.')
+    if not new_password or len(new_password) < 8:
+        raise ValueError('La nueva contraseña debe tener al menos 8 caracteres.')
+    user.set_password(new_password)
+    user.save(update_fields=['password'])
+
+
 def update_user(requesting_user, target_user, data):
     """
-    Update role and/or is_active on a user. Requires admin role.
+    Update role, is_active, category_id, and/or password on a user. Requires admin role.
     Admins cannot modify their own account to prevent lockout.
     """
     role = requesting_user.groups.values_list('name', flat=True).first()
@@ -77,17 +132,36 @@ def update_user(requesting_user, target_user, data):
             raise ValueError(f"Invalid role '{new_role}'.")
         assign_role(target_user, new_role)
 
-    if 'favorite_category' in data:
-        target_user.favorite_category = data['favorite_category']
-        target_user.save(update_fields=['favorite_category'])
-
-    role_after_update = target_user.groups.values_list('name', flat=True).first()
-    if role_after_update != 'student' and target_user.favorite_category_id is not None:
-        target_user.favorite_category = None
-        target_user.save(update_fields=['favorite_category'])
-
     if 'is_active' in data:
         target_user.is_active = data['is_active']
         target_user.save(update_fields=['is_active'])
+
+    if 'category_id' in data:
+        target_user.category_id = data['category_id']
+        target_user.save(update_fields=['category_id'])
+
+    if 'username' in data:
+        new_username = data['username'].strip()
+        if not new_username:
+            raise ValueError('El nombre de usuario no puede estar vacío.')
+        if User.objects.filter(username=new_username).exclude(pk=target_user.pk).exists():
+            raise ValueError(f"El nombre de usuario '{new_username}' ya está en uso.")
+        target_user.username = new_username
+        target_user.save(update_fields=['username'])
+
+    basic_fields = []
+    for field in ('first_name', 'last_name', 'email', 'phone_number', 'identification_number'):
+        if field in data:
+            setattr(target_user, field, data[field])
+            basic_fields.append(field)
+    if basic_fields:
+        target_user.save(update_fields=basic_fields)
+
+    if 'password' in data:
+        new_password = data['password']
+        if not new_password or len(new_password) < 8:
+            raise ValueError('La contraseña debe tener al menos 8 caracteres.')
+        target_user.set_password(new_password)
+        target_user.save(update_fields=['password'])
 
     return target_user

@@ -174,12 +174,25 @@ function CaseDocumentsModal({ caseId, isOpen, onClose }) {
               <label className="mb-1 block text-xs font-medium text-slate-600">
                 Archivo <span className="text-red-500">*</span>
               </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="shrink-0 rounded border-0 bg-[#5454F2] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#4747d7] disabled:opacity-60"
+                >
+                  Seleccionar archivo
+                </button>
+                <span className="truncate text-sm text-slate-500">
+                  {file ? file.name : 'Ningún archivo seleccionado'}
+                </span>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
                 onChange={handleFileChange}
                 disabled={uploading}
-                className="w-full cursor-pointer rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 transition file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-[#5454F2] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-white hover:file:bg-[#4747d7] disabled:opacity-60"
+                className="sr-only"
               />
               {formErrors.file && <p className="mt-1 text-xs text-red-500">{formErrors.file}</p>}
             </div>

@@ -2,7 +2,7 @@ from django.conf import settings
 from django.apps import apps
 from rest_framework import serializers
 
-from .models import Case, CaseLog, Category, Subclinic
+from .models import Case, CancellationRequestNotification, CaseLog, CaseProgressStatus, Category, Subclinic
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
@@ -38,9 +38,15 @@ class CaseSerializer(serializers.ModelSerializer):
     beneficiary = serializers.PrimaryKeyRelatedField(read_only=True)
     beneficiary_name = serializers.SerializerMethodField()
     pending_cancellation_request = serializers.SerializerMethodField()
+    attended_by_name = serializers.SerializerMethodField()
 
     def get_assigned_users(self, obj):
-        return [{'name': user.username, 'id': user.id} for user in obj.users.all()]
+        result = []
+        for user in obj.users.prefetch_related('groups').all():
+            role = user.groups.values_list('name', flat=True).first() or ''
+            full_name = f'{user.first_name} {user.last_name}'.strip() or user.username
+            result.append({'id': user.id, 'name': full_name, 'role': role})
+        return result
 
     def get_beneficiary_name(self, obj):
         full_name = f'{obj.beneficiary.first_name} {obj.beneficiary.last_name}'.strip()
@@ -51,6 +57,9 @@ class CaseSerializer(serializers.ModelSerializer):
         if request:
             return CaseCancellationRequestSerializer(request).data
         return None
+
+    def get_attended_by_name(self, obj):
+        return obj.attended_by.username if obj.attended_by_id else None
 
     class Meta:
         model = Case
@@ -67,6 +76,10 @@ class CaseSerializer(serializers.ModelSerializer):
             'beneficiary_name',
             'assigned_users',
             'pending_cancellation_request',
+            'is_immediate',
+            'immediate_resolution',
+            'attended_by',
+            'attended_by_name',
         ]
 
 
@@ -78,12 +91,19 @@ class BeneficiaryCaseSerializer(serializers.ModelSerializer):
         fields = ['id', 'status']
 
 
+class PublicProgressStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CaseProgressStatus
+        fields = ['label', 'created_at']
+
+
 class PublicBeneficiaryCaseStatusSerializer(serializers.ModelSerializer):
     status = serializers.CharField(source='status.name', read_only=True)
+    progress_statuses = PublicProgressStatusSerializer(many=True, read_only=True)
 
     class Meta:
         model = Case
-        fields = ['status']
+        fields = ['status', 'progress_statuses']
 
 
 class CaseCreateSerializer(serializers.Serializer):
@@ -100,11 +120,28 @@ class CaseCreateSerializer(serializers.Serializer):
         queryset=User.objects.filter(groups__name='beneficiary').distinct(),
         source='beneficiary',
     )
+    is_immediate = serializers.BooleanField(default=False)
+    immediate_resolution = serializers.CharField(required=False, allow_blank=True, default='')
+    attended_by_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.exclude(groups__name='beneficiary').distinct(),
+        source='attended_by',
+        required=False,
+        allow_null=True,
+        default=None,
+    )
 
     def validate_beneficiary(self, beneficiary):
         if not beneficiary.groups.filter(name='beneficiary').exists():
             raise serializers.ValidationError('Selected user must belong to the beneficiary group.')
         return beneficiary
+
+    def validate(self, data):
+        if data.get('is_immediate'):
+            if not data.get('immediate_resolution', '').strip():
+                raise serializers.ValidationError(
+                    {'immediate_resolution': 'La resolución es requerida para casos inmediatos.'}
+                )
+        return data
 
 
 class CaseUpdateSerializer(serializers.Serializer):
@@ -146,3 +183,36 @@ class CaseLogSerializer(serializers.ModelSerializer):
 
 class CaseLogCreateSerializer(serializers.Serializer):
     content = serializers.CharField()
+
+
+class CaseProgressStatusSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = CaseProgressStatus
+        fields = ['id', 'label', 'created_by', 'created_by_name', 'created_at']
+        read_only_fields = ['created_by', 'created_at']
+
+
+class CaseProgressStatusCreateSerializer(serializers.Serializer):
+    label = serializers.CharField(max_length=200)
+
+
+class CancellationRequestNotificationSerializer(serializers.ModelSerializer):
+    case_id = serializers.IntegerField(source='cancellation_request.case_id', read_only=True)
+    requested_by = serializers.CharField(
+        source='cancellation_request.requested_by.username', read_only=True
+    )
+
+    class Meta:
+        model = CancellationRequestNotification
+        fields = [
+            'id',
+            'cancellation_request',
+            'case_id',
+            'requested_by',
+            'message',
+            'is_read',
+            'created_at',
+        ]
+        read_only_fields = ['cancellation_request', 'case_id', 'requested_by', 'message', 'created_at']

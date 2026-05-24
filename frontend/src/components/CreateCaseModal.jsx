@@ -1,20 +1,16 @@
 import { useEffect, useState } from 'react'
-import { createCase } from '../services/caseService'
-import { getBeneficiaries } from '../services/userService'
+import { createCase, getSubclinics } from '../services/caseService'
+import { getBeneficiaries, getCategories, getStaff } from '../services/userService'
 
-const CATEGORIES = [
-  { id: 1, label: 'Laboral' },
-  { id: 2, label: 'Penal' },
-]
-
-const SUBCLINICS = [
-  { id: 1, label: 'Civil' },
-  { id: 2, label: 'Laboral' },
-  { id: 3, label: 'Penal' },
-  { id: 4, label: 'Familia' },
-]
-
-const EMPTY_FORM = { description: '', categoryId: '', subclinicId: '', beneficiaryId: '' }
+const EMPTY_FORM = {
+  description: '',
+  categoryId: '',
+  subclinicId: '',
+  beneficiaryId: '',
+  isImmediate: false,
+  immediateResolution: '',
+  attendedById: '',
+}
 
 function Field({ label, error, children }) {
   return (
@@ -32,11 +28,22 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
   const [beneficiaries, setBeneficiaries] = useState([])
+  const [categories, setCategories] = useState([])
+  const [subclinics, setSubclinics] = useState([])
+  const [staffUsers, setStaffUsers] = useState([])
 
   useEffect(() => {
     if (!isOpen) return
     getBeneficiaries().then(setBeneficiaries)
+    getCategories().then(setCategories)
+    getStaff().then(setStaffUsers)
+    setSubclinics([])
   }, [isOpen])
+
+  useEffect(() => {
+    if (!form.categoryId) { setSubclinics([]); return }
+    getSubclinics(form.categoryId).then(setSubclinics)
+  }, [form.categoryId])
 
   if (!isOpen) return null
 
@@ -50,9 +57,12 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
   function validate() {
     const next = {}
     if (!form.description.trim()) next.description = 'La descripción es requerida.'
-    if (!form.categoryId) next.categoryId = 'Selecciona una categoría.'
-    if (!form.subclinicId) next.subclinicId = 'Selecciona una subclínica.'
+    if (!form.categoryId) next.categoryId = 'Selecciona una sala.'
+    if (!form.subclinicId) next.subclinicId = 'Selecciona un proceso.'
     if (!form.beneficiaryId) next.beneficiaryId = 'Selecciona un beneficiario.'
+    if (form.isImmediate && !form.immediateResolution.trim()) {
+      next.immediateResolution = 'La resolución es requerida.'
+    }
     return next
   }
 
@@ -73,6 +83,9 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
         categoryId: Number(form.categoryId),
         subclinicId: Number(form.subclinicId),
         beneficiaryId: Number(form.beneficiaryId),
+        isImmediate: form.isImmediate,
+        immediateResolution: form.immediateResolution.trim(),
+        attendedById: form.attendedById ? Number(form.attendedById) : undefined,
       })
       setForm(EMPTY_FORM)
       setErrors({})
@@ -123,30 +136,33 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
               />
             </Field>
 
-            <Field label="Categoría" error={errors.categoryId}>
+            <Field label="Sala" error={errors.categoryId}>
               <select
                 value={form.categoryId}
-                onChange={set('categoryId')}
+                onChange={(e) => {
+                  setForm((prev) => ({ ...prev, categoryId: e.target.value, subclinicId: '' }))
+                  setErrors((prev) => ({ ...prev, categoryId: '', subclinicId: '' }))
+                }}
                 disabled={loading}
                 className={inputClass}
               >
-                <option value="">Selecciona una categoría</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>{c.label}</option>
+                <option value="">Selecciona una sala</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </Field>
 
-            <Field label="Subclínica" error={errors.subclinicId}>
+            <Field label="Proceso" error={errors.subclinicId}>
               <select
                 value={form.subclinicId}
                 onChange={set('subclinicId')}
-                disabled={loading}
+                disabled={loading || !form.categoryId}
                 className={inputClass}
               >
-                <option value="">Selecciona una subclínica</option>
-                {SUBCLINICS.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
+                <option value="">{form.categoryId ? 'Selecciona un proceso' : 'Primero selecciona una sala'}</option>
+                {subclinics.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </Field>
@@ -164,6 +180,49 @@ function CreateCaseModal({ isOpen, onClose, onCaseCreated }) {
                 ))}
               </select>
             </Field>
+
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <input
+                type="checkbox"
+                checked={form.isImmediate}
+                onChange={(e) => setForm((prev) => ({ ...prev, isImmediate: e.target.checked, immediateResolution: '', attendedById: '' }))}
+                disabled={loading}
+                className="h-4 w-4 rounded border-slate-300 accent-[#5454F2]"
+              />
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Resolución inmediata</p>
+                <p className="text-xs text-slate-500">El caso se resolvió en el momento de la consulta presencial.</p>
+              </div>
+            </label>
+
+            {form.isImmediate && (
+              <>
+                <Field label="Resolución" error={errors.immediateResolution}>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe cómo se resolvió el caso..."
+                    value={form.immediateResolution}
+                    onChange={set('immediateResolution')}
+                    disabled={loading}
+                    className={`${inputClass} resize-none`}
+                  />
+                </Field>
+
+                <Field label="Atendido por" error={errors.attendedById}>
+                  <select
+                    value={form.attendedById}
+                    onChange={set('attendedById')}
+                    disabled={loading}
+                    className={inputClass}
+                  >
+                    <option value="">Selecciona quién atendió (opcional)</option>
+                    {staffUsers.map((u) => (
+                      <option key={u.id} value={u.id}>{u.username}</option>
+                    ))}
+                  </select>
+                </Field>
+              </>
+            )}
 
             {apiError && (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{apiError}</p>

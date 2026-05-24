@@ -2,12 +2,12 @@ import StatusBadge from './StatusBadge'
 
 const TABLE_HEADERS = [
   'ID',
-  'Status',
-  'Category',
-  'Beneficiary',
-  'Creation Date',
-  'Updated Date',
-  'Assigned Users',
+  'Estado',
+  'Categoría',
+  'Beneficiario',
+  'Fecha de creación',
+  'Última actualización',
+  'Usuarios asignados',
 ]
 
 function CasesTable({ cases, onRowClick, emptyMessage = 'No hay casos para mostrar' }) {

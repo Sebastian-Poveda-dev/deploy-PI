@@ -27,15 +27,6 @@ export async function registerBeneficiary(payload) {
   return data
 }
 
-export async function getProfessors() {
-  const response = await fetch(buildApiUrl('/users/professors/'), {
-    credentials: 'include',
-  })
-  if (!response.ok) return []
-  return response.json()
-}
-
-
 export async function getUsers() {
   const response = await fetch(buildApiUrl('/users/'), { credentials: 'include' })
   if (!response.ok) throw new Error('No fue posible cargar los usuarios.')
@@ -47,16 +38,30 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createUserAsAdmin({ username, password, role }) {
+export async function createUserAsAdmin({ username, password, role, category_id, first_name, last_name, email, phone_number, identification_number }) {
+  const body = { username, password, role }
+  if (category_id) body.category_id = category_id
+  if (first_name) body.first_name = first_name
+  if (last_name) body.last_name = last_name
+  if (email) body.email = email
+  if (phone_number) body.phone_number = phone_number
+  if (identification_number) body.identification_number = identification_number
+
   const response = await fetch(buildApiUrl('/users/'), {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-    body: JSON.stringify({ username, password, role }),
+    body: JSON.stringify(body),
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(data.detail ?? 'No fue posible crear el usuario.')
   return data
+}
+
+export async function getCategories() {
+  const response = await fetch(buildApiUrl('/cases/categories/'), { credentials: 'include' })
+  if (!response.ok) return []
+  return response.json()
 }
 
 export async function updateUserAsAdmin(userId, patch) {
@@ -71,11 +76,57 @@ export async function updateUserAsAdmin(userId, patch) {
   return data
 }
 
+export async function getStaff() {
+  const response = await fetch(buildApiUrl('/users/staff/'), { credentials: 'include' })
+  if (!response.ok) return []
+  return response.json()
+}
+
 export async function getBeneficiaries() {
   const response = await fetch(buildApiUrl('/users/beneficiaries/'), {
     credentials: 'include',
   })
   if (!response.ok) return []
   return response.json()
+}
+
+export async function getBeneficiariesWithCases() {
+  const response = await fetch(buildApiUrl('/users/beneficiaries/detail/'), {
+    credentials: 'include',
+  })
+  if (!response.ok) throw new Error('No fue posible cargar los beneficiarios.')
+  return response.json()
+}
+
+export async function getBeneficiary(userId) {
+  const response = await fetch(buildApiUrl(`/users/${userId}/`), {
+    credentials: 'include',
+  })
+  if (!response.ok) throw new Error('No fue posible cargar el beneficiario.')
+  return response.json()
+}
+
+export async function changeOwnPassword({ currentPassword, newPassword }) {
+  const response = await fetch(buildApiUrl('/users/me/change-password/'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.detail ?? 'No fue posible cambiar la contraseña.')
+  return data
+}
+
+export async function updateBeneficiary(userId, data) {
+  const response = await fetch(buildApiUrl(`/users/${userId}/`), {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+    body: JSON.stringify(data),
+  })
+  const responseData = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(responseData.detail ?? 'No fue posible actualizar el beneficiario.')
+  return responseData
 }
 

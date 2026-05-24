@@ -8,23 +8,32 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .forms import CaseCreateForm
-from .models import Case
+from .models import Case, Category, Subclinic
 from .serializers import (
 	BeneficiaryCaseSerializer,
+	CancellationRequestNotificationSerializer,
 	CaseCancellationRequestSerializer,
 	CaseCreateSerializer,
 	CaseLogCreateSerializer,
 	CaseLogSerializer,
+	CaseProgressStatusCreateSerializer,
+	CaseProgressStatusSerializer,
 	CaseSerializer,
 	CaseUpdateSerializer,
 	PublicBeneficiaryCaseStatusSerializer,
 )
 from .services import (
+	add_case_progress_status,
 	approve_case,
 	approve_cancellation_request,
+	cancel_case,
 	create_case,
 	create_case_log,
+	get_cancellation_request_notifications,
 	get_case_logs,
+	get_case_progress_statuses,
+	manual_reassign_case,
+	notify_advisors_of_cancellation_request,
 	reject_case_assignment,
 	reject_cancellation_request,
 	update_case,
@@ -63,6 +72,31 @@ def case_create_form_view(request):
 	)
 
 
+class CategoryListAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		categories = Category.objects.all().order_by('name')
+		return Response(
+			[{'id': c.id, 'name': c.name} for c in categories],
+			status=status.HTTP_200_OK,
+		)
+
+
+class SubclinicListAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		qs = Subclinic.objects.all()
+		category_id = request.query_params.get('category_id')
+		if category_id:
+			qs = qs.filter(category_id=category_id)
+		return Response(
+			[{'id': s.id, 'name': s.name} for s in qs],
+			status=status.HTTP_200_OK,
+		)
+
+
 class CaseListCreateAPIView(APIView):
 	permission_classes = [IsAuthenticated]
 
@@ -76,6 +110,10 @@ class CaseListCreateAPIView(APIView):
 			)
 		if role in PRIVILEGED_ROLES:
 			cases = Case.objects.all()
+			if role == 'advisor' and request.query_params.get('sala') == 'true':
+				user_category_id = request.user.category_id
+				if user_category_id:
+					cases = cases.filter(category_id=user_category_id)
 		else:
 			cases = Case.objects.filter(assignments__user=request.user).distinct()
 		return Response(CaseSerializer(cases, many=True).data, status=status.HTTP_200_OK)
@@ -273,7 +311,9 @@ class CreateCancellationRequestAPIView(APIView):
 			requested_by=request.user,
 			reason=serializer.validated_data['reason']
 		)
-		
+
+		notify_advisors_of_cancellation_request(cancellation_request)
+
 		return Response(CaseCancellationRequestSerializer(cancellation_request).data, status=status.HTTP_201_CREATED)
 
 
@@ -307,14 +347,123 @@ class ListCancellationRequestsAPIView(APIView):
 	def get(self, request):
 		from .models import CaseCancellationRequest
 		role = request.user.groups.values_list('name', flat=True).first()
-		
+
 		if role in PRIVILEGED_ROLES:
 			queryset = CaseCancellationRequest.objects.all()
-		elif role == 'professor':
-			queryset = CaseCancellationRequest.objects.filter(case__users=request.user)
 		elif role == 'student':
 			queryset = CaseCancellationRequest.objects.filter(requested_by=request.user)
 		else:
 			queryset = CaseCancellationRequest.objects.none()
-			
+
 		return Response(CaseCancellationRequestSerializer(queryset, many=True).data, status=status.HTTP_200_OK)
+
+
+class CaseCancelAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def post(self, request, pk):
+		case = get_object_or_404(Case, pk=pk)
+		reason = request.data.get('reason', '')
+		reason_other = request.data.get('reason_other', None)
+
+		try:
+			updated_case = cancel_case(case, request.user, reason, reason_other)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		except ValueError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+		return Response(CaseSerializer(updated_case).data, status=status.HTTP_200_OK)
+
+
+class CaseProgressStatusListCreateAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request, pk):
+		case = get_object_or_404(Case, pk=pk)
+		try:
+			statuses = get_case_progress_statuses(request.user, case)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		return Response(
+			CaseProgressStatusSerializer(statuses, many=True).data,
+			status=status.HTTP_200_OK,
+		)
+
+	def post(self, request, pk):
+		case = get_object_or_404(Case, pk=pk)
+		serializer = CaseProgressStatusCreateSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		try:
+			progress_status = add_case_progress_status(
+				request.user, case, serializer.validated_data['label']
+			)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		return Response(
+			CaseProgressStatusSerializer(progress_status).data,
+			status=status.HTTP_201_CREATED,
+		)
+
+
+class CaseManualReassignAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def post(self, request, pk):
+		role = request.user.groups.values_list('name', flat=True).first()
+		if role != 'admin':
+			return Response({'detail': 'Only admins can manually reassign cases.'}, status=status.HTTP_403_FORBIDDEN)
+
+		case = get_object_or_404(Case, pk=pk)
+		new_student_id = request.data.get('new_student_id') or None
+		new_advisor_id = request.data.get('new_advisor_id') or None
+
+		if new_student_id is not None:
+			try:
+				new_student_id = int(new_student_id)
+			except (TypeError, ValueError):
+				return Response({'detail': 'new_student_id must be an integer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+		if new_advisor_id is not None:
+			try:
+				new_advisor_id = int(new_advisor_id)
+			except (TypeError, ValueError):
+				return Response({'detail': 'new_advisor_id must be an integer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+		try:
+			updated_case = manual_reassign_case(request.user, case, new_student_id, new_advisor_id)
+		except PermissionError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+		except ValueError as exc:
+			return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+		return Response(CaseSerializer(updated_case).data, status=status.HTTP_200_OK)
+
+
+class CancellationRequestNotificationListAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def get(self, request):
+		role = request.user.groups.values_list('name', flat=True).first()
+		if role not in {'advisor', 'admin'}:
+			return Response(
+				{'detail': 'Only advisors and admins can view cancellation request notifications.'},
+				status=status.HTTP_403_FORBIDDEN,
+			)
+
+		notifications = get_cancellation_request_notifications(request.user)
+		return Response(
+			CancellationRequestNotificationSerializer(notifications, many=True).data,
+			status=status.HTTP_200_OK,
+		)
+
+
+class CancellationRequestNotificationMarkReadAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def patch(self, request, pk):
+		from .models import CancellationRequestNotification
+		notif = get_object_or_404(CancellationRequestNotification, pk=pk, recipient=request.user)
+		notif.is_read = True
+		notif.save(update_fields=['is_read'])
+		return Response({'detail': 'Marked as read.'}, status=status.HTTP_200_OK)
