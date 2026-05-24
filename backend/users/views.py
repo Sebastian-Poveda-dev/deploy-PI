@@ -69,6 +69,7 @@ def _user_to_dict(user):
         'role': user.groups.values_list('name', flat=True).first() or '',
         'is_active': user.is_active,
         'category_id': user.category_id,
+        'category_name': user.category.name if user.category_id else '',
     }
 
 
