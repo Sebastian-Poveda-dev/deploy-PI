@@ -18,7 +18,7 @@ const ROLE_COLORS = {
   beneficiary: 'bg-slate-100 text-slate-600',
 }
 
-const EMPTY_CREATE_FORM = { username: '', password: '', role: '', category_id: '' }
+const EMPTY_CREATE_FORM = { username: '', password: '', role: '', category_id: '', first_name: '', last_name: '', email: '', phone_number: '', identification_number: '' }
 
 function RoleBadge({ role }) {
   const color = ROLE_COLORS[role] ?? 'bg-slate-100 text-slate-600'
@@ -77,6 +77,11 @@ function CreateUserModal({ isOpen, onClose, onCreated }) {
         password: form.password.trim(),
         role: form.role,
         category_id: form.role === 'advisor' ? form.category_id : undefined,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        email: form.email.trim(),
+        phone_number: form.phone_number.trim(),
+        identification_number: form.identification_number.trim(),
       })
       setForm(EMPTY_CREATE_FORM)
       setErrors({})
@@ -100,6 +105,30 @@ function CreateUserModal({ isOpen, onClose, onCreated }) {
         </div>
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-4 px-6 py-5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">Nombre</label>
+                <input type="text" value={form.first_name} onChange={set('first_name')} disabled={loading} className={inputClass} placeholder="Nombre" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">Apellido</label>
+                <input type="text" value={form.last_name} onChange={set('last_name')} disabled={loading} className={inputClass} placeholder="Apellido" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Cédula</label>
+              <input type="text" value={form.identification_number} onChange={set('identification_number')} disabled={loading} className={inputClass} placeholder="Número de identificación" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">Teléfono</label>
+                <input type="text" value={form.phone_number} onChange={set('phone_number')} disabled={loading} className={inputClass} placeholder="3001234567" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">Correo</label>
+                <input type="email" value={form.email} onChange={set('email')} disabled={loading} className={inputClass} placeholder="correo@ejemplo.com" />
+              </div>
+            </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-700">Usuario</label>
               <input type="text" value={form.username} onChange={set('username')} disabled={loading} className={inputClass} placeholder="nombre_usuario" />
@@ -156,6 +185,12 @@ function CreateUserModal({ isOpen, onClose, onCreated }) {
 }
 
 function EditUserModal({ user, isOpen, onClose, onUpdated }) {
+  const [username, setUsername] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [identificationNumber, setIdentificationNumber] = useState('')
   const [role, setRole] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [isActive, setIsActive] = useState(true)
@@ -167,6 +202,12 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
 
   useEffect(() => {
     if (user) {
+      setUsername(user.username ?? '')
+      setFirstName(user.first_name ?? '')
+      setLastName(user.last_name ?? '')
+      setEmail(user.email ?? '')
+      setPhoneNumber(user.phone_number ?? '')
+      setIdentificationNumber(user.identification_number ?? '')
       setRole(user.role)
       setCategoryId(user.category_id ?? '')
       setIsActive(user.is_active)
@@ -188,6 +229,12 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
     setLoading(true)
     try {
       const patch = {}
+      if (username.trim() !== user.username) patch.username = username.trim()
+      if (firstName.trim() !== (user.first_name ?? '')) patch.first_name = firstName.trim()
+      if (lastName.trim() !== (user.last_name ?? '')) patch.last_name = lastName.trim()
+      if (email.trim() !== (user.email ?? '')) patch.email = email.trim()
+      if (phoneNumber.trim() !== (user.phone_number ?? '')) patch.phone_number = phoneNumber.trim()
+      if (identificationNumber.trim() !== (user.identification_number ?? '')) patch.identification_number = identificationNumber.trim()
       if (role !== user.role) patch.role = role
       if (isActive !== user.is_active) patch.is_active = isActive
       const currentCatId = user.category_id ?? ''
@@ -217,6 +264,34 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 px-6 py-5">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Usuario</label>
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} disabled={loading} className={inputClass} placeholder="nombre_usuario" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">Nombre</label>
+                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={loading} className={inputClass} placeholder="Nombre" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">Apellido</label>
+                <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={loading} className={inputClass} placeholder="Apellido" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Cédula</label>
+              <input type="text" value={identificationNumber} onChange={(e) => setIdentificationNumber(e.target.value)} disabled={loading} className={inputClass} placeholder="Número de identificación" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">Teléfono</label>
+                <input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} disabled={loading} className={inputClass} placeholder="3001234567" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700">Correo</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className={inputClass} placeholder="correo@ejemplo.com" />
+              </div>
+            </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-700">Rol</label>
               <select value={role} onChange={(e) => setRole(e.target.value)} disabled={loading} className={inputClass}>
@@ -359,6 +434,7 @@ function Permissions() {
             <table className="w-full text-sm">
               <thead className="border-b border-slate-200 bg-slate-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Usuario</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Rol</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Sala</th>
@@ -369,6 +445,11 @@ function Permissions() {
               <tbody className="divide-y divide-slate-100">
                 {users.map((user) => (
                   <tr key={user.id} className={`transition-colors hover:bg-slate-50 ${!user.is_active ? 'opacity-50' : ''}`}>
+                    <td className="px-6 py-4 text-slate-800">
+                      {(user.first_name || user.last_name)
+                        ? <><span className="font-medium">{`${user.first_name} ${user.last_name}`.trim()}</span></>
+                        : <span className="text-slate-400 italic">Sin nombre</span>}
+                    </td>
                     <td className="px-6 py-4 font-medium text-slate-800">{user.username}</td>
                     <td className="px-6 py-4"><RoleBadge role={user.role} /></td>
                     <td className="px-6 py-4 text-sm text-slate-600">{user.category_name || '—'}</td>

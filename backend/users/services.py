@@ -30,21 +30,34 @@ def admin_create_user(
     username,
     password,
     role,
-    residence_address='',
+    first_name='',
+    last_name='',
+    email='',
     phone_number='',
+    identification_number=None,
+    residence_address='',
     category_id=None,
 ):
     """Create a user with a specific role (for admin-driven creation)."""
     user = User.objects.create_user(
         username=username,
         password=password,
-        residence_address=residence_address,
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
         phone_number=phone_number,
+        residence_address=residence_address,
     )
     assign_role(user, role)
+    extra_fields = {}
+    if identification_number:
+        extra_fields['identification_number'] = identification_number
     if category_id is not None:
-        user.category_id = category_id
-        user.save(update_fields=['category_id'])
+        extra_fields['category_id'] = category_id
+    if extra_fields:
+        for field, value in extra_fields.items():
+            setattr(user, field, value)
+        user.save(update_fields=list(extra_fields.keys()))
     return user
 
 
@@ -121,6 +134,23 @@ def update_user(requesting_user, target_user, data):
     if 'category_id' in data:
         target_user.category_id = data['category_id']
         target_user.save(update_fields=['category_id'])
+
+    if 'username' in data:
+        new_username = data['username'].strip()
+        if not new_username:
+            raise ValueError('El nombre de usuario no puede estar vacío.')
+        if User.objects.filter(username=new_username).exclude(pk=target_user.pk).exists():
+            raise ValueError(f"El nombre de usuario '{new_username}' ya está en uso.")
+        target_user.username = new_username
+        target_user.save(update_fields=['username'])
+
+    basic_fields = []
+    for field in ('first_name', 'last_name', 'email', 'phone_number', 'identification_number'):
+        if field in data:
+            setattr(target_user, field, data[field])
+            basic_fields.append(field)
+    if basic_fields:
+        target_user.save(update_fields=basic_fields)
 
     if 'password' in data:
         new_password = data['password']
