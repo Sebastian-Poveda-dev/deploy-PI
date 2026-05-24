@@ -103,6 +103,9 @@ def _user_to_dict(user):
         'username': user.username,
         'first_name': user.first_name,
         'last_name': user.last_name,
+        'email': user.email,
+        'phone_number': user.phone_number,
+        'identification_number': user.identification_number or '',
         'role': user.groups.values_list('name', flat=True).first() or '',
         'is_active': user.is_active,
         'category_id': user.category_id,
@@ -171,9 +174,18 @@ class UserManagementListCreateView(APIView):
         category_id = request.data.get('category_id') or None
         first_name = request.data.get('first_name', '').strip()
         last_name = request.data.get('last_name', '').strip()
+        email = request.data.get('email', '').strip()
+        phone_number = request.data.get('phone_number', '').strip()
+        identification_number = request.data.get('identification_number', '').strip() or None
 
         try:
-            user = admin_create_user(username, password, new_role, first_name=first_name, last_name=last_name, category_id=category_id)
+            user = admin_create_user(
+                username, password, new_role,
+                first_name=first_name, last_name=last_name,
+                email=email, phone_number=phone_number,
+                identification_number=identification_number,
+                category_id=category_id,
+            )
         except Group.DoesNotExist:
             return Response(
                 {'detail': f"Role '{new_role}' does not exist."},
@@ -202,8 +214,9 @@ class UserManagementDetailView(APIView):
 
     def patch(self, request, pk):
         target = get_object_or_404(User, pk=pk)
+        is_beneficiary = target.groups.filter(name='beneficiary').exists()
 
-        if any(k in request.data for k in BENEFICIARY_CONTACT_FIELDS):
+        if is_beneficiary and any(k in request.data for k in BENEFICIARY_CONTACT_FIELDS):
             try:
                 user = update_beneficiary_info(request.user, target, dict(request.data))
             except PermissionError as exc:

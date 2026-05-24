@@ -32,8 +32,10 @@ def admin_create_user(
     role,
     first_name='',
     last_name='',
-    residence_address='',
+    email='',
     phone_number='',
+    identification_number=None,
+    residence_address='',
     category_id=None,
 ):
     """Create a user with a specific role (for admin-driven creation)."""
@@ -42,13 +44,20 @@ def admin_create_user(
         password=password,
         first_name=first_name,
         last_name=last_name,
-        residence_address=residence_address,
+        email=email,
         phone_number=phone_number,
+        residence_address=residence_address,
     )
     assign_role(user, role)
+    extra_fields = {}
+    if identification_number:
+        extra_fields['identification_number'] = identification_number
     if category_id is not None:
-        user.category_id = category_id
-        user.save(update_fields=['category_id'])
+        extra_fields['category_id'] = category_id
+    if extra_fields:
+        for field, value in extra_fields.items():
+            setattr(user, field, value)
+        user.save(update_fields=list(extra_fields.keys()))
     return user
 
 
@@ -126,15 +135,13 @@ def update_user(requesting_user, target_user, data):
         target_user.category_id = data['category_id']
         target_user.save(update_fields=['category_id'])
 
-    name_fields = []
-    if 'first_name' in data:
-        target_user.first_name = data['first_name']
-        name_fields.append('first_name')
-    if 'last_name' in data:
-        target_user.last_name = data['last_name']
-        name_fields.append('last_name')
-    if name_fields:
-        target_user.save(update_fields=name_fields)
+    basic_fields = []
+    for field in ('first_name', 'last_name', 'email', 'phone_number', 'identification_number'):
+        if field in data:
+            setattr(target_user, field, data[field])
+            basic_fields.append(field)
+    if basic_fields:
+        target_user.save(update_fields=basic_fields)
 
     if 'password' in data:
         new_password = data['password']
