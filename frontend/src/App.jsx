@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Login from './components/Login'
 import BeneficiaryRegister from './components/BeneficiaryRegister'
 import BeneficiaryTracking from './pages/BeneficiaryTracking'
@@ -9,9 +10,40 @@ import Chats from './pages/Chats'
 import Metrics from './pages/Metrics'
 import Beneficiaries from './pages/Beneficiaries'
 
+const PUBLIC_URL_PATTERNS = ['/users/me/', '/users/login/', '/users/register/', '/cases/track/']
+
+function SessionExpiryHandler() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const originalFetch = window.fetch
+
+    window.fetch = async (...args) => {
+      const url = typeof args[0] === 'string' ? args[0] : args[0]?.url ?? ''
+      const response = await originalFetch(...args)
+
+      if (
+        response.status === 401 &&
+        !PUBLIC_URL_PATTERNS.some((pattern) => url.includes(pattern))
+      ) {
+        navigate('/login', { replace: true })
+      }
+
+      return response
+    }
+
+    return () => {
+      window.fetch = originalFetch
+    }
+  }, [navigate])
+
+  return null
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <SessionExpiryHandler />
       <Routes>
         <Route path="/" element={<BeneficiaryTracking />} />
         <Route path="/login" element={<Login />} />

@@ -1595,3 +1595,110 @@ class CancellationRequestNotificationApiTest(APITestCase):
         notif_case_ids = [n['case_id'] for n in response.data]
         self.assertNotIn(other_case.pk, notif_case_ids)
 
+
+class CaseManualReassignAPITest(APITestCase):
+    """Tests for POST /cases/<id>/reassign/ (admin-only manual reassignment)."""
+
+    def setUp(self):
+        self.category, _ = Category.objects.get_or_create(name='laboral')
+        self.subclinic, _ = Subclinic.objects.get_or_create(name='civil')
+
+        self.admin = User.objects.create_user(username='admin_reassign', password='pass')
+        assign_role(self.admin, 'admin')
+
+        self.advisor = User.objects.create_user(username='advisor_reassign', password='pass')
+        assign_role(self.advisor, 'advisor')
+        self.advisor.category = self.category
+        self.advisor.save()
+
+        self.student = User.objects.create_user(username='student_reassign', password='pass')
+        assign_role(self.student, 'student')
+
+        self.new_student = User.objects.create_user(username='new_student_reassign', password='pass')
+        assign_role(self.new_student, 'student')
+
+        self.new_advisor = User.objects.create_user(username='new_advisor_reassign', password='pass')
+        assign_role(self.new_advisor, 'advisor')
+        self.new_advisor.category = self.category
+        self.new_advisor.save()
+
+        self.beneficiary = User.objects.create_user(username='ben_reassign', password='pass')
+        assign_role(self.beneficiary, 'beneficiary')
+
+        self.case = create_case(
+            self.student,
+            'Test reassign case',
+            self.category,
+            self.subclinic,
+            beneficiary=self.beneficiary,
+        )
+
+    def _url(self):
+        return f'/cases/{self.case.pk}/reassign/'
+
+    def test_admin_can_reassign_student(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(self._url(), {'new_student_id': self.new_student.id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(
+            CaseAssignment.objects.filter(case=self.case, user=self.new_student).exists()
+        )
+        self.assertFalse(
+            CaseAssignment.objects.filter(case=self.case, user=self.student).exists()
+        )
+
+    def test_admin_can_reassign_advisor(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(self._url(), {'new_advisor_id': self.new_advisor.id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(
+            CaseAssignment.objects.filter(case=self.case, user=self.new_advisor).exists()
+        )
+
+    def test_admin_can_reassign_both_at_once(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            self._url(),
+            {'new_student_id': self.new_student.id, 'new_advisor_id': self.new_advisor.id},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(CaseAssignment.objects.filter(case=self.case, user=self.new_student).exists())
+        self.assertTrue(CaseAssignment.objects.filter(case=self.case, user=self.new_advisor).exists())
+
+    def test_non_admin_gets_403(self):
+        self.client.force_authenticate(self.advisor)
+        response = self.client.post(self._url(), {'new_student_id': self.new_student.id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthenticated_gets_401_or_403(self):
+        response = self.client.post(self._url(), {'new_student_id': self.new_student.id}, format='json')
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+    def test_no_ids_provided_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_invalid_student_id_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(self._url(), {'new_student_id': 99999}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_invalid_advisor_id_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(self._url(), {'new_advisor_id': 99999}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reassignment_creates_log_entry(self):
+        from cases.models import CaseLog
+        self.client.force_authenticate(self.admin)
+        log_count_before = CaseLog.objects.filter(case=self.case).count()
+        self.client.post(self._url(), {'new_student_id': self.new_student.id}, format='json')
+        self.assertGreater(CaseLog.objects.filter(case=self.case).count(), log_count_before)
+
+    def test_nonexistent_case_returns_404(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post('/cases/99999/reassign/', {'new_student_id': self.new_student.id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
