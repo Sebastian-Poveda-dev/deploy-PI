@@ -196,3 +196,23 @@ def step_other_reason_requires_text_error(context):
 @then("el caso no cambia a estado cancelado")
 def step_case_is_not_cancelled(context):
     assert not context.case_modal.status_matches({"CANCELLED", "Cancelado"})
+
+
+@then("los campos extra del beneficiario estan ocultos")
+def step_beneficiary_extra_fields_hidden(context):
+    assert context.case_modal.beneficiary_extra_fields_are_hidden()
+
+
+@when("despliega mas informacion del beneficiario")
+def step_expand_beneficiary_more_info(context):
+    context.case_modal.expand_beneficiary_more_info()
+
+
+@then("los campos extra del beneficiario aparecen")
+def step_beneficiary_extra_fields_visible(context):
+    assert context.case_modal.beneficiary_extra_fields_are_visible()
+
+
+@when("colapsa la informacion del beneficiario")
+def step_collapse_beneficiary_more_info(context):
+    context.case_modal.collapse_beneficiary_more_info()

@@ -50,3 +50,14 @@ Feature: Gestion de casos desde el modal
     When intenta cerrar el caso con la razon Otro sin texto adicional
     Then ve un error que exige describir la razon de cancelacion
     And el caso no cambia a estado cancelado
+
+  Scenario: El boton Mas informacion del beneficiario despliega y colapsa los campos extra
+    Given existe un caso activo para cerrar
+    And existe una sesion iniciada como admin
+    When abre la pagina de casos
+    And abre el caso activo para cerrar
+    Then los campos extra del beneficiario estan ocultos
+    When despliega mas informacion del beneficiario
+    Then los campos extra del beneficiario aparecen
+    When colapsa la informacion del beneficiario
+    Then los campos extra del beneficiario estan ocultos

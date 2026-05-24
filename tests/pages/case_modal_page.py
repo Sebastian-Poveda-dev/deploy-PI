@@ -15,6 +15,12 @@ class CaseModalPage(BasePage):
     IMMEDIATE_RESOLUTION = (By.XPATH, "//label[contains(normalize-space(), 'Resoluci')]/following-sibling::textarea")
     ATTENDED_BY = (By.XPATH, "//label[normalize-space()='Atendido por']/following-sibling::select")
     CONFIRM_BUTTON = (By.XPATH, "//button[normalize-space()='Confirmar']")
+    BENEFICIARY_EXTRA_LABELS = (
+        "Lugar de expedici",
+        "Estado civil",
+        "Escolaridad",
+        "Ocupaci",
+    )
 
     def wait_for_details(self, case_id):
         self.find_visible((By.XPATH, f"//h2[contains(normalize-space(), 'Caso #{case_id}')]"))
@@ -149,6 +155,22 @@ class CaseModalPage(BasePage):
 
     def toggle_more_info(self):
         self.click((By.XPATH, "//button[contains(normalize-space(), 'informaci')]"))
+
+    def beneficiary_extra_fields_are_visible(self):
+        text = self.details_text()
+        return all(label in text for label in self.BENEFICIARY_EXTRA_LABELS)
+
+    def beneficiary_extra_fields_are_hidden(self):
+        text = self.details_text()
+        return all(label not in text for label in self.BENEFICIARY_EXTRA_LABELS)
+
+    def expand_beneficiary_more_info(self):
+        self.click((By.XPATH, "//button[contains(normalize-space(), 'informaci') and contains(normalize-space(), 'M')]"))
+        self.wait.until(lambda _: self.beneficiary_extra_fields_are_visible())
+
+    def collapse_beneficiary_more_info(self):
+        self.click((By.XPATH, "//button[contains(normalize-space(), 'informaci') and contains(normalize-space(), 'Menos')]"))
+        self.wait.until(lambda _: self.beneficiary_extra_fields_are_hidden())
 
     def start_edit_beneficiary(self):
         self.click((By.XPATH, "//button[contains(@title, 'Editar beneficiario') or contains(normalize-space(), 'Editar')]"))
