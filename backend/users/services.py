@@ -135,6 +135,15 @@ def update_user(requesting_user, target_user, data):
         target_user.category_id = data['category_id']
         target_user.save(update_fields=['category_id'])
 
+    if 'username' in data:
+        new_username = data['username'].strip()
+        if not new_username:
+            raise ValueError('El nombre de usuario no puede estar vacío.')
+        if User.objects.filter(username=new_username).exclude(pk=target_user.pk).exists():
+            raise ValueError(f"El nombre de usuario '{new_username}' ya está en uso.")
+        target_user.username = new_username
+        target_user.save(update_fields=['username'])
+
     basic_fields = []
     for field in ('first_name', 'last_name', 'email', 'phone_number', 'identification_number'):
         if field in data:

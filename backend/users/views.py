@@ -169,7 +169,7 @@ class UserManagementListCreateView(APIView):
             )
 
         if User.objects.filter(username=username).exists():
-            return Response({'detail': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': f"El nombre de usuario '{username}' ya está en uso."}, status=status.HTTP_400_BAD_REQUEST)
 
         category_id = request.data.get('category_id') or None
         first_name = request.data.get('first_name', '').strip()

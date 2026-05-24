@@ -185,6 +185,7 @@ function CreateUserModal({ isOpen, onClose, onCreated }) {
 }
 
 function EditUserModal({ user, isOpen, onClose, onUpdated }) {
+  const [username, setUsername] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -201,6 +202,7 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
 
   useEffect(() => {
     if (user) {
+      setUsername(user.username ?? '')
       setFirstName(user.first_name ?? '')
       setLastName(user.last_name ?? '')
       setEmail(user.email ?? '')
@@ -227,6 +229,7 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
     setLoading(true)
     try {
       const patch = {}
+      if (username.trim() !== user.username) patch.username = username.trim()
       if (firstName.trim() !== (user.first_name ?? '')) patch.first_name = firstName.trim()
       if (lastName.trim() !== (user.last_name ?? '')) patch.last_name = lastName.trim()
       if (email.trim() !== (user.email ?? '')) patch.email = email.trim()
@@ -261,6 +264,10 @@ function EditUserModal({ user, isOpen, onClose, onUpdated }) {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 px-6 py-5">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Usuario</label>
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} disabled={loading} className={inputClass} placeholder="nombre_usuario" />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-slate-700">Nombre</label>
