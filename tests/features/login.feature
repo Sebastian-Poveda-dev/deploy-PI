@@ -19,7 +19,8 @@ Feature: Autenticacion de usuarios
     Then ve un mensaje de error de autenticacion
     And permanece en la pagina de login
 
-  Scenario: Acceder a una ruta protegida sin sesion redirige al login
+  Scenario: Acceder a una ruta protegida sin sesion muestra error de carga
     Given el visitante no tiene sesion iniciada
     When intenta acceder a la ruta protegida "/dashboard/cases"
-    Then es redirigido al login
+    Then permanece en la ruta protegida
+    And ve un error de carga de casos

@@ -71,6 +71,12 @@ def step_register_validation_errors(context):
     assert context.register_page.has_text("Completa los campos obligatorios"), context.register_page.visible_text()
 
 
+@then("es redirigido al seguimiento publico")
+def step_redirected_public_tracking(context):
+    context.register_page.wait.until(lambda driver: driver.current_url.rstrip("/") == "http://localhost:5173" or driver.current_url.rstrip("/") == "http://127.0.0.1:5173")
+    assert context.register_page.has_text("Consulta") or context.register_page.has_text("caso"), context.register_page.visible_text()
+
+
 @when('registra un beneficiario con identificacion existente "{identification_number}"')
 def step_register_existing_id(context, identification_number):
     data = unique_registration_data()

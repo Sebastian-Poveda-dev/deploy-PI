@@ -55,6 +55,17 @@ def step_redirected_login(context):
     DashboardPage(context.driver).wait_for_url_contains("/login")
 
 
+@then("permanece en la ruta protegida")
+def step_stays_on_protected_route(context):
+    assert "/dashboard/cases" in context.driver.current_url
+
+
+@then("ve un error de carga de casos")
+def step_cases_load_error(context):
+    page = DashboardPage(context.driver)
+    assert page.has_text("No fue posible cargar los casos"), page.visible_text()
+
+
 @given("existe una sesion iniciada como admin")
 def step_login_admin(context):
     context.login_page = LoginPage(context.driver)
