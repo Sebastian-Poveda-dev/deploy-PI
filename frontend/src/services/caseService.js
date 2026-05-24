@@ -198,6 +198,46 @@ export async function reviewCancellation(requestId, action) {
   return await response.json()
 }
 
+export const CANCELLATION_REASONS = [
+  { value: 'DESISTIMIENTO_TACITO', label: 'Desistimiento tácito del usuario' },
+  { value: 'DESISTIMIENTO_EXPRESO', label: 'Desistimiento expreso del usuario' },
+  { value: 'FINALIZADO_GANADO', label: 'Caso finalizado jurídicamente (ganado)' },
+  { value: 'FINALIZADO_PERDIDO', label: 'Caso finalizado jurídicamente (perdido)' },
+  { value: 'INFRINGIO_TERMINOS', label: 'Infringió los términos del consultorio jurídico' },
+  { value: 'OTRO', label: 'Otro' },
+]
+
+export async function cancelCase(caseId, reason, reasonOther) {
+  const body = { reason }
+  if (reason === 'OTRO' && reasonOther) body.reason_other = reasonOther
+
+  const response = await fetch(buildApiUrl(`/cases/${caseId}/cancel/`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken(),
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail ?? 'No fue posible cancelar el caso.')
+  }
+
+  return mapCase(await response.json())
+}
+
+export async function getSubclinics(categoryId) {
+  const url = categoryId
+    ? buildApiUrl(`/cases/subclinics/?category_id=${categoryId}`)
+    : buildApiUrl('/cases/subclinics/')
+  const response = await fetch(url, { credentials: 'include' })
+  if (!response.ok) return []
+  return response.json()
+}
+
 export async function getCaseProgressStatuses(caseId) {
   const response = await fetch(buildApiUrl(`/cases/${caseId}/progress-statuses/`), {
     credentials: 'include',

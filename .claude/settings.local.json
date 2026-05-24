@@ -4,7 +4,16 @@
       "Bash(python manage.py test cases.tests.CancellationRequestNotificationTest cases.tests.CancellationRequestNotificationApiTest --verbosity=2)",
       "Bash(python -m pytest cases/tests.py::CancellationRequestNotificationTest cases/tests.py::CancellationRequestNotificationApiTest -v)",
       "Bash(docker-compose exec *)",
-      "Bash(docker compose *)"
+      "Bash(docker compose *)",
+      "Bash(python manage.py makemigrations cases --name=\"case_cancellation_reason\")",
+      "Bash(python manage.py migrate --run-syncdb)",
+      "Bash(python -c \"from cases.views import CaseCancelAPIView; from cases.services import cancel_case; print\\('imports OK'\\)\")",
+      "Bash(python manage.py check)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(python manage.py shell -c ' *)",
+      "Bash(python manage.py makemigrations cases --name=\"subclinic_category_fk\")",
+      "Bash(python manage.py migrate)"
     ]
   }
 }

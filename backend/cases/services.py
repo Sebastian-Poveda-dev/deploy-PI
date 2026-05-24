@@ -318,6 +318,48 @@ def approve_case(case, user):
     return case
 
 
+CANCEL_CASE_ALLOWED_ROLES = {'admin', 'advisor'}
+
+
+def cancel_case(case, user, reason, reason_other=None):
+    """
+    Cancel a case with a predefined reason.
+    Only admins and advisors are allowed.
+    """
+    from .models import Case as CaseModel
+
+    role = user.groups.values_list('name', flat=True).first()
+    if role not in CANCEL_CASE_ALLOWED_ROLES:
+        raise PermissionError(f"Users with role '{role}' cannot cancel cases.")
+
+    valid_reasons = {choice[0] for choice in CaseModel.CANCELLATION_REASON_CHOICES}
+    if reason not in valid_reasons:
+        raise ValueError(f"Invalid cancellation reason: '{reason}'.")
+
+    if reason == CaseModel.CANCELLATION_REASON_OTRO:
+        if not reason_other or not reason_other.strip():
+            raise ValueError('Se requiere una descripción cuando la razón es "Otro".')
+    else:
+        reason_other = None
+
+    canceled_status = CaseStatus.objects.get(name='canceled')
+
+    with transaction.atomic():
+        case.status = canceled_status
+        case.cancellation_reason = reason
+        case.cancellation_reason_other = reason_other.strip() if reason_other else None
+        case.save()
+
+        reason_display = dict(CaseModel.CANCELLATION_REASON_CHOICES).get(reason, reason)
+        log_content = f'Caso cancelado por {user.username}. Razón: {reason_display}.'
+        if reason_other:
+            log_content += f' Detalle: {reason_other.strip()}'
+
+        CaseLog.objects.create(case=case, user=user, content=log_content)
+
+    return case
+
+
 def notify_advisors_of_cancellation_request(cancellation_request):
     """
     Create a notification for each advisor assigned to the case associated
