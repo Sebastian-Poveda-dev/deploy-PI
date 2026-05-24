@@ -252,7 +252,7 @@ class CaseModalPage(BasePage):
     def beneficiary_extra_field_is_visible(self, key, value):
         if not self.beneficiary_extra_fields_are_visible():
             self.expand_beneficiary_more_info()
-        text = self.details_text()
+        text = self.beneficiary_section_text()
         return key in text and value in text
 
     def save_beneficiary(self):
