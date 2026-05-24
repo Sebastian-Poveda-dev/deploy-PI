@@ -38,6 +38,7 @@ function mapBeneficiaryCase(raw) {
   return {
     id: raw.id,
     status: STATUS_MAP[raw.status] ?? raw.status.toUpperCase(),
+    progressStatuses: Array.isArray(raw.progress_statuses) ? raw.progress_statuses : [],
   }
 }
 
