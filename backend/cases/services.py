@@ -158,14 +158,15 @@ def reject_cancellation_request(request, user):
     return request
 
 
-def create_case(user, description, category, subclinic, beneficiary):
+def create_case(
+    user, description, category, subclinic, beneficiary,
+    is_immediate=False, immediate_resolution='', attended_by=None,
+):
     """
     Create a case on behalf of a user and auto-assign one student.
 
-    status is determined by the user's role:
-      admin / advisor → active
-      student         → pending_authorization
-      beneficiary     → PermissionError (not allowed)
+    If is_immediate=True the case is created directly in 'finished' status
+    with no auto-assignment. attended_by records who resolved it on the spot.
     """
     role = user.groups.values_list('name', flat=True).first()
 
@@ -177,6 +178,35 @@ def create_case(user, description, category, subclinic, beneficiary):
 
     if not beneficiary.groups.filter(name='beneficiary').exists():
         raise ValueError('Selected user must belong to the beneficiary group.')
+
+    if is_immediate:
+        case_status = CaseStatus.objects.get(name='finished')
+        with transaction.atomic():
+            case = Case(
+                description=description,
+                created_by=user,
+                category=category,
+                subclinic=subclinic,
+                status=case_status,
+                beneficiary=beneficiary,
+                is_immediate=True,
+                immediate_resolution=immediate_resolution.strip(),
+                attended_by=attended_by,
+            )
+            case.full_clean()
+            case.save()
+
+            attended_label = attended_by.username if attended_by else 'sin especificar'
+            CaseLog.objects.create(
+                case=case,
+                user=user,
+                content=(
+                    f'Caso de resolución inmediata creado por {user.username}. '
+                    f'Atendido por: {attended_label}. '
+                    f'Resolución: {immediate_resolution.strip()}'
+                ),
+            )
+        return case
 
     status = CaseStatus.objects.get(name=ROLE_STATUS_MAP[role])
 

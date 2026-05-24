@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     beneficiaries_view,
+    staff_view,
     login_view,
     me_view,
     register_view,
@@ -17,5 +18,6 @@ urlpatterns = [
     path('me/', me_view, name='me'),
     path('', UserManagementListCreateView.as_view(), name='user-list-create'),
     path('<int:pk>/', UserManagementDetailView.as_view(), name='user-detail'),
+    path('staff/', staff_view, name='staff'),
     path('beneficiaries/', beneficiaries_view, name='beneficiaries'),
 ]

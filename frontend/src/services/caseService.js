@@ -47,12 +47,17 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createCase({ description, categoryId, subclinicId, beneficiaryId }) {
+export async function createCase({ description, categoryId, subclinicId, beneficiaryId, isImmediate, immediateResolution, attendedById }) {
   const body = {
     description,
     category_id: categoryId,
     subclinic_id: subclinicId,
     beneficiary_id: beneficiaryId,
+    is_immediate: isImmediate ?? false,
+  }
+  if (isImmediate) {
+    body.immediate_resolution = immediateResolution ?? ''
+    if (attendedById) body.attended_by_id = attendedById
   }
 
   const response = await fetch(buildApiUrl('/cases/'), {

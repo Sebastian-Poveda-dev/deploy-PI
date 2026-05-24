@@ -93,6 +93,15 @@ class Case(models.Model):
         blank=True,
     )
     cancellation_reason_other = models.TextField(null=True, blank=True)
+    is_immediate = models.BooleanField(default=False)
+    immediate_resolution = models.TextField(null=True, blank=True)
+    attended_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='attended_cases',
+    )
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through='CaseAssignment',
