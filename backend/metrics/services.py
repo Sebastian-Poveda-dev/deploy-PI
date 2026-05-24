@@ -153,6 +153,49 @@ def get_cancellation_rate():
     }
 
 
+def search_student_cases(query):
+    User = get_user_model()
+    qs = (
+        User.objects.filter(groups__name='student', is_active=True)
+        .filter(
+            Q(username__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+        )
+        .annotate(
+            active_cases=Count(
+                'case_assignments',
+                filter=Q(case_assignments__case__status__name__in=ACTIVE_STATUSES),
+                distinct=True,
+            ),
+            total_cases=Count('case_assignments', distinct=True),
+        )
+        .distinct()
+        .order_by('first_name', 'last_name', 'username')
+    )
+
+    result = []
+    for user in qs:
+        by_status = list(
+            CaseAssignment.objects.filter(user=user)
+            .values('case__status__name')
+            .annotate(count=Count('id'))
+            .order_by('case__status__name')
+        )
+        result.append({
+            'id': user.id,
+            'username': user.username,
+            'full_name': f'{user.first_name} {user.last_name}'.strip() or user.username,
+            'active_cases': user.active_cases,
+            'total_cases': user.total_cases,
+            'by_status': [
+                {'status': item['case__status__name'], 'count': item['count']}
+                for item in by_status
+            ],
+        })
+    return result
+
+
 def get_document_expiration():
     today = timezone.now().date()
     threshold = today + timedelta(days=7)
