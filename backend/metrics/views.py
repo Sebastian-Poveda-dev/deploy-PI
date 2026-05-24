@@ -43,4 +43,4 @@ class StudentCaseSearchAPIView(APIView):
         if not query:
             return Response([])
 
-        return Response(services.search_student_cases(query))
+        return Response(services.search_user_cases(query))

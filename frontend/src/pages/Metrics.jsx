@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import DashboardLayout from '../layouts/DashboardLayout'
-import { getMetrics, searchStudentCases } from '../services/metricsService'
+import { getMetrics, searchUserCases } from '../services/metricsService'
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -213,7 +213,7 @@ function StudentSearch() {
     setError('')
     setResults(null)
     try {
-      const data = await searchStudentCases(q)
+      const data = await searchUserCases(q)
       setResults(data)
     } catch {
       setError('No fue posible realizar la búsqueda.')
@@ -230,9 +230,9 @@ function StudentSearch() {
   }
 
   return (
-    <Card title="Búsqueda de casos por estudiante">
+    <Card title="Búsqueda de casos por usuario">
       <p className="mb-4 text-sm text-slate-500">
-        Busca un estudiante por nombre o usuario para ver el detalle de sus casos.
+        Busca un estudiante o asesor por nombre o usuario para ver el detalle de sus casos asignados.
       </p>
 
       <form onSubmit={handleSearch} className="flex gap-2">
@@ -270,7 +270,7 @@ function StudentSearch() {
         <div className="mt-5 space-y-3">
           {results.length === 0 ? (
             <p className="text-sm text-slate-400 italic">
-              No se encontraron estudiantes que coincidan con "{query}".
+              No se encontraron estudiantes ni asesores que coincidan con "{query}".
             </p>
           ) : (
             results.map((student) => (
