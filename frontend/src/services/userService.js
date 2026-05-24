@@ -85,6 +85,14 @@ export async function getBeneficiaries() {
   return response.json()
 }
 
+export async function getBeneficiariesWithCases() {
+  const response = await fetch(buildApiUrl('/users/beneficiaries/detail/'), {
+    credentials: 'include',
+  })
+  if (!response.ok) throw new Error('No fue posible cargar los beneficiarios.')
+  return response.json()
+}
+
 export async function getBeneficiary(userId) {
   const response = await fetch(buildApiUrl(`/users/${userId}/`), {
     credentials: 'include',
