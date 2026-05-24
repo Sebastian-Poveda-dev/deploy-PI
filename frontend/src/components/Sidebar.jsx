@@ -6,10 +6,10 @@ import { getCurrentUser } from '../services/userService'
 const NAV_ITEMS = [
   { label: 'Inicio', path: '/dashboard' },
   { label: 'Casos', path: '/dashboard/cases' },
-  { label: 'Beneficiarios', path: '/dashboard/beneficiaries', roles: ['admin', 'advisor', 'student'] },
+  { label: 'Beneficiarios', path: '/dashboard/beneficiaries' },
   { label: 'Chats', path: '/dashboard/chats' },
-  { label: 'Permisos', path: '/dashboard/permissions' },
-  { label: 'Metricas', path: '/dashboard/metrics' },
+  { label: 'Métricas', path: '/dashboard/metrics', roles: ['admin', 'advisor'] },
+  { label: 'Permisos', path: '/dashboard/permissions', roles: ['admin'] },
 ]
 
 function Sidebar() {
