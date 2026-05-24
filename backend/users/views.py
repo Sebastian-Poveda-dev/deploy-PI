@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .forms import BeneficiaryRegisterForm
-from .services import admin_create_user, list_users, update_user
+from .services import admin_create_user, list_users, update_beneficiary_info, update_user
 
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
@@ -73,6 +73,21 @@ def _user_to_dict(user):
     }
 
 
+def _full_user_to_dict(user):
+    return {
+        'id': user.id,
+        'username': user.username,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'email': user.email,
+        'identification_number': user.identification_number or '',
+        'residence_address': user.residence_address,
+        'phone_number': user.phone_number,
+        'role': user.groups.values_list('name', flat=True).first() or '',
+        'is_active': user.is_active,
+    }
+
+
 class UserManagementListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -115,11 +130,27 @@ class UserManagementListCreateView(APIView):
         return Response(_user_to_dict(user), status=status.HTTP_201_CREATED)
 
 
+BENEFICIARY_CONTACT_FIELDS = {'first_name', 'last_name', 'email', 'identification_number', 'residence_address', 'phone_number'}
+
+
 class UserManagementDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request, pk):
+        target = get_object_or_404(User, pk=pk)
+        return Response(_full_user_to_dict(target))
+
     def patch(self, request, pk):
         target = get_object_or_404(User, pk=pk)
+
+        if any(k in request.data for k in BENEFICIARY_CONTACT_FIELDS):
+            try:
+                user = update_beneficiary_info(request.user, target, dict(request.data))
+            except PermissionError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+            except ValueError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(_full_user_to_dict(user))
 
         try:
             user = update_user(request.user, target, dict(request.data))

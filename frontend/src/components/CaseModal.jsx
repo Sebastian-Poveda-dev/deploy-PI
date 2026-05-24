@@ -1,7 +1,31 @@
 import { useEffect, useState } from 'react'
 import StatusBadge from './StatusBadge'
 import { approveCase, rejectCase, requestCancellation, reviewCancellation, cancelCase, getCaseProgressStatuses, addCaseProgressStatus, CANCELLATION_REASONS } from '../services/caseService'
+import { getBeneficiary, updateBeneficiary } from '../services/userService'
 import { canApproveCase, canRejectCase, canRequestCancellation, canReviewCancellation, canCancelCase } from '../utils/permissions'
+
+function Field({ label, value }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-0.5 text-sm text-slate-700 break-words">{value}</p>
+    </div>
+  )
+}
+
+function EditField({ label, field, type = 'text', draft, setDraft }) {
+  return (
+    <div>
+      <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1">{label}</label>
+      <input
+        type={type}
+        value={draft[field] ?? ''}
+        onChange={(e) => setDraft((prev) => ({ ...prev, [field]: e.target.value }))}
+        className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-[#5454F2] focus:outline-none focus:ring-1 focus:ring-[#5454F2]"
+      />
+    </div>
+  )
+}
 
 function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, currentUser, onCaseUpdated }) {
   const [pendingAction, setPendingAction] = useState(null)
@@ -17,7 +41,15 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
   const [progressError, setProgressError] = useState('')
   const [progressSubmitting, setProgressSubmitting] = useState(false)
 
+  const [beneficiary, setBeneficiary] = useState(null)
+  const [beneficiaryLoading, setBeneficiaryLoading] = useState(false)
+  const [editingBeneficiary, setEditingBeneficiary] = useState(false)
+  const [beneficiaryDraft, setBeneficiaryDraft] = useState({})
+  const [savingBeneficiary, setSavingBeneficiary] = useState(false)
+  const [beneficiaryError, setBeneficiaryError] = useState('')
+
   const canAddProgress = currentUser && ['admin', 'advisor', 'student'].includes(currentUser.role)
+  const canEditBeneficiary = currentUser && ['admin', 'advisor'].includes(currentUser.role)
 
   useEffect(() => {
     if (!isOpen || !caseData?.id) {
@@ -48,6 +80,49 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
       setProgressSubmitting(false)
     }
   }
+
+  function startEditBeneficiary() {
+    setBeneficiaryDraft({
+      first_name: beneficiary?.first_name ?? '',
+      last_name: beneficiary?.last_name ?? '',
+      email: beneficiary?.email ?? '',
+      identification_number: beneficiary?.identification_number ?? '',
+      phone_number: beneficiary?.phone_number ?? '',
+      residence_address: beneficiary?.residence_address ?? '',
+    })
+    setBeneficiaryError('')
+    setEditingBeneficiary(true)
+  }
+
+  async function handleSaveBeneficiary(e) {
+    e.preventDefault()
+    setSavingBeneficiary(true)
+    setBeneficiaryError('')
+    try {
+      const updated = await updateBeneficiary(caseData.beneficiaryId, beneficiaryDraft)
+      setBeneficiary(updated)
+      setEditingBeneficiary(false)
+    } catch (err) {
+      setBeneficiaryError(err.message)
+    } finally {
+      setSavingBeneficiary(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen || !caseData?.beneficiaryId) {
+      setBeneficiary(null)
+      setEditingBeneficiary(false)
+      setBeneficiaryDraft({})
+      setBeneficiaryError('')
+      return
+    }
+    setBeneficiaryLoading(true)
+    getBeneficiary(caseData.beneficiaryId)
+      .then(setBeneficiary)
+      .catch(() => setBeneficiary(null))
+      .finally(() => setBeneficiaryLoading(false))
+  }, [isOpen, caseData?.beneficiaryId])
 
   useEffect(() => {
     if (!isOpen) {
@@ -185,6 +260,76 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
               </ul>
             ) : (
               <p className="mt-2 text-sm text-slate-500">No assigned users.</p>
+            )}
+          </section>
+
+          {/* Beneficiary */}
+          <section>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Beneficiario</p>
+              {canEditBeneficiary && beneficiary && !editingBeneficiary && (
+                <button
+                  type="button"
+                  onClick={startEditBeneficiary}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[#5454F2] transition hover:bg-indigo-50"
+                  title="Editar beneficiario"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                  Editar
+                </button>
+              )}
+            </div>
+
+            {beneficiaryLoading && (
+              <p className="mt-2 text-sm text-slate-400">Cargando...</p>
+            )}
+
+            {!beneficiaryLoading && !beneficiary && (
+              <p className="mt-2 text-sm text-slate-400">No disponible.</p>
+            )}
+
+            {!beneficiaryLoading && beneficiary && !editingBeneficiary && (
+              <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 rounded-lg border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2">
+                <Field label="Nombre" value={`${beneficiary.first_name} ${beneficiary.last_name}`.trim() || beneficiary.username} />
+                <Field label="Usuario" value={`@${beneficiary.username}`} />
+                <Field label="Cédula" value={beneficiary.identification_number || '—'} />
+                <Field label="Correo" value={beneficiary.email || '—'} />
+                <Field label="Teléfono" value={beneficiary.phone_number || '—'} />
+                <Field label="Dirección" value={beneficiary.residence_address || '—'} />
+              </div>
+            )}
+
+            {!beneficiaryLoading && editingBeneficiary && (
+              <form onSubmit={handleSaveBeneficiary} className="mt-2 space-y-3 rounded-lg border border-indigo-100 bg-indigo-50/40 p-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <EditField label="Nombre" field="first_name" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                  <EditField label="Apellido" field="last_name" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                  <EditField label="Cédula" field="identification_number" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                  <EditField label="Correo" field="email" type="email" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                  <EditField label="Teléfono" field="phone_number" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                  <EditField label="Dirección" field="residence_address" draft={beneficiaryDraft} setDraft={setBeneficiaryDraft} />
+                </div>
+                {beneficiaryError && <p className="text-xs text-red-500">{beneficiaryError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={savingBeneficiary}
+                    className="rounded-md bg-[#5454F2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#4747d7] disabled:opacity-50"
+                  >
+                    {savingBeneficiary ? 'Guardando...' : 'Guardar'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingBeneficiary(false)}
+                    disabled={savingBeneficiary}
+                    className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
             )}
           </section>
 
