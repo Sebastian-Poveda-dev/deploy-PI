@@ -78,12 +78,19 @@ class BeneficiaryCaseSerializer(serializers.ModelSerializer):
         fields = ['id', 'status']
 
 
+class PublicProgressStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CaseProgressStatus
+        fields = ['label', 'created_at']
+
+
 class PublicBeneficiaryCaseStatusSerializer(serializers.ModelSerializer):
     status = serializers.CharField(source='status.name', read_only=True)
+    progress_statuses = PublicProgressStatusSerializer(many=True, read_only=True)
 
     class Meta:
         model = Case
-        fields = ['status']
+        fields = ['status', 'progress_statuses']
 
 
 class CaseCreateSerializer(serializers.Serializer):
