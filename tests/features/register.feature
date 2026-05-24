@@ -1,9 +1,9 @@
 Feature: Registro de beneficiario
 
-  Scenario: Registro exitoso con todos los campos obligatorios redirige al login
+  Scenario: Registro exitoso con todos los campos obligatorios redirige al seguimiento publico
     Given el visitante esta en la pagina de registro
     When registra un beneficiario nuevo con todos los campos obligatorios
-    Then es redirigido al login
+    Then es redirigido al seguimiento publico
 
   Scenario: Registro sin campos obligatorios muestra errores de validacion
     Given el visitante esta en la pagina de registro
@@ -18,7 +18,7 @@ Feature: Registro de beneficiario
   Scenario: Agregar campos adicionales dinamicos y verificar que se guardan correctamente
     Given el visitante esta en la pagina de registro
     When registra un beneficiario nuevo con el campo adicional "ocupacion_detallada" igual a "Comerciante independiente"
-    Then es redirigido al login
+    Then es redirigido al seguimiento publico
     And el beneficiario registrado conserva el campo adicional "ocupacion_detallada" igual a "Comerciante independiente"
 
   Scenario: Eliminar un campo adicional antes de enviar
@@ -26,5 +26,5 @@ Feature: Registro de beneficiario
     When agrega y elimina un campo adicional antes de registrar
     Then no quedan campos adicionales visibles
     When completa y envia el registro sin campos adicionales
-    Then es redirigido al login
+    Then es redirigido al seguimiento publico
     And el beneficiario registrado no conserva campos adicionales
