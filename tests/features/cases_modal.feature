@@ -69,3 +69,13 @@ Feature: Gestion de casos desde el modal
     And abre el caso activo para cerrar
     When edita el telefono del beneficiario desde el modal
     Then el telefono editado del beneficiario se ve en el modal
+
+  Scenario: Agregar un campo adicional al beneficiario desde el modo edicion del modal y verificar que persiste
+    Given existe un caso activo para cerrar
+    And existe una sesion iniciada como admin
+    When abre la pagina de casos
+    And abre el caso activo para cerrar
+    When agrega un campo adicional al beneficiario desde el modal
+    Then el campo adicional del beneficiario se ve en mas informacion
+    When refresca y reabre el caso activo para cerrar
+    Then el campo adicional del beneficiario se ve en mas informacion

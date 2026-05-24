@@ -175,6 +175,9 @@ class CaseModalPage(BasePage):
     def start_edit_beneficiary(self):
         self.click((By.XPATH, "//button[contains(@title, 'Editar beneficiario') or contains(normalize-space(), 'Editar')]"))
 
+    def wait_for_beneficiary_view_mode(self):
+        self.find_visible((By.XPATH, "//button[contains(@title, 'Editar beneficiario') or contains(normalize-space(), 'Editar')]"))
+
     def fill_beneficiary_edit_field(self, label, value):
         self.fill((By.XPATH, f"//label[normalize-space()='{label}']/following-sibling::input"), value)
 
@@ -195,6 +198,20 @@ class CaseModalPage(BasePage):
         keys[-1].send_keys(key)
         values[-1].clear()
         values[-1].send_keys(value)
+
+    def add_beneficiary_extra_field_and_save(self, key, value):
+        self.start_edit_beneficiary()
+        self.add_beneficiary_extra_field(key, value)
+        self.save_beneficiary()
+        self.wait_for_beneficiary_view_mode()
+        self.expand_beneficiary_more_info()
+        self.wait.until(lambda _: self.beneficiary_extra_field_is_visible(key, value))
+
+    def beneficiary_extra_field_is_visible(self, key, value):
+        if not self.beneficiary_extra_fields_are_visible():
+            self.expand_beneficiary_more_info()
+        text = self.details_text()
+        return key in text and value in text
 
     def save_beneficiary(self):
         self.click((By.XPATH, "//form//button[normalize-space()='Guardar']"))

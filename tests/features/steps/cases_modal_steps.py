@@ -227,3 +227,31 @@ def step_edit_beneficiary_phone(context):
 @then("el telefono editado del beneficiario se ve en el modal")
 def step_beneficiary_phone_visible(context):
     assert context.case_modal.beneficiary_value_is_visible(context.updated_beneficiary_phone)
+
+
+@when("agrega un campo adicional al beneficiario desde el modal")
+def step_add_beneficiary_extra_field(context):
+    suffix = int(time.time())
+    context.beneficiary_extra_key = f"campo_selenium_{suffix}"
+    context.beneficiary_extra_value = "valor persistente"
+    context.case_modal.add_beneficiary_extra_field_and_save(
+        context.beneficiary_extra_key,
+        context.beneficiary_extra_value,
+    )
+
+
+@then("el campo adicional del beneficiario se ve en mas informacion")
+def step_beneficiary_extra_field_visible(context):
+    assert context.case_modal.beneficiary_extra_field_is_visible(
+        context.beneficiary_extra_key,
+        context.beneficiary_extra_value,
+    )
+
+
+@when("refresca y reabre el caso activo para cerrar")
+def step_refresh_and_reopen_cancellable_case(context):
+    context.driver.refresh()
+    context.cases_page.wait_for_table()
+    context.cases_page.open_case_by_id(context.cancellable_case["id"])
+    context.case_modal = CaseModalPage(context.driver)
+    context.case_modal.wait_for_details(context.cancellable_case["id"])
