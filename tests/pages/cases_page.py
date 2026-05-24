@@ -38,6 +38,12 @@ class CasesPage(BasePage):
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
         self.driver.execute_script("arguments[0].click();", row)
 
+    def open_case_by_id(self, case_id):
+        self.wait_for_table()
+        row = self.find_visible((By.XPATH, f"//tbody/tr[td[1][normalize-space()='#{case_id}']]"))
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
+        self.driver.execute_script("arguments[0].click();", row)
+
     def filter_by_beneficiary(self, beneficiary):
         self.click(self.FILTERS_BUTTON)
         self.fill(self.FILTER_BENEFICIARY, beneficiary)

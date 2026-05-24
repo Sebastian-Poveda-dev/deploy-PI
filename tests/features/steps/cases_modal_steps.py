@@ -1,9 +1,25 @@
 import time
 
-from behave import then, when
+from behave import given, then, when
 
+from pages.dashboard_page import DashboardPage
 from pages.case_modal_page import CaseModalPage
 from pages.cases_page import CasesPage
+from pages.login_page import LoginPage
+from features.steps.test_data_helpers import ensure_pending_case_for_advisor
+
+
+@given('existe un caso pendiente asignado al advisor "{advisor_username}"')
+def step_pending_case_for_advisor(context, advisor_username):
+    context.pending_advisor_case = ensure_pending_case_for_advisor(advisor_username)
+
+
+@given('existe una sesion iniciada como advisor "{advisor_username}"')
+def step_login_advisor(context, advisor_username):
+    context.login_page = LoginPage(context.driver)
+    context.login_page.open()
+    context.login_page.login_as(advisor_username, "advisor1234")
+    DashboardPage(context.driver).wait_for_url_contains("/dashboard")
 
 
 @when("prepara el modal para crear un caso con resolucion inmediata")
@@ -47,3 +63,27 @@ def step_immediate_case_appears_in_table(context):
 def step_immediate_case_is_closed(context):
     status = context.created_immediate_case["status"]
     assert status in {"INACTIVE", "Inactivo", "Finalizado", "finished", "FINISHED"}, status
+
+
+@when("abre el caso pendiente asignado al advisor")
+def step_open_pending_advisor_case(context):
+    context.cases_page = getattr(context, "cases_page", CasesPage(context.driver))
+    context.cases_page.open_case_by_id(context.pending_advisor_case["id"])
+    context.case_modal = CaseModalPage(context.driver)
+    context.case_modal.wait_for_details(context.pending_advisor_case["id"])
+
+
+@then("el caso pendiente muestra estado pendiente")
+def step_pending_case_shows_pending_status(context):
+    assert context.case_modal.status_matches({"PENDING", "Pendiente"})
+
+
+@when("aprueba el caso pendiente desde el modal")
+def step_approve_pending_case(context):
+    context.case_modal.approve_case()
+
+
+@then("el caso aprobado muestra estado activo")
+def step_approved_case_shows_active_status(context):
+    context.case_modal.wait_for_status({"ACTIVE", "Activo"})
+    assert context.case_modal.status_matches({"ACTIVE", "Activo"})

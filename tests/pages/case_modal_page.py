@@ -23,6 +23,13 @@ class CaseModalPage(BasePage):
         modal = self.find_visible((By.XPATH, "//div[contains(@class, 'max-w-2xl') or contains(@class, 'max-w-xl')]"))
         return modal.text
 
+    def status_matches(self, expected_statuses):
+        text = self.details_text()
+        return any(status in text for status in expected_statuses)
+
+    def wait_for_status(self, expected_statuses):
+        self.wait.until(lambda _: self.status_matches(expected_statuses))
+
     def process_is_disabled(self):
         return self.find_visible(self.PROCESO).get_attribute("disabled") is not None
 
@@ -91,6 +98,10 @@ class CaseModalPage(BasePage):
 
     def confirm_action(self):
         self.click(self.CONFIRM_BUTTON)
+
+    def approve_case(self):
+        self.click_action("Aprobar Caso")
+        self.confirm_action()
 
     def fill_reassignment_reason(self, reason):
         self.fill((By.XPATH, "//textarea[contains(@placeholder, 'motivo')]"), reason)
