@@ -97,7 +97,7 @@ function BeneficiaryRegister() {
     setLoading(true)
     try {
       await registerBeneficiary(payload)
-      navigate('/')
+      navigate('/login')
     } catch (err) {
       const backendErrors = err?.errors || {}
       const firstField = Object.keys(backendErrors)[0]

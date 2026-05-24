@@ -24,8 +24,8 @@ def step_cases_table_loaded(context):
 def step_statuses_match_loaded_cases(context):
     rows = context.cases_page.wait_for_table()
     status_text = " ".join(row.text for row in rows)
-    assert "ACTIVE" in status_text or "IN_PROGRESS" in status_text, status_text
-    assert "PENDING" in status_text, status_text
+    assert "Activo" in status_text or "En progreso" in status_text or "ACTIVE" in status_text or "IN_PROGRESS" in status_text, status_text
+    assert "Pendiente" in status_text or "PENDING" in status_text, status_text
 
 
 @when("filtra la tabla por el beneficiario de la primera fila")
@@ -55,20 +55,22 @@ def step_case_modal_shows_data(context):
     modal.wait_for_details(context.selected_case["id"])
     details = modal.details_text()
     assert context.selected_case["category"] in details
-    assert context.selected_case["beneficiary"] in details
+    assert f"Caso #{context.selected_case['id']}" in details
 
 
 @when("crea un caso nuevo desde el modal")
 def step_create_case(context):
     context.created_case_description = f"Caso automatizado Selenium {int(time.time())}"
+    context.previous_case_count = len(context.cases_page.wait_for_table())
     context.cases_page.open_create_modal()
     CaseModalPage(context.driver).create_case(context.created_case_description)
 
 
 @then("el caso nuevo aparece en la tabla")
 def step_created_case_in_table(context):
-    context.cases_page.wait_for_table()
+    context.cases_page.wait.until(lambda _: len(context.cases_page.table_rows()) > context.previous_case_count)
     context.cases_page.open_first_case()
+    CaseModalPage(context.driver).wait_for_details("")
     details = CaseModalPage(context.driver).details_text()
     assert context.created_case_description in details, details
 

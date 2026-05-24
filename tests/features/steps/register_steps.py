@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -9,6 +10,7 @@ from pages.register_page import RegisterPage
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[3]
+BACKEND_PYTHON = PROJECT_DIR / "backend" / "venv" / "Scripts" / "python.exe"
 
 
 def unique_registration_data():
@@ -31,9 +33,12 @@ def backend_extra_info(identification_number):
         f"u=User.objects.get(identification_number='{identification_number}');"
         "print(json.dumps(u.extra_info or {}, ensure_ascii=False))"
     )
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
     result = subprocess.run(
-        ["python", "manage.py", "shell", "-c", code],
+        [str(BACKEND_PYTHON), "manage.py", "shell", "-c", code],
         cwd=PROJECT_DIR / "backend",
+        env=env,
         check=True,
         capture_output=True,
         text=True,
