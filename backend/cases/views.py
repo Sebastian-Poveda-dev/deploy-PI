@@ -410,9 +410,9 @@ class CancellationRequestNotificationListAPIView(APIView):
 
 	def get(self, request):
 		role = request.user.groups.values_list('name', flat=True).first()
-		if role != 'advisor':
+		if role not in {'advisor', 'admin'}:
 			return Response(
-				{'detail': 'Only advisors can view cancellation request notifications.'},
+				{'detail': 'Only advisors and admins can view cancellation request notifications.'},
 				status=status.HTTP_403_FORBIDDEN,
 			)
 
@@ -421,3 +421,14 @@ class CancellationRequestNotificationListAPIView(APIView):
 			CancellationRequestNotificationSerializer(notifications, many=True).data,
 			status=status.HTTP_200_OK,
 		)
+
+
+class CancellationRequestNotificationMarkReadAPIView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	def patch(self, request, pk):
+		from .models import CancellationRequestNotification
+		notif = get_object_or_404(CancellationRequestNotification, pk=pk, recipient=request.user)
+		notif.is_read = True
+		notif.save(update_fields=['is_read'])
+		return Response({'detail': 'Marked as read.'}, status=status.HTTP_200_OK)
