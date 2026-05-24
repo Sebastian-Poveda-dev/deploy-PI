@@ -166,3 +166,77 @@ print(json.dumps({{
 }}, ensure_ascii=False))
 """
     return run_django_shell_json(code)
+
+
+def create_assigned_case_for_student(student_username):
+    suffix = unique_suffix()
+    code = f"""
+import json
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from cases.models import Case, CaseAssignment, CaseLog, CaseStatus, Category, Subclinic
+
+User = get_user_model()
+student = User.objects.get(username={student_username!r})
+active_status = CaseStatus.objects.get(name='active')
+
+advisor = User.objects.filter(groups__name='advisor', is_active=True).order_by('id').first()
+category = (advisor.category if advisor and advisor.category_id else None) or Category.objects.order_by('id').first()
+if category is None:
+    category = Category.objects.create(name='Civil')
+
+if advisor is None:
+    advisor = User.objects.create_user(
+        username='advisor_selenium_reasignacion',
+        password='advisor1234',
+        first_name='Advisor',
+        last_name='Selenium',
+    )
+    advisor.groups.add(Group.objects.get(name='advisor'))
+    advisor.category = category
+    advisor.save(update_fields=['category'])
+
+beneficiary_group = Group.objects.get(name='beneficiary')
+beneficiary = User.objects.filter(groups=beneficiary_group).order_by('id').first()
+if beneficiary is None:
+    beneficiary = User.objects.create_user(
+        username='beneficiario_selenium_reasignacion',
+        password='ben1234',
+        first_name='Beneficiario',
+        last_name='Reasignacion',
+        identification_number='990000003',
+        phone_number='3000000003',
+        residence_address='Direccion Selenium',
+    )
+    beneficiary.groups.add(beneficiary_group)
+
+subclinic = Subclinic.objects.filter(category=category).order_by('id').first()
+if subclinic is None:
+    subclinic = Subclinic.objects.create(name='Proceso', category=category)
+
+creator = User.objects.filter(groups__name='admin').order_by('id').first() or advisor
+case = Case.objects.create(
+    description='Caso asignado Selenium para solicitud de reasignacion {suffix}',
+    created_by=creator,
+    category=category,
+    subclinic=subclinic,
+    status=active_status,
+    beneficiary=beneficiary,
+)
+CaseAssignment.objects.get_or_create(case=case, user=student)
+CaseAssignment.objects.get_or_create(case=case, user=advisor)
+
+CaseLog.objects.create(
+    case=case,
+    user=creator,
+    content=f'Caso preparado para solicitud de reasignacion por {{student.username}}.',
+)
+
+print(json.dumps({{
+    'id': case.id,
+    'description': case.description,
+    'student': student.username,
+    'status': case.status.name,
+}}, ensure_ascii=False))
+"""
+    return run_django_shell_json(code)

@@ -25,3 +25,11 @@ Feature: Gestion de casos desde el modal
     And abre el caso asignado al advisor
     When rechaza su asignacion desde el modal
     Then el advisor ya no aparece como usuario asignado del caso
+
+  Scenario: Un student puede solicitar reasignacion con motivo y el caso queda en estado pendiente
+    Given existe un caso asignado al student "s.vargas" sin solicitud pendiente
+    And existe una sesion iniciada como student "s.vargas"
+    When abre la pagina de casos
+    And abre el caso asignado al student
+    When solicita reasignacion con motivo desde el modal
+    Then el caso muestra una solicitud de reasignacion pendiente

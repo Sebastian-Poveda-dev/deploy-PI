@@ -6,7 +6,11 @@ from pages.dashboard_page import DashboardPage
 from pages.case_modal_page import CaseModalPage
 from pages.cases_page import CasesPage
 from pages.login_page import LoginPage
-from features.steps.test_data_helpers import create_assigned_case_for_advisor, ensure_pending_case_for_advisor
+from features.steps.test_data_helpers import (
+    create_assigned_case_for_advisor,
+    create_assigned_case_for_student,
+    ensure_pending_case_for_advisor,
+)
 
 
 @given('existe un caso pendiente asignado al advisor "{advisor_username}"')
@@ -19,11 +23,24 @@ def step_assigned_case_for_advisor(context, advisor_username):
     context.assigned_advisor_case = create_assigned_case_for_advisor(advisor_username)
 
 
+@given('existe un caso asignado al student "{student_username}" sin solicitud pendiente')
+def step_assigned_case_for_student(context, student_username):
+    context.assigned_student_case = create_assigned_case_for_student(student_username)
+
+
 @given('existe una sesion iniciada como advisor "{advisor_username}"')
 def step_login_advisor(context, advisor_username):
     context.login_page = LoginPage(context.driver)
     context.login_page.open()
     context.login_page.login_as(advisor_username, "advisor1234")
+    DashboardPage(context.driver).wait_for_url_contains("/dashboard")
+
+
+@given('existe una sesion iniciada como student "{student_username}"')
+def step_login_student(context, student_username):
+    context.login_page = LoginPage(context.driver)
+    context.login_page.open()
+    context.login_page.login_as(student_username, "student1234")
     DashboardPage(context.driver).wait_for_url_contains("/dashboard")
 
 
@@ -114,3 +131,28 @@ def step_advisor_assignment_removed(context):
         context.assigned_advisor_case["id"],
         advisor_marker,
     )
+
+
+@when("abre el caso asignado al student")
+def step_open_assigned_student_case(context):
+    context.cases_page = getattr(context, "cases_page", CasesPage(context.driver))
+    context.cases_page.open_case_by_id(context.assigned_student_case["id"])
+    context.case_modal = CaseModalPage(context.driver)
+    context.case_modal.wait_for_details(context.assigned_student_case["id"])
+
+
+@when("solicita reasignacion con motivo desde el modal")
+def step_request_reassignment_with_reason(context):
+    context.reassignment_reason = f"Sobrecarga academica Selenium {int(time.time())}"
+    context.case_modal.request_reassignment(
+        context.reassignment_reason,
+        context.assigned_student_case["id"],
+    )
+
+
+@then("el caso muestra una solicitud de reasignacion pendiente")
+def step_case_shows_pending_reassignment(context):
+    context.cases_page.open_case_by_id(context.assigned_student_case["id"])
+    context.case_modal = CaseModalPage(context.driver)
+    context.case_modal.wait_for_details(context.assigned_student_case["id"])
+    assert context.case_modal.pending_reassignment_is_visible(context.reassignment_reason)

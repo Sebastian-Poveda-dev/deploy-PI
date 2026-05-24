@@ -19,6 +19,9 @@ class CaseModalPage(BasePage):
     def wait_for_details(self, case_id):
         self.find_visible((By.XPATH, f"//h2[contains(normalize-space(), 'Caso #{case_id}')]"))
 
+    def wait_until_details_closed(self, case_id):
+        self.wait.until(EC.invisibility_of_element_located((By.XPATH, f"//h2[contains(normalize-space(), 'Caso #{case_id}')]")))
+
     def details_text(self):
         modal = self.find_visible((By.XPATH, "//div[contains(@class, 'max-w-2xl') or contains(@class, 'max-w-xl')]"))
         return modal.text
@@ -106,6 +109,16 @@ class CaseModalPage(BasePage):
     def reject_case(self):
         self.click_action("Rechazar Caso")
         self.confirm_action()
+
+    def request_reassignment(self, reason, case_id):
+        self.click_action("Solicitar Reasignaci")
+        self.fill_reassignment_reason(reason)
+        self.confirm_action()
+        self.wait_until_details_closed(case_id)
+
+    def pending_reassignment_is_visible(self, reason):
+        text = self.details_text()
+        return "Solicitud de Reasignaci" in text and "Pendiente" in text and reason in text
 
     def fill_reassignment_reason(self, reason):
         self.fill((By.XPATH, "//textarea[contains(@placeholder, 'motivo')]"), reason)
