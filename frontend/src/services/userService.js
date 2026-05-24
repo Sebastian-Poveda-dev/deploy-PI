@@ -38,9 +38,11 @@ function getCsrfToken() {
   return match ? match[1] : ''
 }
 
-export async function createUserAsAdmin({ username, password, role, category_id }) {
+export async function createUserAsAdmin({ username, password, role, category_id, first_name, last_name }) {
   const body = { username, password, role }
   if (category_id) body.category_id = category_id
+  if (first_name) body.first_name = first_name
+  if (last_name) body.last_name = last_name
 
   const response = await fetch(buildApiUrl('/users/'), {
     method: 'POST',

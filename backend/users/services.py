@@ -30,6 +30,8 @@ def admin_create_user(
     username,
     password,
     role,
+    first_name='',
+    last_name='',
     residence_address='',
     phone_number='',
     category_id=None,
@@ -38,6 +40,8 @@ def admin_create_user(
     user = User.objects.create_user(
         username=username,
         password=password,
+        first_name=first_name,
+        last_name=last_name,
         residence_address=residence_address,
         phone_number=phone_number,
     )
@@ -121,6 +125,16 @@ def update_user(requesting_user, target_user, data):
     if 'category_id' in data:
         target_user.category_id = data['category_id']
         target_user.save(update_fields=['category_id'])
+
+    name_fields = []
+    if 'first_name' in data:
+        target_user.first_name = data['first_name']
+        name_fields.append('first_name')
+    if 'last_name' in data:
+        target_user.last_name = data['last_name']
+        name_fields.append('last_name')
+    if name_fields:
+        target_user.save(update_fields=name_fields)
 
     if 'password' in data:
         new_password = data['password']

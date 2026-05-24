@@ -101,6 +101,8 @@ def _user_to_dict(user):
     return {
         'id': user.id,
         'username': user.username,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
         'role': user.groups.values_list('name', flat=True).first() or '',
         'is_active': user.is_active,
         'category_id': user.category_id,
@@ -167,9 +169,11 @@ class UserManagementListCreateView(APIView):
             return Response({'detail': 'Username already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
         category_id = request.data.get('category_id') or None
+        first_name = request.data.get('first_name', '').strip()
+        last_name = request.data.get('last_name', '').strip()
 
         try:
-            user = admin_create_user(username, password, new_role, category_id=category_id)
+            user = admin_create_user(username, password, new_role, first_name=first_name, last_name=last_name, category_id=category_id)
         except Group.DoesNotExist:
             return Response(
                 {'detail': f"Role '{new_role}' does not exist."},
