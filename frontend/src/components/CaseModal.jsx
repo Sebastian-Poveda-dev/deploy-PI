@@ -220,14 +220,14 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-xl font-bold text-slate-800">Case #{caseData?.id}</h2>
+            <h2 className="text-xl font-bold text-slate-800">Caso #{caseData?.id}</h2>
             {caseData?.status ? <StatusBadge status={caseData.status} /> : null}
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Close case details"
+            aria-label="Cerrar detalles del caso"
           >
             <span className="text-lg leading-none">×</span>
           </button>
@@ -237,21 +237,21 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
         <div className="max-h-[70vh] space-y-6 overflow-y-auto px-6 py-5">
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Category</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</p>
               <p className="mt-1 text-sm font-medium text-slate-700">{caseData?.category || '—'}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Creation Date</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fecha de creación</p>
               <p className="mt-1 text-sm font-medium text-slate-700">{caseData?.createdAt || '—'}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Last Updated Date</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Última actualización</p>
               <p className="mt-1 text-sm font-medium text-slate-700">{caseData?.updatedAt || '—'}</p>
             </div>
           </section>
 
           <section>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Assigned Users</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Usuarios asignados</p>
             {assignedUsersList.length ? (
               <ul className="mt-2 space-y-1">
                 {assignedUsersList.map((user) => (
@@ -259,7 +259,7 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-sm text-slate-500">No assigned users.</p>
+              <p className="mt-2 text-sm text-slate-500">Sin usuarios asignados.</p>
             )}
           </section>
 
@@ -334,10 +334,10 @@ function CaseModal({ caseData, isOpen, onClose, onOpenLogs, onOpenDocuments, cur
           </section>
 
           <section>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Description</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Descripción</p>
             <div className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
               <p className="text-sm leading-6 text-slate-700">
-                {caseData?.description || 'No description available.'}
+                {caseData?.description || 'Sin descripción disponible.'}
               </p>
             </div>
           </section>
