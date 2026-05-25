@@ -381,8 +381,19 @@ class Command(BaseCommand):
             action='store_true',
             help='Elimina todos los usuarios, casos y documentos existentes antes de sembrar los datos.',
         )
+        parser.add_argument(
+            '--if-empty',
+            action='store_true',
+            help='Solo siembra datos si la base de datos está vacía (sin usuarios). Útil en el start command de producción.',
+        )
 
     def handle(self, *args, **options):
+        if options['if_empty']:
+            from users.models import User
+            if User.objects.exists():
+                self.stdout.write(self.style.WARNING('Base de datos ya tiene usuarios — seed omitido.'))
+                return
+
         if options['flush']:
             self._flush()
 
