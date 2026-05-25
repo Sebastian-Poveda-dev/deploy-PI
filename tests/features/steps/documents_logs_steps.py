@@ -6,7 +6,12 @@ from pages.dashboard_page import DashboardPage
 from pages.documents_modal_page import DocumentsModalPage
 from pages.login_page import LoginPage
 from pages.logs_modal_page import LogsModalPage
-from features.steps.test_data_helpers import create_case_with_document
+from features.steps.test_data_helpers import (
+    create_active_case_for_cancellation,
+    create_case_with_document,
+    ensure_upload_fixture_file,
+    unique_suffix,
+)
 
 
 def documents_modal_page(context):
@@ -22,6 +27,11 @@ def logs_modal_page(context):
 @given("existe un caso preparado con un documento asociado")
 def step_case_with_document(context):
     context.document_case = create_case_with_document()
+
+
+@given("existe un caso activo preparado para subir documentos")
+def step_active_case_for_document_upload(context):
+    context.document_case = create_active_case_for_cancellation()
 
 
 @given("el admin inicia sesion para revisar documentos")
@@ -59,3 +69,20 @@ def step_documents_modal_open_for_case(context):
 @then("el documento preparado aparece en la lista")
 def step_prepared_document_visible(context):
     assert context.documents_modal_page.has_document(context.document_case["document_name"])
+
+
+@when("sube un documento desde el modal de documentos del caso")
+def step_upload_document_from_modal(context):
+    context.uploaded_document_name = f"Documento subido Selenium {unique_suffix()}"
+    context.uploaded_document_description = "Documento cargado desde Selenium"
+    context.upload_fixture_path = ensure_upload_fixture_file()
+    context.documents_modal_page.upload_document(
+        context.uploaded_document_name,
+        context.uploaded_document_description,
+        context.upload_fixture_path,
+    )
+
+
+@then("el documento subido aparece en la lista de documentos")
+def step_uploaded_document_visible(context):
+    assert context.documents_modal_page.has_document(context.uploaded_document_name)
