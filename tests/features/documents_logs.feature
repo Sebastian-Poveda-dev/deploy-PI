@@ -1,4 +1,10 @@
 Feature: Documentos y logs del caso
 
-  # Infraestructura base para los escenarios 38 al 40.
-  # Los escenarios completos se agregaran en una siguiente iteracion.
+  Scenario: El modal de documentos carga los archivos asociados al caso
+    Given existe un caso preparado con un documento asociado
+    And el admin inicia sesion para revisar documentos
+    When abre la pagina de casos para documentos
+    And abre el caso preparado para documentos
+    And abre el modal de documentos del caso
+    Then el modal de documentos del caso preparado esta abierto
+    And el documento preparado aparece en la lista
