@@ -13,3 +13,8 @@ Feature: Control de acceso por rol
     And abre el caso asignado al student para control de acceso
     Then no ve el boton Cerrar Caso
     And puede ver la opcion Solicitar Reasignacion
+
+  Scenario: Un student no puede acceder a permisos
+    Given existe una sesion iniciada como student s.vargas
+    When el student intenta abrir permisos directamente
+    Then no puede ver la administracion de permisos

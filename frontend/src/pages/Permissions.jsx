@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/DashboardLayout'
-import { getUsers, createUserAsAdmin, updateUserAsAdmin, getCategories } from '../services/userService'
+import { getUsers, createUserAsAdmin, updateUserAsAdmin, getCategories, getCurrentUser } from '../services/userService'
 
 const STAFF_ROLES = ['admin', 'advisor', 'student']
 
@@ -379,14 +379,42 @@ function Permissions() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [accessDenied, setAccessDenied] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
 
   useEffect(() => {
-    getUsers()
-      .then((data) => setUsers(data.filter((user) => user.role !== 'beneficiary')))
-      .catch(() => setError('No fue posible cargar los usuarios.'))
-      .finally(() => setLoading(false))
+    let isMounted = true
+
+    async function loadPermissions() {
+      setLoading(true)
+      setError('')
+      setAccessDenied(false)
+
+      try {
+        const currentUser = await getCurrentUser()
+        if (!isMounted) return
+
+        if (currentUser?.role !== 'admin') {
+          setAccessDenied(true)
+          setUsers([])
+          return
+        }
+
+        const data = await getUsers()
+        if (!isMounted) return
+        setUsers(data.filter((user) => user.role !== 'beneficiary'))
+      } catch {
+        if (!isMounted) return
+        setError('No fue posible cargar los usuarios.')
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+
+    loadPermissions()
+
+    return () => { isMounted = false }
   }, [])
 
   function handleCreated(newUser) {
@@ -408,13 +436,15 @@ function Permissions() {
       <section className="mx-auto w-full max-w-5xl space-y-6">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold text-slate-800">Permisos</h1>
-          <button
-            type="button"
-            onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg bg-[#5454F2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7]"
-          >
-            Crear Usuario
-          </button>
+          {!accessDenied && (
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
+              className="inline-flex items-center justify-center rounded-lg bg-[#5454F2] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#4747d7]"
+            >
+              Crear Usuario
+            </button>
+          )}
         </header>
 
         {loading && (
@@ -429,7 +459,13 @@ function Permissions() {
           </div>
         )}
 
-        {!loading && !error && (
+        {!loading && !error && accessDenied && (
+          <div className="flex min-h-64 items-center justify-center rounded-xl border border-slate-200 bg-white px-4">
+            <p className="text-sm font-medium text-slate-500">No tienes permiso para administrar usuarios.</p>
+          </div>
+        )}
+
+        {!loading && !error && !accessDenied && (
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead className="border-b border-slate-200 bg-slate-50">

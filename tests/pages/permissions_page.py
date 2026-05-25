@@ -164,6 +164,19 @@ class PermissionsPage(BasePage):
     def create_user_button_is_absent(self):
         return not self.driver.find_elements(*self.button_by_text("Crear Usuario"))
 
+    def wait_until_loaded_or_denied(self):
+        self.find_visible((By.TAG_NAME, "body"))
+        self.wait.until(lambda _: "Cargando usuarios" not in self.visible_text())
+
+    def permissions_table_is_absent(self):
+        return not self.driver.find_elements(By.CSS_SELECTOR, "table")
+
+    def access_is_restricted_for_student(self):
+        self.wait_until_loaded_or_denied()
+        if "/dashboard/permissions" not in self.driver.current_url:
+            return True
+        return self.permissions_table_is_absent() and self.create_user_button_is_absent()
+
     def permission_denied_or_redirected(self):
         text = self.visible_text()
         return (

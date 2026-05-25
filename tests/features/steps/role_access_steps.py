@@ -77,3 +77,14 @@ def step_student_does_not_see_close_case(context):
 @then("puede ver la opcion Solicitar Reasignacion")
 def step_student_can_see_reassignment_option(context):
     assert context.case_modal.request_reassignment_button_is_visible(), context.case_modal.details_text()
+
+
+@when("el student intenta abrir permisos directamente")
+def step_student_opens_permissions_directly(context):
+    context.permissions_page = PermissionsPage(context.driver)
+    context.permissions_page.open()
+
+
+@then("no puede ver la administracion de permisos")
+def step_student_cannot_view_permissions_admin(context):
+    assert context.permissions_page.access_is_restricted_for_student(), context.permissions_page.visible_text()
