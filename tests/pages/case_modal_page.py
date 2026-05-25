@@ -269,6 +269,9 @@ class CaseModalPage(BasePage):
     def close_case_button_is_visible(self):
         return bool(self.driver.find_elements(*self.button_by_text("Cerrar Caso")))
 
+    def request_reassignment_button_is_visible(self):
+        return bool(self.driver.find_elements(*self.button_by_text("Solicitar Reasignaci")))
+
     def open_documents(self):
         self.click_action("Documentos")
         self.find_visible((By.XPATH, "//h3[contains(normalize-space(), 'Documentos del Caso')]"))
