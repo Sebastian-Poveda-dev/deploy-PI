@@ -25,6 +25,9 @@ class DashboardNotificationsPage(BasePage):
             f"//*[contains(normalize-space(), 'Caso #{case_id}')]/ancestor::div[contains(@class, 'amber-50')]",
         ))
 
+    def notification_text_for_case(self, case_id):
+        return self.notification_for_case(case_id).text
+
     def has_notification_for_case(self, case_id, timeout=10):
         try:
             WebDriverWait(self.driver, timeout).until(

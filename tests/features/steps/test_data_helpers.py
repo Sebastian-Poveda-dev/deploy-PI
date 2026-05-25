@@ -242,6 +242,74 @@ print(json.dumps({{
     return run_django_shell_json(code)
 
 
+def create_active_case_for_reassignment_request(student_username="s.vargas", advisor_username="a.torres"):
+    suffix = unique_suffix()
+    code = f"""
+import json
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from cases.models import Case, CaseAssignment, CaseLog, CaseStatus, Category, Subclinic
+
+User = get_user_model()
+student = User.objects.get(username={student_username!r})
+advisor = User.objects.get(username={advisor_username!r})
+active_status = CaseStatus.objects.get(name='active')
+
+category = advisor.category or Category.objects.order_by('id').first()
+if category is None:
+    category = Category.objects.create(name='Civil')
+
+if advisor.category_id is None:
+    advisor.category = category
+    advisor.save(update_fields=['category'])
+
+subclinic = Subclinic.objects.filter(category=category).order_by('id').first()
+if subclinic is None:
+    subclinic = Subclinic.objects.create(name='Proceso', category=category)
+
+beneficiary_group = Group.objects.get(name='beneficiary')
+beneficiary = User.objects.filter(groups=beneficiary_group).order_by('id').first()
+if beneficiary is None:
+    beneficiary = User.objects.create_user(
+        username='beneficiario_selenium_reasignacion_31',
+        password='ben1234',
+        first_name='Beneficiario',
+        last_name='Reasignacion31',
+        identification_number='990000031',
+        phone_number='3000000031',
+        residence_address='Direccion Selenium',
+    )
+    beneficiary.groups.add(beneficiary_group)
+
+creator = User.objects.filter(groups__name='admin').order_by('id').first() or advisor
+case = Case.objects.create(
+    description='Caso activo Selenium para notificacion de reasignacion {suffix}',
+    created_by=creator,
+    category=category,
+    subclinic=subclinic,
+    status=active_status,
+    beneficiary=beneficiary,
+)
+CaseAssignment.objects.get_or_create(case=case, user=student)
+CaseAssignment.objects.get_or_create(case=case, user=advisor)
+
+CaseLog.objects.create(
+    case=case,
+    user=creator,
+    content='Caso preparado para que el estudiante solicite reasignacion por Selenium.',
+)
+
+print(json.dumps({{
+    'id': case.id,
+    'description': case.description,
+    'student': student.username,
+    'advisor': advisor.username,
+    'status': case.status.name,
+}}, ensure_ascii=False))
+"""
+    return run_django_shell_json(code)
+
+
 def create_active_case_for_cancellation():
     suffix = unique_suffix()
     code = f"""
