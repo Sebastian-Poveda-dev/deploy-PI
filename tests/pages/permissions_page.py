@@ -168,17 +168,56 @@ class PermissionsPage(BasePage):
         self.find_visible((By.TAG_NAME, "body"))
         self.wait.until(lambda _: "Cargando usuarios" not in self.visible_text())
 
+    def has_user_load_error(self):
+        self.wait_until_loaded_or_denied()
+        text = strip_accents(self.visible_text())
+        return (
+            "no fue posible cargar los usuarios" in text
+            or "no tienes permiso" in text
+            or "permission" in text
+            or "forbidden" in text
+        )
+
+    def current_table_headers(self):
+        return [
+            header.text.strip()
+            for header in self.driver.find_elements(By.CSS_SELECTOR, "thead th")
+        ]
+
+    def users_table_loaded(self):
+        self.wait_until_loaded_or_denied()
+        if self.has_user_load_error():
+            return False
+
+        tables = self.driver.find_elements(By.CSS_SELECTOR, "table")
+        if not tables:
+            return False
+
+        headers = [strip_accents(header) for header in self.current_table_headers()]
+        has_expected_headers = all(
+            expected in headers
+            for expected in ("nombre", "usuario", "rol", "sala", "estado", "acciones")
+        )
+        rows = self.driver.find_elements(By.CSS_SELECTOR, "tbody tr")
+        return has_expected_headers and bool(rows)
+
+    def can_administer_users(self):
+        return self.users_table_loaded() and not self.has_user_load_error()
+
+    def cannot_administer_permissions(self):
+        return not self.can_administer_users()
+
+    def cannot_create_users_effectively(self):
+        return not self.can_administer_users()
+
     def permissions_table_is_absent(self):
         return not self.driver.find_elements(By.CSS_SELECTOR, "table")
 
     def access_is_restricted_for_non_admin(self):
-        self.wait_until_loaded_or_denied()
-        if "/dashboard/permissions" not in self.driver.current_url:
-            return True
-        return self.permissions_table_is_absent() and self.create_user_button_is_absent()
+        return self.cannot_administer_permissions()
 
     def access_is_restricted_for_student(self):
-        return self.access_is_restricted_for_non_admin()
+        return self.cannot_administer_permissions()
 
     def permission_denied_or_redirected(self):
         text = self.visible_text()

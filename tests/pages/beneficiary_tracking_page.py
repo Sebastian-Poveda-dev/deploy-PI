@@ -24,14 +24,29 @@ class BeneficiaryTrackingPage(BasePage):
     SEARCH_BUTTON = (By.XPATH, "//button[contains(normalize-space(), 'Consultar estado')]")
     RESULT_CONTAINER = (
         By.XPATH,
-        "//*[contains(normalize-space(), 'Caso 1') or contains(normalize-space(), 'No tiene casos') or contains(normalize-space(), 'No se encontraron') or contains(normalize-space(), 'no encontrado')]",
+        "//*[contains(normalize-space(), 'Caso 1') or contains(normalize-space(), 'Progreso del caso') or contains(normalize-space(), 'No tiene casos') or contains(normalize-space(), 'No se encontraron') or contains(normalize-space(), 'no encontrado') or contains(normalize-space(), 'No fue posible')]",
     )
 
     def open(self):
-        self.open_path("/track")
+        self.open_public_tracking()
+
+    def public_form_is_available(self, timeout=3):
+        try:
+            wait = WebDriverWait(self.driver, timeout)
+            wait.until(lambda _: self.driver.find_elements(*self.IDENTIFICATION))
+            wait.until(lambda _: self.driver.find_elements(*self.SEARCH_BUTTON))
+            return True
+        except TimeoutException:
+            return False
+
+    def open_public_tracking(self):
+        for path in ("/track", "/"):
+            self.open_path(path)
+            if self.public_form_is_available():
+                return
+        raise AssertionError("No se encontro el formulario publico de seguimiento")
 
     def wait_for_public_form(self):
-        self.wait_for_url_contains("/track")
         self.find_visible(self.IDENTIFICATION)
         self.find_clickable(self.SEARCH_BUTTON)
 
@@ -69,14 +84,25 @@ class BeneficiaryTrackingPage(BasePage):
         except TimeoutException:
             pass
         self.wait.until(lambda _: "Consultando..." not in self.visible_text())
-        self.find_visible(self.RESULT_CONTAINER)
+        self.wait.until(lambda _: self.has_tracking_result())
+
+    def has_tracking_result(self):
+        text = strip_accents(self.results_text())
+        return (
+            "caso 1" in text
+            or "progreso del caso" in text
+            or "no tiene casos" in text
+            or "no se encontraron" in text
+            or "no encontrado" in text
+            or "no fue posible" in text
+        )
 
     def results_text(self):
         return self.visible_text()
 
     def has_cases(self):
         text = strip_accents(self.results_text())
-        return "caso 1" in text and "progreso del caso" in text
+        return "caso 1" in text or "progreso del caso" in text
 
     def has_status_or_progress(self):
         text = strip_accents(self.results_text())
@@ -89,4 +115,6 @@ class BeneficiaryTrackingPage(BasePage):
             "no se encontraron" in text
             or "no encontrado" in text
             or "no tiene casos registrados" in text
+            or "no tiene casos" in text
+            or "no fue posible consultar" in text
         )

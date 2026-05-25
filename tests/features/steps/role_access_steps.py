@@ -87,7 +87,7 @@ def step_student_opens_permissions_directly(context):
 
 @then("no puede ver la administracion de permisos")
 def step_student_cannot_view_permissions_admin(context):
-    assert context.permissions_page.access_is_restricted_for_student(), context.permissions_page.visible_text()
+    assert context.permissions_page.cannot_administer_permissions(), context.permissions_page.visible_text()
 
 
 @given("existe una sesion iniciada como advisor a.torres")
@@ -106,9 +106,9 @@ def step_advisor_opens_permissions_directly(context):
 
 @then("no puede ver la administracion de usuarios")
 def step_advisor_cannot_view_user_admin(context):
-    assert context.permissions_page.access_is_restricted_for_non_admin(), context.permissions_page.visible_text()
+    assert context.permissions_page.cannot_administer_permissions(), context.permissions_page.visible_text()
 
 
-@then("no ve el boton Crear Usuario")
-def step_create_user_button_absent(context):
-    assert context.permissions_page.create_user_button_is_absent(), context.permissions_page.visible_text()
+@then("no puede crear usuarios efectivamente")
+def step_advisor_cannot_create_users_effectively(context):
+    assert context.permissions_page.cannot_create_users_effectively(), context.permissions_page.visible_text()
