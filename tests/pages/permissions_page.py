@@ -171,11 +171,14 @@ class PermissionsPage(BasePage):
     def permissions_table_is_absent(self):
         return not self.driver.find_elements(By.CSS_SELECTOR, "table")
 
-    def access_is_restricted_for_student(self):
+    def access_is_restricted_for_non_admin(self):
         self.wait_until_loaded_or_denied()
         if "/dashboard/permissions" not in self.driver.current_url:
             return True
         return self.permissions_table_is_absent() and self.create_user_button_is_absent()
+
+    def access_is_restricted_for_student(self):
+        return self.access_is_restricted_for_non_admin()
 
     def permission_denied_or_redirected(self):
         text = self.visible_text()

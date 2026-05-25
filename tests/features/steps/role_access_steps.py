@@ -88,3 +88,27 @@ def step_student_opens_permissions_directly(context):
 @then("no puede ver la administracion de permisos")
 def step_student_cannot_view_permissions_admin(context):
     assert context.permissions_page.access_is_restricted_for_student(), context.permissions_page.visible_text()
+
+
+@given("existe una sesion iniciada como advisor a.torres")
+def step_login_advisor_access(context):
+    context.login_page = LoginPage(context.driver)
+    context.login_page.open()
+    context.login_page.login_as("a.torres", "advisor1234")
+    DashboardPage(context.driver).wait_for_url_contains("/dashboard")
+
+
+@when("el advisor intenta abrir permisos directamente")
+def step_advisor_opens_permissions_directly(context):
+    context.permissions_page = PermissionsPage(context.driver)
+    context.permissions_page.open()
+
+
+@then("no puede ver la administracion de usuarios")
+def step_advisor_cannot_view_user_admin(context):
+    assert context.permissions_page.access_is_restricted_for_non_admin(), context.permissions_page.visible_text()
+
+
+@then("no ve el boton Crear Usuario")
+def step_create_user_button_absent(context):
+    assert context.permissions_page.create_user_button_is_absent(), context.permissions_page.visible_text()

@@ -18,3 +18,9 @@ Feature: Control de acceso por rol
     Given existe una sesion iniciada como student s.vargas
     When el student intenta abrir permisos directamente
     Then no puede ver la administracion de permisos
+
+  Scenario: Un advisor no puede crear usuarios
+    Given existe una sesion iniciada como advisor a.torres
+    When el advisor intenta abrir permisos directamente
+    Then no puede ver la administracion de usuarios
+    And no ve el boton Crear Usuario
