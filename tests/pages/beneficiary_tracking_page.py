@@ -62,6 +62,13 @@ class BeneficiaryTrackingPage(BasePage):
     def search(self, identification_number):
         self.fill(self.IDENTIFICATION, identification_number)
         self.click(self.SEARCH_BUTTON)
+        try:
+            WebDriverWait(self.driver, 2).until(
+                lambda _: "Consultando..." in self.visible_text()
+            )
+        except TimeoutException:
+            pass
+        self.wait.until(lambda _: "Consultando..." not in self.visible_text())
         self.find_visible(self.RESULT_CONTAINER)
 
     def results_text(self):
