@@ -9,6 +9,12 @@ class LogsModalPage(BasePage):
     def wait_until_open(self):
         return self.find_visible(self.TITLE)
 
+    def wait_until_open_for_case(self, case_id):
+        return self.find_visible((
+            By.XPATH,
+            f"//h3[contains(normalize-space(), 'Seguimiento del Caso #{case_id}')]",
+        ))
+
     def modal_text(self):
         modal = self.find_visible((
             By.XPATH,

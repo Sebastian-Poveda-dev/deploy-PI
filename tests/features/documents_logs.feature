@@ -17,3 +17,12 @@ Feature: Documentos y logs del caso
     And abre el modal de documentos del caso
     And sube un documento desde el modal de documentos del caso
     Then el documento subido aparece en la lista de documentos
+
+  Scenario: El modal de seguimiento muestra el historial de cambios de estado
+    Given existe un caso preparado con historial de seguimiento
+    And el admin inicia sesion para revisar documentos
+    When abre la pagina de casos para documentos
+    And abre el caso preparado para seguimiento
+    And abre el modal de seguimiento del caso
+    Then el modal de seguimiento del caso preparado esta abierto
+    And el historial preparado aparece en el modal de seguimiento
