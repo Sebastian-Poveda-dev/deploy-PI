@@ -13,3 +13,8 @@ Feature: Seguimiento del caso para beneficiarios
     And consulta el seguimiento publico con la cedula "1001234567"
     Then el seguimiento publico de beneficiario muestra casos asociados
     And el seguimiento publico de beneficiario muestra estado o progreso del caso
+
+  Scenario: El seguimiento publico con cedula inexistente muestra mensaje de no encontrado
+    When abre la pagina de seguimiento publico
+    And consulta el seguimiento publico con la cedula "9999999999"
+    Then el seguimiento publico de beneficiario muestra mensaje de no encontrado

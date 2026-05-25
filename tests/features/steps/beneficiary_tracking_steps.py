@@ -65,3 +65,8 @@ def step_public_tracking_shows_cases(context):
 @then("el seguimiento publico de beneficiario muestra estado o progreso del caso")
 def step_public_tracking_shows_status_or_progress(context):
     assert context.beneficiary_tracking_page.has_status_or_progress(), context.beneficiary_tracking_page.results_text()
+
+
+@then("el seguimiento publico de beneficiario muestra mensaje de no encontrado")
+def step_public_tracking_shows_not_found(context):
+    assert context.beneficiary_tracking_page.has_not_found_message(), context.beneficiary_tracking_page.results_text()
