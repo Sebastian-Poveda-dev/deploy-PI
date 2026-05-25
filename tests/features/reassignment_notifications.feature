@@ -6,3 +6,12 @@ Feature: Notificaciones de solicitudes de reasignacion
     And inicia sesion como advisor a.torres para revisar notificaciones
     Then ve el panel de solicitudes de reasignacion pendientes
     And ve la notificacion de reasignacion relacionada con el caso preparado
+
+  Scenario: Marcar la notificacion como leida la elimina del panel
+    Given existe una solicitud de reasignacion pendiente notificada a a.torres
+    When inicia sesion como advisor a.torres para revisar notificaciones
+    Then ve la notificacion de reasignacion relacionada con el caso preparado
+    When descarta la notificacion de reasignacion del caso preparado
+    Then la notificacion de reasignacion del caso preparado desaparece del panel
+    When refresca el dashboard de notificaciones
+    Then la notificacion de reasignacion del caso preparado no vuelve a aparecer

@@ -7,7 +7,10 @@ from pages.cases_page import CasesPage
 from pages.dashboard_notifications_page import DashboardNotificationsPage
 from pages.dashboard_page import DashboardPage
 from pages.login_page import LoginPage
-from features.steps.test_data_helpers import create_active_case_for_reassignment_request
+from features.steps.test_data_helpers import (
+    create_active_case_for_reassignment_request,
+    create_case_with_pending_reassignment,
+)
 
 
 def dashboard_notifications_page(context):
@@ -18,6 +21,14 @@ def dashboard_notifications_page(context):
 @given("existe un caso activo asignado a s.vargas y a.torres para solicitar reasignacion")
 def step_active_case_for_student_reassignment(context):
     context.reassignment_case = create_active_case_for_reassignment_request(
+        student_username="s.vargas",
+        advisor_username="a.torres",
+    )
+
+
+@given("existe una solicitud de reasignacion pendiente notificada a a.torres")
+def step_pending_reassignment_notification_for_advisor(context):
+    context.reassignment_case = create_case_with_pending_reassignment(
         student_username="s.vargas",
         advisor_username="a.torres",
     )
@@ -65,3 +76,28 @@ def step_reassignment_notification_visible(context):
     case_id = context.reassignment_case["id"]
     assert page.has_notification_for_case(case_id), page.visible_text()
     assert str(case_id) in page.notification_text_for_case(case_id)
+
+
+@when("descarta la notificacion de reasignacion del caso preparado")
+def step_dismiss_reassignment_notification(context):
+    dashboard_notifications_page(context).dismiss_notification_for_case(
+        context.reassignment_case["id"],
+    )
+
+
+@then("la notificacion de reasignacion del caso preparado desaparece del panel")
+def step_reassignment_notification_disappears(context):
+    dashboard_notifications_page(context).wait_until_notification_absent(
+        context.reassignment_case["id"],
+    )
+
+
+@when("refresca el dashboard de notificaciones")
+def step_refresh_notifications_dashboard(context):
+    dashboard_notifications_page(context).refresh()
+
+
+@then("la notificacion de reasignacion del caso preparado no vuelve a aparecer")
+def step_reassignment_notification_does_not_return(context):
+    page = dashboard_notifications_page(context)
+    assert page.notification_is_absent_for_case(context.reassignment_case["id"]), page.visible_text()

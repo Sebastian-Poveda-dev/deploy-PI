@@ -15,15 +15,22 @@ class DashboardNotificationsPage(BasePage):
     def open(self):
         self.open_path("/dashboard")
 
+    def refresh(self):
+        self.driver.refresh()
+        self.wait_until_ready()
+
     def wait_for_reassignment_panel(self):
         return self.find_visible(self.REASSIGNMENT_PANEL)
 
-    def notification_for_case(self, case_id):
-        self.wait_for_reassignment_panel()
-        return self.find_visible((
+    def notification_locator_for_case(self, case_id):
+        return (
             By.XPATH,
             f"//*[contains(normalize-space(), 'Caso #{case_id}')]/ancestor::div[contains(@class, 'amber-50')]",
-        ))
+        )
+
+    def notification_for_case(self, case_id):
+        self.wait_for_reassignment_panel()
+        return self.find_visible(self.notification_locator_for_case(case_id))
 
     def notification_text_for_case(self, case_id):
         return self.notification_for_case(case_id).text
@@ -50,7 +57,16 @@ class DashboardNotificationsPage(BasePage):
         button.click()
 
     def wait_until_notification_absent(self, case_id):
-        self.wait.until(EC.invisibility_of_element_located((
-            By.XPATH,
-            f"//*[contains(normalize-space(), 'Caso #{case_id}')]/ancestor::div[contains(@class, 'amber-50')]",
-        )))
+        self.wait.until(EC.invisibility_of_element_located(
+            self.notification_locator_for_case(case_id),
+        ))
+
+    def notification_is_absent_for_case(self, case_id, timeout=5):
+        locator = self.notification_locator_for_case(case_id)
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                lambda driver: not driver.find_elements(*locator)
+            )
+            return True
+        except TimeoutException:
+            return False
