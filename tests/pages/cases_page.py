@@ -2,7 +2,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
-from pages.base_page import BasePage
+from pages.base_page import BasePage, strip_accents
 
 
 class CasesPage(BasePage):
@@ -103,6 +103,12 @@ class CasesPage(BasePage):
     def has_beneficiary_case_status(self):
         return bool(self.beneficiary_case_cards()) and "Estado actual" in self.beneficiary_status_text()
 
+    def beneficiary_status_view_is_visible(self):
+        text = strip_accents(self.beneficiary_status_text())
+        return "estado de mi caso" in text and (
+            "estado actual" in text or "no tiene casos registrados" in text
+        )
+
     def staff_cases_table_is_absent(self, timeout=3):
         try:
             WebDriverWait(self.driver, timeout).until(
@@ -114,3 +120,15 @@ class CasesPage(BasePage):
 
     def create_case_button_is_absent(self):
         return not self.driver.find_elements(*self.button_by_text("Crear Caso"))
+
+    def staff_table_headers_are_absent(self):
+        page_text = self.visible_text()
+        staff_headers = (
+            "Beneficiario",
+            "Usuarios asignados",
+            "Categoría",
+            "Persona Asignada",
+        )
+        return self.staff_cases_table_is_absent() and all(
+            header not in page_text for header in staff_headers
+        )
