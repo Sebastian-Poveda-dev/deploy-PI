@@ -465,7 +465,10 @@ def notify_advisors_of_cancellation_request(cancellation_request):
 
 
 def get_cancellation_request_notifications(user):
-    return CancellationRequestNotification.objects.filter(recipient=user)
+    return CancellationRequestNotification.objects.filter(
+        recipient=user,
+        cancellation_request__status='pending',
+    )
 
 
 def reject_case_assignment(case, user):
