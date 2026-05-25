@@ -51,6 +51,12 @@ class CasesPage(BasePage):
         cells = row.find_elements(By.TAG_NAME, "td")
         return cells[6].text.strip()
 
+    def case_assignment_includes(self, case_id, text):
+        return text in self.assignment_text_for_case(case_id)
+
+    def wait_for_case_assignment_includes(self, case_id, text):
+        return self.wait.until(lambda _: self.case_assignment_includes(case_id, text))
+
     def wait_for_case_assignment_excludes(self, case_id, text):
         def assignment_removed(_):
             rows = self.driver.find_elements(By.XPATH, f"//tbody/tr[td[1][normalize-space()='#{case_id}']]")

@@ -24,3 +24,13 @@ Feature: Notificaciones de solicitudes de reasignacion
     When aprueba la reasignacion desde el modal del caso preparado
     Then el modal ya no muestra solicitud de reasignacion pendiente
     And el student solicitante ya no aparece asignado al caso preparado
+
+  Scenario: Rechazar la reasignacion mantiene el caso asignado al mismo advisor
+    Given existe una solicitud de reasignacion pendiente notificada a a.torres
+    When inicia sesion como advisor a.torres para revisar notificaciones
+    And abre el caso preparado desde la notificacion de reasignacion
+    Then el advisor a.torres esta asignado al caso preparado
+    And el modal muestra la solicitud de reasignacion pendiente
+    When rechaza la reasignacion desde el modal del caso preparado
+    Then el modal ya no muestra solicitud de reasignacion pendiente
+    And el advisor a.torres sigue asignado al caso preparado

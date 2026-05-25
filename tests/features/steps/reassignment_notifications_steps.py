@@ -124,6 +124,11 @@ def step_approve_reassignment_from_modal(context):
     context.case_modal.approve_reassignment()
 
 
+@when("rechaza la reasignacion desde el modal del caso preparado")
+def step_reject_reassignment_from_modal(context):
+    context.case_modal.reject_reassignment()
+
+
 @then("el modal ya no muestra solicitud de reasignacion pendiente")
 def step_pending_reassignment_is_gone(context):
     context.case_modal.wait_until_pending_reassignment_request_absent()
@@ -139,4 +144,29 @@ def step_requesting_student_is_no_longer_assigned(context):
     assert context.cases_page.wait_for_case_assignment_excludes(
         context.reassignment_case["id"],
         student_marker,
+    )
+
+
+@then("el advisor a.torres esta asignado al caso preparado")
+def step_advisor_is_assigned_before_rejection(context):
+    advisor_marker = (
+        context.reassignment_case.get("advisor_last_name")
+        or context.reassignment_case["advisor"]
+    )
+    assert context.cases_page.case_assignment_includes(
+        context.reassignment_case["id"],
+        advisor_marker,
+    ), context.cases_page.assignment_text_for_case(context.reassignment_case["id"])
+
+
+@then("el advisor a.torres sigue asignado al caso preparado")
+def step_advisor_remains_assigned_after_rejection(context):
+    context.cases_page.open()
+    advisor_marker = (
+        context.reassignment_case.get("advisor_last_name")
+        or context.reassignment_case["advisor"]
+    )
+    assert context.cases_page.wait_for_case_assignment_includes(
+        context.reassignment_case["id"],
+        advisor_marker,
     )
