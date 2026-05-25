@@ -160,3 +160,15 @@ class PermissionsPage(BasePage):
         self.submit_modal()
         self.wait.until(lambda _: self.user_has_sala_text(username, new_sala))
         return new_sala
+
+    def create_user_button_is_absent(self):
+        return not self.driver.find_elements(*self.button_by_text("Crear Usuario"))
+
+    def permission_denied_or_redirected(self):
+        text = self.visible_text()
+        return (
+            "/dashboard/permissions" not in self.driver.current_url
+            or "No fue posible" in text
+            or "no tienes permiso" in text.lower()
+            or "Bienvenido" in text
+        )

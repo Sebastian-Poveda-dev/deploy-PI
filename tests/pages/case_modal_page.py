@@ -141,6 +141,14 @@ class CaseModalPage(BasePage):
         self.click_action("Rechazar Caso")
         self.confirm_action()
 
+    def approve_reassignment(self):
+        self.click_action("Aprobar Reasignaci")
+        self.confirm_action()
+
+    def reject_reassignment(self):
+        self.click_action("Rechazar Reasignaci")
+        self.confirm_action()
+
     def request_reassignment(self, reason, case_id):
         self.click_action("Solicitar Reasignaci")
         self.fill_reassignment_reason(reason)
@@ -257,3 +265,38 @@ class CaseModalPage(BasePage):
 
     def save_beneficiary(self):
         self.click((By.XPATH, "//form//button[normalize-space()='Guardar']"))
+
+    def close_case_button_is_visible(self):
+        return bool(self.driver.find_elements(*self.button_by_text("Cerrar Caso")))
+
+    def open_documents(self):
+        self.click_action("Documentos")
+        self.find_visible((By.XPATH, "//h3[contains(normalize-space(), 'Documentos del Caso')]"))
+
+    def documents_modal_text(self):
+        modal = self.find_visible((By.XPATH, "//h3[contains(normalize-space(), 'Documentos del Caso')]/ancestor::div[contains(@class, 'max-w-2xl')]"))
+        return modal.text
+
+    def document_is_visible(self, document_name):
+        self.wait.until(lambda _: document_name in self.documents_modal_text())
+        return True
+
+    def upload_document(self, name, description, file_path):
+        self.fill((By.XPATH, "//h3[contains(normalize-space(), 'Documentos del Caso')]/ancestor::div[contains(@class, 'max-w-2xl')]//input[@placeholder='Ej. Contrato laboral']"), name)
+        self.fill((By.XPATH, "//h3[contains(normalize-space(), 'Documentos del Caso')]/ancestor::div[contains(@class, 'max-w-2xl')]//input[contains(@placeholder, 'descripci')]"), description)
+        file_input = self.find((By.XPATH, "//h3[contains(normalize-space(), 'Documentos del Caso')]/ancestor::div[contains(@class, 'max-w-2xl')]//input[@type='file']"))
+        file_input.send_keys(str(file_path))
+        self.click((By.XPATH, "//h3[contains(normalize-space(), 'Documentos del Caso')]/ancestor::div[contains(@class, 'max-w-2xl')]//button[normalize-space()='Subir documento']"))
+        self.document_is_visible(name)
+
+    def open_logs(self):
+        self.click_action("Seguimiento")
+        self.find_visible((By.XPATH, "//h3[contains(normalize-space(), 'Seguimiento del Caso')]"))
+
+    def logs_modal_text(self):
+        modal = self.find_visible((By.XPATH, "//h3[contains(normalize-space(), 'Seguimiento del Caso')]/ancestor::div[contains(@class, 'max-w-2xl')]"))
+        return modal.text
+
+    def log_is_visible(self, expected_text):
+        self.wait.until(lambda _: expected_text in self.logs_modal_text())
+        return True

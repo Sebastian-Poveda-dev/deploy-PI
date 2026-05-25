@@ -1,4 +1,6 @@
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 
 from pages.base_page import BasePage
 
@@ -85,3 +87,30 @@ class CasesPage(BasePage):
         row = self.find_visible((By.XPATH, f"//tbody/tr[td[contains(normalize-space(), '{username}')]]"))
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
         self.driver.execute_script("arguments[0].click();", row)
+
+    def wait_for_beneficiary_cases(self):
+        self.find_visible((By.XPATH, "//h1[contains(normalize-space(), 'Estado de mi caso')]"))
+        self.wait.until(lambda _: "Cargando estado del caso" not in self.visible_text())
+
+    def beneficiary_case_cards(self):
+        self.wait_for_beneficiary_cases()
+        return self.driver.find_elements(By.XPATH, "//button[.//*[contains(normalize-space(), 'Estado actual')]]")
+
+    def beneficiary_status_text(self):
+        self.wait_for_beneficiary_cases()
+        return self.visible_text()
+
+    def has_beneficiary_case_status(self):
+        return bool(self.beneficiary_case_cards()) and "Estado actual" in self.beneficiary_status_text()
+
+    def staff_cases_table_is_absent(self, timeout=3):
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                lambda driver: not driver.find_elements(By.CSS_SELECTOR, "table")
+            )
+            return True
+        except TimeoutException:
+            return False
+
+    def create_case_button_is_absent(self):
+        return not self.driver.find_elements(*self.button_by_text("Crear Caso"))
