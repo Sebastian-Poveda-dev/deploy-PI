@@ -101,3 +101,42 @@ def step_refresh_notifications_dashboard(context):
 def step_reassignment_notification_does_not_return(context):
     page = dashboard_notifications_page(context)
     assert page.notification_is_absent_for_case(context.reassignment_case["id"]), page.visible_text()
+
+
+@when("abre el caso preparado desde la notificacion de reasignacion")
+def step_open_prepared_case_from_reassignment_notification(context):
+    page = dashboard_notifications_page(context)
+    page.open_case_from_notification(context.reassignment_case["id"])
+    context.cases_page = CasesPage(context.driver)
+    context.case_modal = CaseModalPage(context.driver)
+    context.case_modal.wait_for_details(context.reassignment_case["id"])
+
+
+@then("el modal muestra la solicitud de reasignacion pendiente")
+def step_modal_shows_pending_reassignment(context):
+    assert context.case_modal.pending_reassignment_request_is_visible(), (
+        context.case_modal.details_text()
+    )
+
+
+@when("aprueba la reasignacion desde el modal del caso preparado")
+def step_approve_reassignment_from_modal(context):
+    context.case_modal.approve_reassignment()
+
+
+@then("el modal ya no muestra solicitud de reasignacion pendiente")
+def step_pending_reassignment_is_gone(context):
+    context.case_modal.wait_until_pending_reassignment_request_absent()
+
+
+@then("el student solicitante ya no aparece asignado al caso preparado")
+def step_requesting_student_is_no_longer_assigned(context):
+    context.cases_page.open()
+    student_marker = (
+        context.reassignment_case.get("student_name")
+        or context.reassignment_case["student"]
+    )
+    assert context.cases_page.wait_for_case_assignment_excludes(
+        context.reassignment_case["id"],
+        student_marker,
+    )

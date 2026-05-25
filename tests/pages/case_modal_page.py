@@ -149,6 +149,15 @@ class CaseModalPage(BasePage):
         self.click_action("Rechazar Reasignaci")
         self.confirm_action()
 
+    def pending_reassignment_request_is_visible(self):
+        return bool(self.driver.find_elements(
+            By.XPATH,
+            "//*[contains(normalize-space(), 'Solicitud de Reasignaci') and contains(normalize-space(), 'Pendiente')]",
+        ))
+
+    def wait_until_pending_reassignment_request_absent(self):
+        self.wait.until(lambda _: not self.pending_reassignment_request_is_visible())
+
     def request_reassignment(self, reason, case_id):
         self.click_action("Solicitar Reasignaci")
         self.fill_reassignment_reason(reason)

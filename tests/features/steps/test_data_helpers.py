@@ -511,6 +511,7 @@ print(json.dumps({{
     'request_id': request.id,
     'reason': reason,
     'student': student.username,
+    'student_name': (f'{{student.first_name}} {{student.last_name}}'.strip() or student.username),
     'advisor': advisor.username,
     'advisor_last_name': advisor.last_name,
     'status': case.status.name,
