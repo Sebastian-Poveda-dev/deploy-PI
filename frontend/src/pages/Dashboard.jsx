@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import ImportantNoticesPanel from '../components/ImportantNoticesPanel'
 import DashboardLayout from '../layouts/DashboardLayout'
 import { getDocumentNotifications } from '../services/documentService'
-import { getCancellationNotifications, markCancellationNotificationRead } from '../services/caseService'
+import { getCancellationNotifications } from '../services/caseService'
 import { getCurrentUser } from '../services/userService'
 
 function Dashboard() {
@@ -30,15 +30,15 @@ function Dashboard() {
         setCurrentUser(user)
 
         if (user?.role !== 'beneficiary') {
-          const [docNotifs, cancelNotifs] = await Promise.all([
+          const [docResult, cancelResult] = await Promise.allSettled([
             getDocumentNotifications(),
             user?.role === 'advisor' || user?.role === 'admin'
               ? getCancellationNotifications()
               : Promise.resolve([]),
           ])
           if (!isMounted) return
-          setNotifications(docNotifs)
-          setCancellationNotifs(cancelNotifs.filter((n) => !n.is_read))
+          if (docResult.status === 'fulfilled') setNotifications(docResult.value)
+          if (cancelResult.status === 'fulfilled') setCancellationNotifs(cancelResult.value)
         }
       } catch (requestError) {
         if (!isMounted) return
@@ -56,11 +56,6 @@ function Dashboard() {
 
     return () => { isMounted = false }
   }, [])
-
-  async function handleDismissCancellationNotif(notif) {
-    await markCancellationNotificationRead(notif.id)
-    setCancellationNotifs((prev) => prev.filter((n) => n.id !== notif.id))
-  }
 
   return (
     <DashboardLayout>
@@ -93,22 +88,13 @@ function Dashboard() {
                   <p className="text-sm font-semibold text-amber-900">{notif.message}</p>
                   <p className="mt-1 text-xs text-amber-700">Caso #{notif.case_id}</p>
                 </div>
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate('/dashboard/cases', { state: { openCaseId: notif.case_id } })}
-                    className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600"
-                  >
-                    Ver caso
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDismissCancellationNotif(notif)}
-                    className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
-                  >
-                    Descartar
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard/cases', { state: { openCaseId: notif.case_id } })}
+                  className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600"
+                >
+                  Ver caso
+                </button>
               </div>
             ))}
           </section>
