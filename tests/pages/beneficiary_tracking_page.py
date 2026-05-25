@@ -30,6 +30,11 @@ class BeneficiaryTrackingPage(BasePage):
     def open(self):
         self.open_path("/track")
 
+    def wait_for_public_form(self):
+        self.wait_for_url_contains("/track")
+        self.find_visible(self.IDENTIFICATION)
+        self.find_clickable(self.SEARCH_BUTTON)
+
     def wait_for_authenticated_dashboard(self):
         self.wait_for_url_contains("/dashboard/cases")
         self.find_visible(self.DASHBOARD_TITLE)
@@ -63,8 +68,13 @@ class BeneficiaryTrackingPage(BasePage):
         return self.visible_text()
 
     def has_cases(self):
-        text = self.results_text()
-        return "Caso 1" in text and "Progreso del caso" in text
+        text = strip_accents(self.results_text())
+        return "caso 1" in text and "progreso del caso" in text
+
+    def has_status_or_progress(self):
+        text = strip_accents(self.results_text())
+        statuses = [strip_accents(status) for status in self.STATUS_TEXTS]
+        return "progreso del caso" in text or any(status in text for status in statuses)
 
     def has_not_found_message(self):
         text = strip_accents(self.results_text())

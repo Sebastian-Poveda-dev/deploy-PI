@@ -6,3 +6,10 @@ Feature: Seguimiento del caso para beneficiarios
     Then entra a la vista autenticada de sus casos
     And no ve la tabla completa de staff
     And ve el estado de sus casos
+
+  Scenario: El seguimiento publico con cedula valida muestra los casos
+    Given existe un caso asociado a la cedula "1001234567"
+    When abre la pagina de seguimiento publico
+    And consulta el seguimiento publico con la cedula "1001234567"
+    Then el seguimiento publico de beneficiario muestra casos asociados
+    And el seguimiento publico de beneficiario muestra estado o progreso del caso

@@ -51,6 +51,7 @@ function App() {
       <SessionExpiryHandler />
       <Routes>
         <Route path="/" element={<BeneficiaryTracking />} />
+        <Route path="/track" element={<BeneficiaryTracking />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<BeneficiaryRegister />} />
         <Route path="/dashboard" element={<Dashboard />} />
